@@ -2,3 +2,4 @@ streamlit
 litellm
 pillow
 pymupdf
+pytest

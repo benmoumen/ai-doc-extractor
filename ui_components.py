@@ -2,22 +2,50 @@
 UI components and display functions for the Streamlit app.
 """
 import streamlit as st
-from config import PROVIDER_OPTIONS, MODEL_OPTIONS
+from config import PROVIDER_OPTIONS, MODEL_OPTIONS, DOCUMENT_SCHEMAS
 from utils import format_time_display, clear_session_state
 from cost_tracking import format_cost_display, should_show_cost
 from performance import get_provider_stats, format_performance_stats_display
+from schema_utils import get_available_document_types, format_validation_results_for_display
+from utils import is_schema_aware_response, extract_validation_info
 
 
 def render_sidebar():
     """
-    Render the sidebar with enhanced provider/model selection and performance stats.
+    Render the sidebar with document type selection, provider/model selection and performance stats.
     
     Returns:
-        tuple: (selected_provider, selected_model, selected_provider_name, selected_model_name, uploaded_file)
+        tuple: (selected_provider, selected_model, selected_provider_name, selected_model_name, uploaded_file, selected_doc_type, selected_doc_type_name)
     """
     with st.sidebar:
         # Enhanced header
         st.markdown("### ⚙️ Configuration")
+        
+        # Document type selection
+        st.markdown("**📋 Document Type**")
+        document_types = get_available_document_types()
+        
+        # Add "Generic Extraction" option
+        document_type_options = ["Generic Extraction"] + list(document_types.keys())
+        
+        selected_doc_type_name = st.selectbox(
+            "Choose document type",
+            options=document_type_options,
+            index=0,
+            help="Select the type of document you're uploading for schema-aware extraction"
+        )
+        
+        # Get document type ID
+        if selected_doc_type_name == "Generic Extraction":
+            selected_doc_type = None
+        else:
+            selected_doc_type = document_types[selected_doc_type_name]
+        
+        # Schema preview for selected document type
+        if selected_doc_type:
+            render_schema_preview(selected_doc_type, selected_doc_type_name)
+        
+        st.divider()
         
         # Provider selection with enhanced styling
         st.markdown("**🤖 AI Provider**")
@@ -81,7 +109,61 @@ def render_sidebar():
                 st.session_state['show_detailed_stats'] = not st.session_state.get('show_detailed_stats', False)
                 st.rerun()
             
-        return selected_provider, selected_model, selected_provider_name, selected_model_name, uploaded_file
+        return selected_provider, selected_model, selected_provider_name, selected_model_name, uploaded_file, selected_doc_type, selected_doc_type_name
+
+
+def render_schema_preview(document_type_id, document_type_name):
+    """
+    Render a preview of the selected document type's schema in the sidebar.
+    
+    Args:
+        document_type_id: ID of the selected document type
+        document_type_name: Display name of the document type
+    """
+    schema = DOCUMENT_SCHEMAS.get(document_type_id)
+    if not schema:
+        return
+    
+    with st.expander(f"📝 {document_type_name} Fields", expanded=False):
+        st.caption(schema.get('description', 'Document schema preview'))
+        
+        # Count required vs optional fields
+        required_count = 0
+        optional_count = 0
+        
+        # Display fields in a compact format
+        for field_name, field_def in schema['fields'].items():
+            is_required = field_def.get('required', False)
+            display_name = field_def.get('display_name', field_name)
+            description = field_def.get('description', 'No description')
+            field_type = field_def.get('type', 'unknown')
+            
+            if is_required:
+                required_count += 1
+                required_marker = "🔴"
+            else:
+                optional_count += 1
+                required_marker = "⚪"
+            
+            # Compact field display
+            st.markdown(f"{required_marker} **{display_name}** ({field_type})")
+            st.caption(f"    {description}")
+            
+            # Show examples if available
+            examples = field_def.get('examples', [])
+            if examples:
+                example_text = ', '.join(str(ex) for ex in examples[:2])
+                if len(examples) > 2:
+                    example_text += "..."
+                st.caption(f"    💡 Examples: {example_text}")
+        
+        # Summary
+        st.divider()
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Required", required_count, delta=None)
+        with col2:
+            st.metric("Optional", optional_count, delta=None)
 
 
 def render_performance_stats():
@@ -225,7 +307,7 @@ def render_cost_metrics(cost_data):
 
 def render_results_content(result_text, is_json, parsed_data, formatted_result):
     """
-    Render compact results content for testing/benchmarking focus.
+    Render results content with schema-aware validation feedback support.
     
     Args:
         result_text: Raw result text from API
@@ -233,6 +315,9 @@ def render_results_content(result_text, is_json, parsed_data, formatted_result):
         parsed_data: Parsed JSON data (if applicable)
         formatted_result: Formatted result text
     """
+    # Check if this is a schema-aware response
+    is_schema_response = is_json and is_schema_aware_response(parsed_data)
+    
     # Compact format indicator
     col1, col2 = st.columns([3, 1])
     
@@ -240,30 +325,47 @@ def render_results_content(result_text, is_json, parsed_data, formatted_result):
         # Content statistics in compact format
         char_count = len(result_text)
         word_count = len(result_text.split())
-        format_type = "JSON" if is_json else "Text"
         
-        st.caption(f"📊 {format_type} • {word_count:,} words • {char_count:,} chars")
+        if is_schema_response:
+            format_type = "Schema-Validated"
+            # Add document type info if available
+            doc_type = st.session_state.get('selected_document_type_name', 'Unknown')
+            st.caption(f"🎯 {format_type} ({doc_type}) • {word_count:,} words • {char_count:,} chars")
+        else:
+            format_type = "JSON" if is_json else "Text"
+            st.caption(f"📊 {format_type} • {word_count:,} words • {char_count:,} chars")
     
     with col2:
         if is_json:
-            display_mode = st.selectbox(
-                "View",
-                ["JSON", "Text"],
-                key="display_mode",
-                label_visibility="collapsed"
-            )
+            if is_schema_response:
+                display_mode = st.selectbox(
+                    "View",
+                    ["Validation", "JSON", "Text"],
+                    key="display_mode",
+                    label_visibility="collapsed"
+                )
+            else:
+                display_mode = st.selectbox(
+                    "View",
+                    ["JSON", "Text"],
+                    key="display_mode",
+                    label_visibility="collapsed"
+                )
         else:
             display_mode = "Text"
     
-    # Compact content display
-    current_mode = st.session_state.get('display_mode', 'JSON')
+    # Content display based on type and mode
+    current_mode = st.session_state.get('display_mode', 'Validation' if is_schema_response else 'JSON')
     
-    if is_json and current_mode == 'JSON':
-        # Compact JSON display
+    if is_schema_response and current_mode == 'Validation':
+        # Schema-aware validation display
+        render_schema_validation_results(parsed_data)
+    elif is_json and current_mode == 'JSON':
+        # Standard JSON display
         with st.expander("📋 Extracted Data", expanded=True):
             st.code(formatted_result, language='json', line_numbers=False)
     else:
-        # Compact text display  
+        # Text display  
         with st.expander("📄 Extracted Text", expanded=True):
             st.text_area(
                 "Content",
@@ -271,6 +373,95 @@ def render_results_content(result_text, is_json, parsed_data, formatted_result):
                 height=200,
                 label_visibility="collapsed"
             )
+
+
+def render_schema_validation_results(parsed_data):
+    """
+    Render schema validation results in a user-friendly format.
+    
+    Args:
+        parsed_data: Parsed JSON data with validation results
+    """
+    extracted_data, validation_results = extract_validation_info(parsed_data)
+    
+    if not extracted_data or not validation_results:
+        st.error("❌ Invalid schema response format")
+        return
+    
+    # Summary statistics
+    total_fields = len(validation_results)
+    valid_fields = sum(1 for v in validation_results.values() if v.get('status') == 'valid')
+    invalid_fields = sum(1 for v in validation_results.values() if v.get('status') == 'invalid')
+    missing_fields = sum(1 for v in validation_results.values() if v.get('status') == 'missing')
+    warning_fields = sum(1 for v in validation_results.values() if v.get('status') == 'warning')
+    
+    # Summary header
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("✅ Valid", valid_fields)
+    with col2:
+        st.metric("❌ Invalid", invalid_fields)
+    with col3:
+        st.metric("❓ Missing", missing_fields)
+    with col4:
+        st.metric("⚠️ Warnings", warning_fields)
+    
+    st.divider()
+    
+    # Detailed field validation results
+    st.subheader("🔍 Field Validation Results")
+    
+    for field_name, validation in validation_results.items():
+        status = validation.get('status', 'unknown')
+        message = validation.get('message', 'No details available')
+        extracted_value = validation.get('extracted_value', 'N/A')
+        confidence = validation.get('confidence', 0.0)
+        
+        # Status styling
+        status_config = {
+            'valid': {'icon': '✅', 'color': 'green'},
+            'invalid': {'icon': '❌', 'color': 'red'}, 
+            'warning': {'icon': '⚠️', 'color': 'orange'},
+            'missing': {'icon': '❓', 'color': 'gray'},
+            'unknown': {'icon': '❔', 'color': 'gray'}
+        }
+        
+        config = status_config.get(status, status_config['unknown'])
+        
+        # Field display
+        with st.container():
+            col1, col2, col3 = st.columns([2, 3, 2])
+            
+            with col1:
+                st.markdown(f"**{field_name}**")
+                st.markdown(f"{config['icon']} {status.title()}")
+            
+            with col2:
+                if extracted_value and extracted_value != 'N/A' and extracted_value is not None:
+                    st.code(str(extracted_value), language=None)
+                else:
+                    st.text("No value extracted")
+                st.caption(message)
+            
+            with col3:
+                if confidence > 0:
+                    # Confidence bar
+                    confidence_pct = int(confidence * 100)
+                    st.metric("Confidence", f"{confidence_pct}%")
+                    
+                    # Color-coded confidence bar
+                    if confidence >= 0.8:
+                        st.progress(confidence, "🟢 High")
+                    elif confidence >= 0.6:
+                        st.progress(confidence, "🟡 Medium")
+                    else:
+                        st.progress(confidence, "🔴 Low")
+        
+        st.divider()
+    
+    # Raw extracted data section (collapsible)
+    with st.expander("📊 Raw Extracted Data", expanded=False):
+        st.json(extracted_data)
 
 def render_json_content(formatted_result):
     """Render JSON content with better styling."""

@@ -10,7 +10,18 @@
       "Bash(.specify/scripts/create-new-feature.sh:*)",
       "Bash(.specify/scripts/setup-plan.sh:*)",
       "WebSearch",
-      "Bash(.specify/scripts/check-task-prerequisites.sh:*)"
+      "Bash(.specify/scripts/check-task-prerequisites.sh:*)",
+      "Bash(python -m pytest tests/test_schema_validation.py::TestSchemaLoading::test_get_available_document_types_returns_dict -v)",
+      "Bash(./venv/bin/python -m pytest tests/test_schema_validation.py::TestSchemaLoading::test_get_available_document_types_returns_dict -v)",
+      "Bash(python3:*)",
+      "Bash(venv/bin/pip install:*)",
+      "Bash(venv/bin/python -m pytest tests/test_schema_validation.py::TestSchemaLoading::test_get_available_document_types_returns_dict -v)",
+      "Bash(venv/bin/python -m pytest tests/test_validation_parsing.py::TestValidationResultParsing::test_parse_standard_validation_response -v)",
+      "Bash(venv/bin/python -m pytest tests/test_document_type_integration.py::TestDocumentTypeSelectionIntegration::test_document_type_selection_workflow -v)",
+      "Bash(venv/bin/python -m pytest tests/ -v --tb=short)",
+      "Bash(venv/bin/python -m pytest tests/test_document_type_integration.py::TestErrorHandlingIntegration::test_invalid_document_type_handling -v)",
+      "Bash(venv/bin/python -m pytest tests/test_document_type_integration.py::TestDocumentTypeSelectionIntegration::test_complete_extraction_workflow_with_schema -v)",
+      "Bash(venv/bin/python -m pytest tests/test_document_type_integration.py::TestExtractionWorkflowIntegration::test_complete_extraction_workflow_with_schema -v)"
     ],
     "deny": [],
     "ask": []

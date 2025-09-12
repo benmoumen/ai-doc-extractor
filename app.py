@@ -10,9 +10,10 @@ from litellm import completion
 
 # Import our modular components
 from config import setup_api_keys, get_model_param, PAGE_CONFIG
-from utils import extract_and_parse_json, image_to_base64, pdf_to_images
+from utils import extract_and_parse_json, image_to_base64, pdf_to_images, format_schema_aware_response
 from cost_tracking import calculate_cost_and_tokens
 from performance import update_performance_history, create_timing_data
+from schema_utils import create_schema_prompt
 from ui_components import (
     render_sidebar, render_results_header, render_results_content,
     render_download_buttons, render_pdf_controls, render_welcome_message
@@ -28,7 +29,7 @@ setup_api_keys()
 st.subheader("DATA EXTRACTION APP", divider='orange')
 
 # Render sidebar and get selections
-selected_provider, selected_model, selected_provider_name, selected_model_name, uploaded_file = render_sidebar()
+selected_provider, selected_model, selected_provider_name, selected_model_name, uploaded_file, selected_doc_type, selected_doc_type_name = render_sidebar()
 
 if uploaded_file is not None:
     # Create two-column layout for image and results
@@ -98,10 +99,22 @@ if uploaded_file is not None:
                 # Get properly formatted model parameter
                 model_param = get_model_param(selected_provider, selected_model)
                 
+                # Generate prompt based on document type selection
+                if selected_doc_type:
+                    # Use schema-aware prompt for structured extraction
+                    prompt_text = create_schema_prompt(selected_doc_type)
+                    temperature = 0.1  # Lower temperature for consistent structured output
+                    max_tokens = 1500  # More tokens for detailed validation feedback
+                else:
+                    # Fallback to generic extraction
+                    prompt_text = "Analyze the text in the provided image. Extract all readable content and present it in JSON format"
+                    temperature = 0.7
+                    max_tokens = 1024
+                
                 # Time the API call specifically
                 api_start_time = time.time()
                 
-                # Standard vision request for all providers
+                # Vision request with dynamic prompt
                 response = completion(
                     model=model_param,
                     messages=[
@@ -110,7 +123,7 @@ if uploaded_file is not None:
                             "content": [
                                 {
                                     "type": "text", 
-                                    "text": """Analyze the text in the provided image. Extract all readable content and present it in JSON format"""
+                                    "text": prompt_text
                                 },
                                 {
                                     "type": "image_url",
@@ -121,8 +134,8 @@ if uploaded_file is not None:
                             ],
                         }
                     ],
-                    temperature=0.7,
-                    max_tokens=1024,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
                 )
                 
                 api_end_time = time.time()
@@ -134,6 +147,10 @@ if uploaded_file is not None:
                 
                 # Parse and format JSON if present
                 is_json, parsed_data, formatted_text = extract_and_parse_json(response_text)
+                
+                # For schema-aware responses, use enhanced formatting
+                if selected_doc_type and is_json and parsed_data:
+                    formatted_text = format_schema_aware_response(parsed_data)
                 
                 # Calculate total processing time
                 end_time = time.time()
@@ -148,6 +165,8 @@ if uploaded_file is not None:
                 st.session_state['processing_time'] = processing_time
                 st.session_state['token_usage'] = token_usage_data
                 st.session_state['cost_data'] = cost_data
+                st.session_state['selected_document_type'] = selected_doc_type
+                st.session_state['selected_document_type_name'] = selected_doc_type_name
                 
                 # Update performance history for comparison
                 update_performance_history(

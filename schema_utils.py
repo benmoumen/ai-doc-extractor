@@ -27,6 +27,10 @@ def get_document_schema(document_type_id: str) -> Optional[Dict[str, Any]]:
     Returns:
         Schema dictionary or None if not found
     """
+    # Handle invalid input types
+    if not isinstance(document_type_id, str) or not document_type_id:
+        return None
+    
     return DOCUMENT_SCHEMAS.get(document_type_id)
 
 

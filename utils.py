@@ -120,12 +120,95 @@ def format_time_display(time_seconds):
         return f"{time_seconds:.2f}s"
 
 
+def is_schema_aware_response(parsed_data):
+    """
+    Check if parsed JSON data contains schema-aware validation results.
+    
+    Args:
+        parsed_data: Parsed JSON data dictionary
+        
+    Returns:
+        bool: True if response contains validation results structure
+    """
+    if not isinstance(parsed_data, dict):
+        return False
+    
+    return ('extracted_data' in parsed_data and 
+            'validation_results' in parsed_data and
+            isinstance(parsed_data['validation_results'], dict))
+
+
+def extract_validation_info(parsed_data):
+    """
+    Extract validation information from schema-aware response.
+    
+    Args:
+        parsed_data: Parsed JSON data with validation results
+        
+    Returns:
+        tuple: (extracted_data, validation_results) or (None, None) if not schema-aware
+    """
+    if not is_schema_aware_response(parsed_data):
+        return None, None
+    
+    extracted_data = parsed_data.get('extracted_data', {})
+    validation_results = parsed_data.get('validation_results', {})
+    
+    return extracted_data, validation_results
+
+
+def format_schema_aware_response(parsed_data):
+    """
+    Format schema-aware response for better display.
+    
+    Args:
+        parsed_data: Parsed JSON data with validation results
+        
+    Returns:
+        str: Formatted text for display
+    """
+    if not is_schema_aware_response(parsed_data):
+        return json.dumps(parsed_data, indent=2, ensure_ascii=False)
+    
+    extracted_data, validation_results = extract_validation_info(parsed_data)
+    
+    # Create a more readable format
+    formatted_sections = []
+    
+    # Extracted Data section
+    formatted_sections.append("📊 EXTRACTED DATA:")
+    for field_name, field_value in extracted_data.items():
+        formatted_sections.append(f"  • {field_name}: {field_value}")
+    
+    formatted_sections.append("\n🔍 VALIDATION RESULTS:")
+    for field_name, validation in validation_results.items():
+        status = validation.get('status', 'unknown')
+        message = validation.get('message', 'No details')
+        confidence = validation.get('confidence', 0.0)
+        
+        status_icons = {
+            'valid': '✅',
+            'invalid': '❌',
+            'warning': '⚠️',
+            'missing': '❓'
+        }
+        icon = status_icons.get(status, '❔')
+        
+        formatted_sections.append(f"  {icon} {field_name}: {status.upper()}")
+        formatted_sections.append(f"     {message}")
+        if confidence > 0:
+            formatted_sections.append(f"     Confidence: {confidence:.1%}")
+    
+    return "\n".join(formatted_sections)
+
+
 def clear_session_state():
     """Clear all result-related session state variables."""
     keys_to_clear = [
         'ocr_result', 'provider_used', 'is_json_result', 
         'parsed_data', 'formatted_result', 'current_image', 
-        'processing_time', 'token_usage', 'cost_data'
+        'processing_time', 'token_usage', 'cost_data',
+        'selected_document_type', 'selected_document_type_name'
     ]
     for key in keys_to_clear:
         if key in st.session_state:
