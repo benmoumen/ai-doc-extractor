@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source:*)",
+      "Bash(streamlit run:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:mozilla-ai.github.io)",
+      "Bash(pip install:*)",
+      "WebFetch(domain:docs.litellm.ai)",
+      "Bash(.specify/scripts/create-new-feature.sh:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
