@@ -2,6 +2,7 @@
 
 **Input**: Design documents from `/specs/001-our-data-extraction/`
 **Prerequisites**: plan.md (required), research.md, data-model.md, contracts/ui_contracts.md, quickstart.md
+**Implementation Guide**: `/specs/001-our-data-extraction/implementation-guide.md` (detailed instructions with cross-references)
 
 ## Execution Flow (main)
 ```
@@ -110,46 +111,71 @@ Task: "Create schema version control in schema_management/versioning.py - versio
 
 ## Task Details
 
-### T001: Schema Management Module Structure
+**📖 For detailed implementation instructions with code examples and cross-references, see `/specs/001-our-data-extraction/implementation-guide.md`**
+
+### T001: Schema Management Module Structure  
+**Reference**: Implementation Guide Setup Phase → T001 section
 Create `/Users/moulaymehdi/PROJECTS/00AI/ai-doc-extractor/schema_management/` directory with `__init__.py`. Set up module structure for UI components, storage, and utilities.
 
-### T002: Data Directory Structure
+### T002: Data Directory Structure  
+**Reference**: Implementation Guide Setup Phase → T002 section  
+**Cross-ref**: research.md Storage Architecture (lines 164-174)
 Create `/Users/moulaymehdi/PROJECTS/00AI/ai-doc-extractor/data/schemas/` and `/Users/moulaymehdi/PROJECTS/00AI/ai-doc-extractor/data/templates/` directories. Initialize SQLite database for metadata at `data/schema_metadata.db`.
 
-### T003: Streamlit Elements Dependency
+### T003: Streamlit Elements Dependency  
+**Reference**: Implementation Guide Setup Phase → T003 section  
+**Cross-ref**: research.md streamlit-elements decision (lines 143-154)
 Add streamlit-elements>=0.1.0 and python-jsonschema>=4.0.0 to requirements.txt for advanced UI components and schema validation.
 
-### T004: Schema Storage Utilities
+### T004: Schema Storage Utilities  
+**Reference**: Implementation Guide Setup Phase → T004 section  
+**Cross-ref**: data-model.md Storage Strategy (lines 324-346)
 Create base schema storage interface and file system utilities for JSON schema persistence and SQLite metadata management.
 
-### T005: Schema Storage CRUD Tests
+### T005: Schema Storage CRUD Tests  
+**Reference**: Implementation Guide Tests Phase → T005 section  
+**Cross-ref**: data-model.md entities (lines 181-307)
 Write failing tests for schema creation, reading, updating, deletion, and version management functionality.
 
-### T006: Schema Builder UI Tests
+### T006: Schema Builder UI Tests  
+**Reference**: Implementation Guide Tests Phase → T006 section  
+**Cross-ref**: contracts/ui_contracts.md Main Interface Contract (lines 15-28)
 Write failing tests for main schema management page with multi-tab interface and navigation state management.
 
-### T007: Field Editor Component Tests
+### T007: Field Editor Component Tests  
+**Reference**: Implementation Guide Tests Phase → T007 section  
+**Cross-ref**: contracts/ui_contracts.md Field Editor Contract (lines 94-131)
 Write failing tests for drag-drop field list, field configuration editor, and field type selection components.
 
-### T008: Validation Rule Builder Tests
+### T008: Validation Rule Builder Tests  
+**Reference**: Implementation Guide Tests Phase → T008 section
 Write failing tests for visual validation rule creation, rule type selection, and validation parameter configuration.
 
-### T009: Import/Export Tests
+### T009: Import/Export Tests  
+**Reference**: Implementation Guide Tests Phase → T009 section
 Write failing tests for JSON schema import with validation, export functionality, and conflict resolution.
 
-### T010: Template System Tests
+### T010: Template System Tests  
+**Reference**: Implementation Guide Tests Phase → T010 section
 Write failing tests for field template management, validation template application, and template categorization.
 
-### T011: Integration Workflow Tests
+### T011: Integration Workflow Tests  
+**Reference**: Implementation Guide Tests Phase → T011 section
 Write failing end-to-end tests for complete schema creation → document extraction workflow integration.
 
-### T012: SchemaStorage Implementation
+### T012: SchemaStorage Implementation  
+**Reference**: Implementation Guide Core Implementation → T012 section  
+**Cross-ref**: data-model.md Storage Strategy (lines 324-346)
 Implement dynamic schema persistence with JSON file storage and SQLite metadata tracking including version control.
 
-### T013: Field Template System
+### T013: Field Template System  
+**Reference**: Implementation Guide Core Implementation → T013 section  
+**Cross-ref**: data-model.md FieldTemplate (lines 181-209)
 Create reusable field configuration templates organized by categories (personal, contact, identification, etc.).
 
-### T014: Validation Template System
+### T014: Validation Template System  
+**Reference**: Implementation Guide Core Implementation → T014 section  
+**Cross-ref**: data-model.md ValidationTemplate (lines 212-235)
 Implement common validation rule patterns applicable to different field types with reusable configurations.
 
 ### T015: Schema Version Control
