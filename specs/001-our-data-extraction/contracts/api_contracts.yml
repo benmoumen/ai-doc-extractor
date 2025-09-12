@@ -1,0 +1,299 @@
+openapi: 3.0.3
+info:
+  title: Schema-Driven Document Data Extraction API
+  version: 0.1.0
+  description: API for extracting structured data from documents using predefined schemas
+
+paths:
+  /api/document-types:
+    get:
+      summary: List available document types
+      description: Retrieve all predefined document types that can be processed
+      responses:
+        '200':
+          description: List of available document types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentType'
+              example:
+                - id: "national_id"
+                  name: "National ID"
+                  description: "Government-issued identification"
+                  examples:
+                    full_name: "John Smith"
+                    id_number: "AB123456789"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/document-types/{document_type_id}/schema:
+    get:
+      summary: Get schema for document type
+      description: Retrieve the field definitions and validation rules for a specific document type
+      parameters:
+        - name: document_type_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "national_id"
+      responses:
+        '200':
+          description: Document type schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schema'
+        '404':
+          description: Document type not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/extract:
+    post:
+      summary: Extract data from document
+      description: Upload a document and extract structured data according to selected schema
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                document:
+                  type: string
+                  format: binary
+                  description: Image or PDF file to process
+                document_type_id:
+                  type: string
+                  description: ID of the document type schema to use
+                  example: "national_id"
+              required:
+                - document
+                - document_type_id
+      responses:
+        '200':
+          description: Extraction completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractionResult'
+        '400':
+          description: Invalid request (unsupported file format, missing document type, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Document processing failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    DocumentType:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the document type
+          example: "national_id"
+        name:
+          type: string
+          description: Human-readable name
+          example: "National ID"
+        description:
+          type: string
+          description: Brief description of the document type
+          example: "Government-issued national identification document"
+        examples:
+          type: object
+          description: Example values for common fields
+          additionalProperties:
+            type: string
+      required:
+        - id
+        - name
+        - description
+
+    Schema:
+      type: object
+      properties:
+        document_type_id:
+          type: string
+          example: "national_id"
+        fields:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/Field'
+        version:
+          type: string
+          example: "1.0.0"
+      required:
+        - document_type_id
+        - fields
+        - version
+
+    Field:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "id_number"
+        display_name:
+          type: string
+          example: "ID Number"
+        type:
+          type: string
+          enum: [string, number, date, boolean, email, phone]
+          example: "string"
+        required:
+          type: boolean
+          example: true
+        validation_rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationRule'
+        description:
+          type: string
+          example: "Unique identification number on the document"
+        examples:
+          type: array
+          items:
+            type: string
+          example: ["AB123456789", "CD987654321"]
+      required:
+        - name
+        - display_name
+        - type
+        - required
+
+    ValidationRule:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [required, pattern, length, range, format, custom]
+          example: "pattern"
+        value:
+          type: string
+          description: Validation parameter (varies by type)
+          example: "^[A-Z]{2}[0-9]{9}$"
+        min:
+          type: number
+          description: Minimum value (for range/length validations)
+        max:
+          type: number
+          description: Maximum value (for range/length validations)
+        message:
+          type: string
+          description: Error message when validation fails
+          example: "Must be 2 letters followed by 9 numbers"
+        severity:
+          type: string
+          enum: [error, warning, info]
+          example: "error"
+      required:
+        - type
+        - message
+
+    ExtractionResult:
+      type: object
+      properties:
+        document_type_id:
+          type: string
+          example: "national_id"
+        extracted_data:
+          type: object
+          description: Raw extracted field values
+          additionalProperties: true
+          example:
+            full_name: "John Smith"
+            id_number: "AB123456789"
+            date_of_birth: "1985-03-15"
+        validation_results:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ValidationResult'
+        processing_metadata:
+          type: object
+          properties:
+            model:
+              type: string
+              example: "groq/meta-llama/llama-4-scout-17b-16e-instruct"
+            processing_time:
+              type: number
+              example: 2.34
+            tokens_used:
+              type: object
+              properties:
+                input:
+                  type: integer
+                  example: 1250
+                output:
+                  type: integer
+                  example: 380
+        extraction_timestamp:
+          type: string
+          format: date-time
+          example: "2025-09-12T14:30:00Z"
+      required:
+        - document_type_id
+        - extracted_data
+        - validation_results
+        - processing_metadata
+        - extraction_timestamp
+
+    ValidationResult:
+      type: object
+      properties:
+        field_name:
+          type: string
+          example: "date_of_birth"
+        status:
+          type: string
+          enum: [valid, invalid, warning, missing]
+          example: "valid"
+        message:
+          type: string
+          example: "Date format is correct and value is reasonable"
+        extracted_value:
+          description: The value that was extracted
+          example: "1985-03-15"
+        expected_format:
+          type: string
+          example: "YYYY-MM-DD"
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.95
+      required:
+        - field_name
+        - status
+        - message
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        code:
+          type: string
+          description: Error code
+        details:
+          type: object
+          description: Additional error details
+      required:
+        - error
