@@ -176,31 +176,197 @@ DocumentType (1) --> (many) ExtractionResult [via document_type_id]
 5. **Result Generation**: AI returns ExtractionResult with ValidationResults per field
 6. **Display**: UI shows extracted data with validation feedback
 
-## Implementation Notes
+## Schema Management UI Entities
 
-### Storage Strategy
-Based on research findings, schemas will be stored as Python dictionaries in configuration files:
+### FieldTemplate
+Reusable field configuration templates for common field types.
 
+**Fields**:
+- `id`: Unique template identifier (string) - e.g., "personal_name", "government_id"
+- `name`: Display name for the template (string)
+- `description`: Template description (string)
+- `field_config`: Pre-configured Field object (dict)
+- `category`: Template category (string) - e.g., "personal", "contact", "identification"
+- `usage_count`: How often template is used (int, optional)
+
+**Example**:
 ```python
-# config.py extension
-DOCUMENT_SCHEMAS = {
-    "national_id": {
-        "id": "national_id",
-        "name": "National ID",
-        "description": "Government-issued identification",
-        "fields": {...}
+{
+    "id": "personal_name",
+    "name": "Personal Name Field",
+    "description": "Standard configuration for person's full name",
+    "field_config": {
+        "type": "string",
+        "required": True,
+        "validation_rules": [
+            {"type": "required", "message": "Name is required"},
+            {"type": "length", "min": 2, "max": 100, "message": "Name must be 2-100 characters"}
+        ]
     },
-    # Additional document types...
+    "category": "personal",
+    "usage_count": 15
 }
 ```
 
+### ValidationTemplate
+Common validation rule patterns for reuse across fields.
+
+**Fields**:
+- `id`: Unique template identifier (string)
+- `name`: Display name (string)
+- `description`: Template description (string)
+- `validation_rules`: Array of pre-configured ValidationRule objects
+- `applicable_types`: Field types this template applies to (array)
+- `category`: Template category (string)
+
+**Example**:
+```python
+{
+    "id": "government_id_format",
+    "name": "Government ID Format",
+    "description": "Standard government ID validation (2 letters + 9 numbers)",
+    "validation_rules": [
+        {"type": "pattern", "value": "^[A-Z]{2}[0-9]{9}$", "message": "Must be 2 letters followed by 9 numbers"},
+        {"type": "length", "min": 11, "max": 11, "message": "Must be exactly 11 characters"}
+    ],
+    "applicable_types": ["string"],
+    "category": "identification"
+}
+```
+
+### SchemaVersion
+Version control for schema changes with audit trail.
+
+**Fields**:
+- `schema_id`: Reference to parent schema (string)
+- `version`: Version identifier (string) - e.g., "v1.0", "v1.1", "v2.0"
+- `changes`: Description of changes made (string)
+- `created_date`: Version creation timestamp (datetime)
+- `created_by`: User/system that created version (string)
+- `is_active`: Whether this version is currently active (boolean)
+- `migration_notes`: Notes for upgrading from previous version (string, optional)
+- `schema_data`: Complete schema snapshot (dict)
+
+**Example**:
+```python
+{
+    "schema_id": "national_id",
+    "version": "v1.1",
+    "changes": "Added optional 'middle_name' field, updated ID number validation pattern",
+    "created_date": "2025-09-12T15:30:00Z",
+    "created_by": "admin_user",
+    "is_active": True,
+    "migration_notes": "Existing extractions will continue to work; new field is optional",
+    "schema_data": {...}  # Complete schema at this version
+}
+```
+
+### SchemaImportResult
+Results and validation feedback from schema import operations.
+
+**Fields**:
+- `import_id`: Unique import operation identifier (string)
+- `status`: Import status (enum) - "success", "partial", "failed"
+- `imported_schemas`: List of successfully imported schema IDs (array)
+- `failed_schemas`: List of schemas that failed import (array)
+- `warnings`: Non-fatal issues encountered (array of strings)
+- `errors`: Fatal errors that prevented import (array of strings)
+- `import_timestamp`: When import was performed (datetime)
+- `source_file`: Original import file name (string)
+- `validation_details`: Detailed validation results per schema (dict)
+
+**Example**:
+```python
+{
+    "import_id": "import_20250912_153045",
+    "status": "partial",
+    "imported_schemas": ["custom_national_id", "custom_passport"],
+    "failed_schemas": ["invalid_business_license"],
+    "warnings": ["Field 'middle_name' in custom_national_id has no validation rules"],
+    "errors": ["Schema 'invalid_business_license' missing required 'fields' property"],
+    "import_timestamp": "2025-09-12T15:30:45Z",
+    "source_file": "custom_schemas.json",
+    "validation_details": {
+        "custom_national_id": {"valid": True, "field_count": 5},
+        "invalid_business_license": {"valid": False, "missing_fields": ["fields"]}
+    }
+}
+```
+
+### SchemaBuilder (UI State)
+Transient state object for the schema building interface.
+
+**Fields**:
+- `current_schema`: Working schema being edited (Schema object)
+- `active_tab`: Currently selected UI tab (string)
+- `selected_field`: Currently selected field for editing (string, optional)
+- `unsaved_changes`: Whether schema has unsaved modifications (boolean)
+- `validation_errors`: Current form validation errors (array)
+- `preview_mode`: Whether preview panel is active (boolean)
+- `field_templates`: Available field templates (array of FieldTemplate)
+- `validation_templates`: Available validation templates (array of ValidationTemplate)
+
+## Extended Entity Relationships
+
+```
+DocumentType (1) --> (1) Schema
+Schema (1) --> (many) Field
+Schema (1) --> (many) SchemaVersion [version history]
+Field (1) --> (many) ValidationRule
+Field (many) --> (many) FieldTemplate [via templates]
+ValidationRule (many) --> (many) ValidationTemplate [via templates]
+SchemaImportResult (1) --> (many) Schema [import operations]
+SchemaBuilder (1) --> (1) Schema [current editing session]
+```
+
+## Implementation Notes
+
+### Storage Strategy
+Based on research findings, the system will use a hybrid approach:
+
+```python
+# Static schemas remain in config.py (backward compatibility)
+DOCUMENT_SCHEMAS = {...}
+
+# Dynamic schemas stored in data/ directory
+data/
+├── schemas/              # User-created schemas (JSON files)
+│   ├── custom_national_id_v1.json
+│   └── custom_passport_v1.json
+├── templates/           # Field and validation templates
+│   ├── field_types.json
+│   └── validation_presets.json
+└── schema_metadata.db   # SQLite: versions, timestamps, usage stats
+```
+
+### Schema Loading Priority
+1. Check for user-created schemas in `data/schemas/`
+2. Fall back to static schemas in `config.py`
+3. Merge templates from `data/templates/`
+
 ### State Management
 - Current document type selection stored in Streamlit session state
+- Schema builder state maintained during editing session
 - Extraction results cached for download/review
-- Schema definitions loaded at application startup
+- Schema definitions loaded dynamically (cached for performance)
+
+### Dynamic Schema Management
+- Schema CRUD operations through UI interface
+- Real-time validation during schema building
+- Version control with rollback capabilities
+- Import/export functionality for schema sharing
+- Template system for common field configurations
+
+### UI Component Architecture
+- Multi-tab schema builder interface
+- Drag-drop field reordering (via streamlit-elements)
+- Real-time preview with sample data
+- Form validation with immediate feedback
+- Template selection and customization
 
 ### Extensibility
-- New document types added via configuration updates
-- Field types extensible through type enumeration
-- Validation rules support custom implementations
-- Schema versioning enables backward compatibility
+- Plugin architecture for custom field types
+- Template system for reusable configurations
+- Custom validation rule definitions
+- Schema versioning and migration support
+- Import/export for schema portability
