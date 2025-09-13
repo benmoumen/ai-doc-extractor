@@ -28,8 +28,12 @@ Streamlit-based document data extraction application using LiteLLM for unified L
 5. Parse JSON response and display results
 6. Track costs and performance metrics
 
-## Active Development: Schema Management UI Extension
+## Active Development: AI Schema Generation Extension
 
+### Feature Branch: `003-ai-schema-generation` - IN PROGRESS
+AI-powered schema generation from sample documents, extending the existing schema management system with intelligent field extraction and validation rule inference.
+
+### Previous Feature: Schema Management UI Extension - COMPLETED ✓
 ### Feature Branch: `002-schema-management-ui` - COMPLETED ✓
 Rich web-based interface for creating, editing, and managing document type schemas without code changes.
 
@@ -152,11 +156,12 @@ DOCUMENT_SCHEMAS = {
 ## Recent Context Updates
 - **2025-09-12**: Added schema-driven extraction feature planning
 - **2025-09-13**: Completed Schema Management UI Extension implementation ✓
-- **Architecture Decision**: Extended existing LiteLLM integration rather than rebuild
-- **Storage Implementation**: Hybrid JSON/SQLite storage with backup/restore
-- **Validation Strategy**: Multi-level validation with AI-integrated extraction
-- **Testing Strategy**: Comprehensive test suite with performance monitoring
-- **Documentation**: Complete API reference and implementation guides
+- **2025-09-13**: Started AI Schema Generation feature development (003-ai-schema-generation)
+- **Architecture Decision**: Extended existing LiteLLM integration for AI analysis
+- **Storage Implementation**: Hybrid JSON/SQLite storage extended with AI metadata
+- **AI Integration**: Multi-stage analysis with confidence scoring and fallback strategies
+- **Performance Optimization**: Document processing pipeline with caching for <500ms responses
+- **Testing Strategy**: TDD approach with comprehensive contract and integration tests
 
 ## Key Dependencies
 ```
@@ -176,11 +181,12 @@ pymupdf               # PDF processing
 ## Notes for Claude
 - This is an active Streamlit project with working LLM integration
 - **COMPLETED**: Schema Management UI Extension with comprehensive implementation ✓
-- Schema feature enhances existing capabilities without breaking compatibility
-- All components are fully tested with comprehensive error handling
-- Ready for end-to-end testing and deployment
-- Module documentation available in `docs/schema_management.md`
-- Implementation examples available in `specs/002-schema-management-ui/quickstart.md`
+- **IN PROGRESS**: AI Schema Generation from Sample Documents (003-ai-schema-generation)
+- AI feature extends existing schema management with intelligent field extraction
+- Uses same LiteLLM infrastructure as main extraction function
+- Multi-stage AI analysis with confidence scoring and user review workflow
+- Planning phase complete with research, data models, contracts, and quickstart guide
+- Implementation follows TDD methodology with contract tests first
 
 ## Schema Management Integration Points
 - **Main Application**: Enhanced document type selection in sidebar

@@ -1,0 +1,415 @@
+openapi: 3.0.3
+info:
+  title: AI Analyzer Service
+  description: Service for analyzing sample documents and extracting structured information for schema generation
+  version: 1.0.0
+
+paths:
+  /analyze_document:
+    post:
+      summary: Analyze uploaded document for schema generation
+      description: Analyzes a sample document to identify document type, extract fields, and generate confidence scores
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sample_document:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      description: Unique document identifier
+                    content:
+                      type: string
+                      format: byte
+                      description: Base64 encoded document content
+                    filename:
+                      type: string
+                      description: Original filename
+                    file_type:
+                      type: string
+                      enum: [pdf, image]
+                    page_number:
+                      type: integer
+                      minimum: 0
+                      description: Page to analyze (PDF only, 0-indexed)
+                analysis_options:
+                  type: object
+                  properties:
+                    model_preference:
+                      type: string
+                      enum: [llama-scout, mistral-small, auto]
+                      default: auto
+                    confidence_threshold:
+                      type: number
+                      minimum: 0.0
+                      maximum: 1.0
+                      default: 0.6
+                    include_alternatives:
+                      type: boolean
+                      default: true
+                    max_fields:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 50
+              required:
+                - sample_document
+      responses:
+        '200':
+          description: Document analysis completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  analysis_result:
+                    $ref: '#/components/schemas/AIAnalysisResult'
+                  processing_metadata:
+                    type: object
+                    properties:
+                      processing_time_ms:
+                        type: number
+                      model_used:
+                        type: string
+                      cache_hit:
+                        type: boolean
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Document processing failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /analyze_document/confidence_scores:
+    post:
+      summary: Get detailed confidence scores for extracted fields
+      description: Provides detailed confidence scoring for each field with explanations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                analysis_result_id:
+                  type: string
+                field_ids:
+                  type: array
+                  items:
+                    type: string
+                  description: Specific fields to score (empty = all fields)
+              required:
+                - analysis_result_id
+      responses:
+        '200':
+          description: Confidence scores calculated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  field_confidence_scores:
+                    type: object
+                    additionalProperties:
+                      $ref: '#/components/schemas/FieldConfidenceScores'
+
+  /analyze_document/retry:
+    post:
+      summary: Retry document analysis with different parameters
+      description: Re-analyze document with different AI model or parameters
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sample_document_id:
+                  type: string
+                retry_options:
+                  type: object
+                  properties:
+                    alternative_model:
+                      type: string
+                      enum: [llama-scout, mistral-small]
+                    adjusted_confidence_threshold:
+                      type: number
+                      minimum: 0.0
+                      maximum: 1.0
+                    focus_areas:
+                      type: array
+                      items:
+                        type: string
+                      description: Specific areas to re-analyze
+              required:
+                - sample_document_id
+                - retry_options
+      responses:
+        '200':
+          description: Retry analysis completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  analysis_result:
+                    $ref: '#/components/schemas/AIAnalysisResult'
+                  comparison:
+                    type: object
+                    properties:
+                      previous_result_id:
+                        type: string
+                      improvements:
+                        type: array
+                        items:
+                          type: string
+                      confidence_changes:
+                        type: object
+                        additionalProperties:
+                          type: number
+
+components:
+  schemas:
+    AIAnalysisResult:
+      type: object
+      properties:
+        id:
+          type: string
+        sample_document_id:
+          type: string
+        analysis_timestamp:
+          type: string
+          format: date-time
+        model_used:
+          type: string
+        processing_time:
+          type: number
+        detected_document_type:
+          type: string
+        document_type_confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+        alternative_types:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              confidence:
+                type: number
+                minimum: 0.0
+                maximum: 1.0
+              reasoning:
+                type: string
+        layout_description:
+          type: string
+        field_locations:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              x:
+                type: number
+              y:
+                type: number
+              width:
+                type: number
+              height:
+                type: number
+              page:
+                type: integer
+        extracted_fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtractedField'
+        total_fields_detected:
+          type: integer
+        high_confidence_fields:
+          type: integer
+        requires_review_count:
+          type: integer
+        overall_quality_score:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+        confidence_distribution:
+          type: object
+          properties:
+            high:
+              type: integer
+              description: Fields with confidence >= 0.8
+            medium:
+              type: integer
+              description: Fields with confidence 0.6-0.8
+            low:
+              type: integer
+              description: Fields with confidence < 0.6
+      required:
+        - id
+        - sample_document_id
+        - analysis_timestamp
+        - model_used
+        - detected_document_type
+        - document_type_confidence
+
+    ExtractedField:
+      type: object
+      properties:
+        id:
+          type: string
+        detected_name:
+          type: string
+        display_name:
+          type: string
+        field_type:
+          type: string
+          enum: [string, number, date, boolean, email, phone, url]
+        source_text:
+          type: string
+          nullable: true
+        confidence_scores:
+          $ref: '#/components/schemas/FieldConfidenceScores'
+        location:
+          type: object
+          properties:
+            bounding_box:
+              type: object
+              properties:
+                x:
+                  type: number
+                y:
+                  type: number
+                width:
+                  type: number
+                height:
+                  type: number
+            page_number:
+              type: integer
+            context_description:
+              type: string
+        properties:
+          type: object
+          properties:
+            is_required:
+              type: boolean
+            has_validation_hints:
+              type: boolean
+            field_group:
+              type: string
+              nullable: true
+        alternatives:
+          type: object
+          properties:
+            alternative_names:
+              type: array
+              items:
+                type: string
+            alternative_types:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  confidence:
+                    type: number
+        review_status:
+          type: object
+          properties:
+            requires_review:
+              type: boolean
+            review_reason:
+              type: string
+              nullable: true
+            extraction_method:
+              type: string
+      required:
+        - id
+        - detected_name
+        - display_name
+        - field_type
+        - confidence_scores
+
+    FieldConfidenceScores:
+      type: object
+      properties:
+        visual_clarity:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          description: How clearly the field is visible in the document
+        label_confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          description: Confidence in field label identification
+        value_confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          description: Confidence in extracted value
+        type_confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          description: Confidence in inferred data type
+        context_confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          description: How well field fits document context
+        overall_confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          description: Calculated overall confidence
+        confidence_explanation:
+          type: string
+          description: Human-readable explanation of confidence levels
+      required:
+        - visual_clarity
+        - label_confidence
+        - value_confidence
+        - type_confidence
+        - context_confidence
+        - overall_confidence
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type identifier
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error context
+        timestamp:
+          type: string
+          format: date-time
+        request_id:
+          type: string
+          description: Request identifier for tracing
+      required:
+        - error
+        - message
