@@ -21,7 +21,9 @@
       "Bash(venv/bin/python -m pytest tests/ -v --tb=short)",
       "Bash(venv/bin/python -m pytest tests/test_document_type_integration.py::TestErrorHandlingIntegration::test_invalid_document_type_handling -v)",
       "Bash(venv/bin/python -m pytest tests/test_document_type_integration.py::TestDocumentTypeSelectionIntegration::test_complete_extraction_workflow_with_schema -v)",
-      "Bash(venv/bin/python -m pytest tests/test_document_type_integration.py::TestExtractionWorkflowIntegration::test_complete_extraction_workflow_with_schema -v)"
+      "Bash(venv/bin/python -m pytest tests/test_document_type_integration.py::TestExtractionWorkflowIntegration::test_complete_extraction_workflow_with_schema -v)",
+      "Bash(venv/bin/python:*)",
+      "Bash(sqlite3:*)"
     ],
     "deny": [],
     "ask": []
