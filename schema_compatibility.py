@@ -17,7 +17,6 @@ from schema_utils import (
     validate_extracted_data_completeness,
     format_validation_results_for_display
 )
-from config import DOCUMENT_SCHEMAS
 
 
 logger = logging.getLogger(__name__)

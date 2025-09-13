@@ -2,11 +2,11 @@
 UI components and display functions for the Streamlit app.
 """
 import streamlit as st
-from config import PROVIDER_OPTIONS, MODEL_OPTIONS, DOCUMENT_SCHEMAS
+from config import PROVIDER_OPTIONS, MODEL_OPTIONS
 from utils import format_time_display, clear_session_state
 from cost_tracking import format_cost_display, should_show_cost
 from performance import get_provider_stats, format_performance_stats_display
-from schema_utils import get_available_document_types, get_all_available_schemas, format_validation_results_for_display
+from schema_utils import get_available_document_types, get_all_available_schemas, format_validation_results_for_display, get_document_schema
 from utils import is_schema_aware_response, extract_validation_info
 
 
@@ -18,39 +18,34 @@ def render_sidebar():
         tuple: (selected_provider, selected_model, selected_provider_name, selected_model_name, uploaded_file, selected_doc_type, selected_doc_type_name)
     """
     with st.sidebar:
-        # Enhanced header
-        st.markdown("### ⚙️ Configuration")
-        
-        # Document type selection
-        st.markdown("**📋 Document Type**")
         all_schemas = get_all_available_schemas()
-        
+
         # Separate predefined and custom schemas
         predefined_schemas = {}
         custom_schemas = {}
-        
+
         for schema_id, schema in all_schemas.items():
             if schema.get('custom', False):
                 custom_schemas[schema['name']] = schema_id
             else:
                 predefined_schemas[schema['name']] = schema_id
-        
+
         # Build options list with visual grouping
         document_type_options = ["Generic Extraction"]
-        
+
         # Add predefined schemas
         if predefined_schemas:
             document_type_options.append("--- Predefined Schemas ---")
             document_type_options.extend(list(predefined_schemas.keys()))
-        
+
         # Add custom schemas with custom indicator
         if custom_schemas:
             document_type_options.append("--- Custom Schemas ---")
             for schema_name in custom_schemas.keys():
                 document_type_options.append(f"🔧 {schema_name}")
-        
+
         selected_doc_type_name = st.selectbox(
-            "Choose document type",
+            "📋 Document Type",
             options=document_type_options,
             index=0,
             help="Select the type of document you're uploading for schema-aware extraction. Custom schemas are marked with 🔧"
@@ -77,24 +72,22 @@ def render_sidebar():
             render_schema_preview(selected_doc_type, clean_name)
         
         st.divider()
-        
-        # Provider selection with enhanced styling
-        st.markdown("**🤖 AI Provider**")
+
+        # Provider selection
         selected_provider_name = st.selectbox(
-            "Choose your AI provider",
+            "🤖 AI Provider",
             options=list(PROVIDER_OPTIONS.keys()),
             index=0,
             help="Select the AI service provider for processing"
         )
-        
+
         selected_provider = PROVIDER_OPTIONS[selected_provider_name]
-        
+
         # Model selection based on provider
         model_options = MODEL_OPTIONS.get(selected_provider, {})
-        
-        st.markdown("**🧠 AI Model**")
+
         selected_model_name = st.selectbox(
-            "Choose the AI model",
+            "🧠 AI Model",
             options=list(model_options.keys()),
             index=0,
             help="Select the specific AI model for text extraction"
@@ -109,11 +102,10 @@ def render_sidebar():
             st.info("🚀 High-performance processing with detailed extraction")
         
         st.divider()
-        
-        # Enhanced file upload section
-        st.markdown("### 📁 Upload Document")
+
+        # File upload section
         uploaded_file = st.file_uploader(
-            "Select an image or PDF file",
+            "📁 Upload Document",
             type=['png', 'jpg', 'jpeg', 'pdf'],
             help="Supported formats: PNG, JPG, JPEG, PDF"
         )
@@ -151,7 +143,7 @@ def render_schema_preview(document_type_id, document_type_name):
         document_type_id: ID of the selected document type
         document_type_name: Display name of the document type
     """
-    schema = DOCUMENT_SCHEMAS.get(document_type_id)
+    schema = get_document_schema(document_type_id)
     if not schema:
         return
     

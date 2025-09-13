@@ -6,6 +6,7 @@ import re
 import fitz  # PyMuPDF
 from PIL import Image
 import io
+import base64
 import streamlit as st
 
 
@@ -91,17 +92,17 @@ def pdf_to_images(pdf_file, page_num=0):
 def image_to_base64(image):
     """
     Convert PIL Image to base64 string.
-    
+
     Args:
         image: PIL Image object
-        
+
     Returns:
         str: Base64 encoded image string
     """
     img_buffer = io.BytesIO()
     image.save(img_buffer, format='PNG')
     image_bytes = img_buffer.getvalue()
-    return img_buffer, image_bytes
+    return base64.b64encode(image_bytes).decode('utf-8')
 
 
 def format_time_display(time_seconds):
