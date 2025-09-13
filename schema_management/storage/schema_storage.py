@@ -16,7 +16,6 @@ from contextlib import contextmanager
 from ..models.schema import Schema, SchemaStatus
 from ..models.field import Field
 from ..models.validation_rule import ValidationRule
-from ..models.templates import FieldTemplate, SchemaTemplate, TemplateLibrary
 
 
 logger = logging.getLogger(__name__)
@@ -41,11 +40,10 @@ class SchemaStorage:
         Initialize storage manager
         
         Args:
-            data_dir: Base directory for storage (contains schemas/, db/, templates/)
+            data_dir: Base directory for storage (contains schemas/, db/)
         """
         self.data_dir = Path(data_dir)
         self.schemas_dir = self.data_dir / "schemas"
-        self.templates_dir = self.data_dir / "templates"
         self.db_path = self.data_dir / "db" / "schema_metadata.db"
         
         # Thread safety
@@ -61,7 +59,6 @@ class SchemaStorage:
         """Create necessary directories if they don't exist"""
         self.data_dir.mkdir(exist_ok=True)
         self.schemas_dir.mkdir(exist_ok=True)
-        self.templates_dir.mkdir(exist_ok=True)
         (self.data_dir / "db").mkdir(exist_ok=True)
     
     def _init_database(self) -> None:
@@ -100,21 +97,6 @@ class SchemaStorage:
                 )
             """)
             
-            # Template metadata table
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS template_metadata (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    template_type TEXT NOT NULL, -- 'field' or 'schema'
-                    category TEXT,
-                    usage_count INTEGER DEFAULT 0,
-                    is_system_template BOOLEAN DEFAULT 0,
-                    status TEXT DEFAULT 'active',
-                    created_date TEXT,
-                    updated_date TEXT,
-                    created_by TEXT DEFAULT 'system'
-                )
-            """)
             
             # Usage tracking table
             conn.execute("""
@@ -169,10 +151,6 @@ class SchemaStorage:
             filename = f"{schema_id}.json"
         return self.schemas_dir / filename
     
-    def _get_template_file_path(self, template_id: str, template_type: str) -> Path:
-        """Get file path for template JSON storage"""
-        filename = f"{template_type}_{template_id}.json"
-        return self.templates_dir / filename
     
     def save_schema(self, schema_id: str, schema_data: Union[Schema, Dict[str, Any]]) -> bool:
         """
@@ -473,122 +451,10 @@ class SchemaStorage:
                 logger.error(f"Failed to get usage analytics: {e}")
                 return {}
     
-    def save_field_template(self, template: FieldTemplate) -> bool:
-        """Save field template"""
-        with self._lock:
-            try:
-                # Save to JSON file
-                template_file = self._get_template_file_path(template.id, "field")
-                with open(template_file, 'w', encoding='utf-8') as f:
-                    json.dump(template.to_dict(), f, indent=2, ensure_ascii=False)
-                
-                # Save metadata to database
-                with self._get_db_connection() as conn:
-                    conn.execute("""
-                        INSERT OR REPLACE INTO template_metadata 
-                        (id, name, template_type, category, usage_count, 
-                         is_system_template, status, created_date, updated_date, created_by)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        template.id, template.name, "field", template.category,
-                        template.usage_count, template.is_system_template,
-                        template.status.value, template.created_date.isoformat(),
-                        template.updated_date.isoformat(), template.created_by
-                    ))
-                    conn.commit()
-                
-                return True
-                
-            except Exception as e:
-                logger.error(f"Failed to save field template {template.id}: {e}")
-                return False
     
-    def load_field_template(self, template_id: str) -> Optional[FieldTemplate]:
-        """Load field template"""
-        with self._lock:
-            try:
-                template_file = self._get_template_file_path(template_id, "field")
-                if not template_file.exists():
-                    return None
-                
-                with open(template_file, 'r', encoding='utf-8') as f:
-                    template_data = json.load(f)
-                
-                return FieldTemplate.from_dict(template_data)
-                
-            except Exception as e:
-                logger.error(f"Failed to load field template {template_id}: {e}")
-                return None
     
-    def save_schema_template(self, template: SchemaTemplate) -> bool:
-        """Save schema template"""
-        with self._lock:
-            try:
-                # Save to JSON file
-                template_file = self._get_template_file_path(template.id, "schema")
-                with open(template_file, 'w', encoding='utf-8') as f:
-                    json.dump(template.to_dict(), f, indent=2, ensure_ascii=False)
-                
-                # Save metadata to database
-                with self._get_db_connection() as conn:
-                    conn.execute("""
-                        INSERT OR REPLACE INTO template_metadata 
-                        (id, name, template_type, category, usage_count, 
-                         is_system_template, status, created_date, updated_date, created_by)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        template.id, template.name, "schema", template.category.value,
-                        template.usage_count, template.is_system_template,
-                        template.status.value, template.created_date.isoformat(),
-                        template.updated_date.isoformat(), template.created_by
-                    ))
-                    conn.commit()
-                
-                return True
-                
-            except Exception as e:
-                logger.error(f"Failed to save schema template {template.id}: {e}")
-                return False
     
-    def load_schema_template(self, template_id: str) -> Optional[SchemaTemplate]:
-        """Load schema template"""
-        with self._lock:
-            try:
-                template_file = self._get_template_file_path(template_id, "schema")
-                if not template_file.exists():
-                    return None
-                
-                with open(template_file, 'r', encoding='utf-8') as f:
-                    template_data = json.load(f)
-                
-                return SchemaTemplate.from_dict(template_data)
-                
-            except Exception as e:
-                logger.error(f"Failed to load schema template {template_id}: {e}")
-                return None
     
-    def list_templates(self, template_type: str = None) -> List[Dict[str, Any]]:
-        """List templates"""
-        with self._lock:
-            try:
-                with self._get_db_connection() as conn:
-                    query = "SELECT * FROM template_metadata WHERE 1=1"
-                    params = []
-                    
-                    if template_type:
-                        query += " AND template_type = ?"
-                        params.append(template_type)
-                    
-                    query += " ORDER BY usage_count DESC, updated_date DESC"
-                    
-                    cursor = conn.execute(query, params)
-                    rows = cursor.fetchall()
-                    
-                    return [dict(row) for row in rows]
-                    
-            except Exception as e:
-                logger.error(f"Failed to list templates: {e}")
-                return []
     
     def add_audit_log(self, schema_id: str, action: str, old_value: Any = None,
                      new_value: Any = None, user_id: str = None, 
@@ -662,7 +528,6 @@ class SchemaStorage:
             try:
                 stats = {
                     "json_files": len(list(self.schemas_dir.glob("*.json"))),
-                    "template_files": len(list(self.templates_dir.glob("*.json"))),
                     "db_size_bytes": os.path.getsize(self.db_path) if self.db_path.exists() else 0
                 }
                 
@@ -673,7 +538,6 @@ class SchemaStorage:
                     stats["total_versions"] = conn.execute("SELECT COUNT(*) FROM schema_versions").fetchone()[0]
                     stats["usage_records"] = conn.execute("SELECT COUNT(*) FROM usage_log").fetchone()[0]
                     stats["audit_records"] = conn.execute("SELECT COUNT(*) FROM audit_trail").fetchone()[0]
-                    stats["templates"] = conn.execute("SELECT COUNT(*) FROM template_metadata").fetchone()[0]
                 
                 return stats
                 

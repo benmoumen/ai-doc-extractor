@@ -8,7 +8,6 @@ from typing import Dict, List, Optional, Any, Tuple
 import re
 
 from ..models.schema import Schema, SchemaStatus
-from ..models.templates import TemplateCategory
 
 
 def render_basic_info_tab(schema_data: Dict[str, Any] = None, 
@@ -25,7 +24,7 @@ def render_basic_info_tab(schema_data: Dict[str, Any] = None,
     """
     # Default categories if none provided
     if available_categories is None:
-        available_categories = [cat.value for cat in TemplateCategory]
+        available_categories = ["Custom", "Documents", "Forms", "Financial", "Legal", "Medical"]
     
     # Initialize default values
     defaults = {

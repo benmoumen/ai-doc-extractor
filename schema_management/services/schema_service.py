@@ -263,15 +263,35 @@ class SchemaService:
                 active_only=filters.get("active_only", True)
             )
             
+            # Enrich schemas with field count
+            for schema in schemas:
+                try:
+                    # Load the full schema to count fields
+                    full_schema = self.storage.load_schema(schema["id"])
+                    if full_schema:
+                        # Convert Schema object to dict if needed
+                        if hasattr(full_schema, 'to_dict'):
+                            schema_dict = full_schema.to_dict()
+                        else:
+                            schema_dict = full_schema
+
+                        fields = schema_dict.get("fields", {})
+                        schema["field_count"] = len(fields) if isinstance(fields, dict) else 0
+                    else:
+                        schema["field_count"] = 0
+                except Exception as e:
+                    logger.warning(f"Failed to count fields for schema {schema['id']}: {e}")
+                    schema["field_count"] = 0
+
             # Apply additional filters
             if filters.get("search_term"):
                 search_term = filters["search_term"].lower()
                 schemas = [
-                    s for s in schemas 
-                    if search_term in s["name"].lower() or 
+                    s for s in schemas
+                    if search_term in s["name"].lower() or
                        search_term in s.get("description", "").lower()
                 ]
-            
+
             if filters.get("created_by"):
                 schemas = [s for s in schemas if s.get("created_by") == filters["created_by"]]
             

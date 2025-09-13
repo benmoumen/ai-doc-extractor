@@ -52,39 +52,31 @@ def render_empty_field_list() -> None:
     """Render empty field list with guidance"""
     st.info("🆕 No fields added yet. Start by adding your first field!")
     
-    col1, col2, col3 = st.columns(3)
-    
+    col1, col2 = st.columns(2)
+
     with col1:
         if st.button("➕ Add Field", type="primary"):
             st.session_state.action = "add_field"
-    
+
     with col2:
-        if st.button("📋 Use Template"):
-            st.session_state.action = "use_template"
-    
-    with col3:
         if st.button("📥 Import Fields"):
             st.session_state.action = "import_fields"
 
 
 def render_field_list_controls() -> None:
     """Render field list management controls"""
-    col1, col2, col3, col4 = st.columns(4)
-    
+    col1, col2, col3 = st.columns(3)
+
     with col1:
         if st.button("➕ Add Field", type="primary"):
             st.session_state.field_list_action = "add_field"
             st.session_state.selected_field_id = None
-    
+
     with col2:
-        if st.button("📋 Templates"):
-            st.session_state.field_list_action = "show_templates"
-    
-    with col3:
         if st.button("📥 Import"):
             st.session_state.field_list_action = "import_fields"
-    
-    with col4:
+
+    with col3:
         if st.button("🔄 Reset Order"):
             st.session_state.field_list_action = "reset_order"
 
@@ -231,21 +223,23 @@ def create_field_list_item(field: Dict[str, Any], editable: bool = True):
         ),
         mui.ListItemSecondaryAction(
             mui.ButtonGroup([
-                mui.IconButton(
-                    mui.Icon("edit"),
-                    onClick=lambda: st.session_state.update({
-                        "field_list_action": "edit_field",
-                        "selected_field_id": field["name"]
-                    })
-                ) if editable else None,
-                mui.IconButton(
-                    mui.Icon("delete"),
-                    onClick=lambda: st.session_state.update({
-                        "field_list_action": "delete_field",
-                        "selected_field_id": field["name"]
-                    })
-                ) if editable else None
-            ].filter(None))
+                button for button in [
+                    mui.IconButton(
+                        mui.Icon("edit"),
+                        onClick=lambda: st.session_state.update({
+                            "field_list_action": "edit_field",
+                            "selected_field_id": field["name"]
+                        })
+                    ) if editable else None,
+                    mui.IconButton(
+                        mui.Icon("delete"),
+                        onClick=lambda: st.session_state.update({
+                            "field_list_action": "delete_field",
+                            "selected_field_id": field["name"]
+                        })
+                    ) if editable else None
+                ] if button is not None
+            ])
         ),
         sx={
             "bgcolor": "background.paper",
@@ -293,47 +287,6 @@ def render_field_details(field: Dict[str, Any]) -> None:
             st.write(f"- {rule_type}: {rule_message}")
 
 
-def render_field_statistics(fields: List[Dict[str, Any]]) -> None:
-    """Render field statistics"""
-    if not fields:
-        return
-    
-    st.subheader("📊 Field Statistics")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("Total Fields", len(fields))
-    
-    with col2:
-        required_count = sum(1 for f in fields if f.get("required"))
-        st.metric("Required Fields", required_count)
-    
-    with col3:
-        with_validation = sum(1 for f in fields if f.get("validation_rules"))
-        st.metric("With Validation", with_validation)
-    
-    with col4:
-        with_dependencies = sum(1 for f in fields if f.get("depends_on"))
-        st.metric("With Dependencies", with_dependencies)
-    
-    # Field type distribution
-    type_counts = {}
-    for field in fields:
-        field_type = field.get("type", "unknown")
-        type_counts[field_type] = type_counts.get(field_type, 0) + 1
-    
-    if type_counts:
-        st.subheader("📈 Field Type Distribution")
-        
-        # Create columns for type distribution
-        type_items = list(type_counts.items())
-        cols = st.columns(min(len(type_items), 4))
-        
-        for i, (field_type, count) in enumerate(type_items):
-            icon = get_field_type_icon(field_type)
-            with cols[i % len(cols)]:
-                st.metric(f"{icon} {field_type.title()}", count)
 
 
 def render_field_search_and_filter(fields: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -518,26 +471,6 @@ def render_field_list_help() -> None:
         """)
 
 
-def export_fields_to_template(fields: List[Dict[str, Any]], template_name: str) -> Dict[str, Any]:
-    """
-    Export selected fields as a template
-    
-    Args:
-        fields: List of field dictionaries to export
-        template_name: Name for the template
-        
-    Returns:
-        Template data dictionary
-    """
-    template_data = {
-        "name": template_name,
-        "description": f"Field template with {len(fields)} fields",
-        "fields": fields,
-        "created_date": st.session_state.get("current_timestamp"),
-        "field_count": len(fields)
-    }
-    
-    return template_data
 
 
 def validate_field_order(fields: List[Dict[str, Any]]) -> List[str]:
