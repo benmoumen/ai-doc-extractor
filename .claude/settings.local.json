@@ -26,7 +26,10 @@
       "Bash(sqlite3:*)",
       "Bash(python:*)",
       "Bash(find:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(PYTHONPATH=/Users/moulaymehdi/PROJECTS/00AI/ai-doc-extractor venv/bin/python -m pytest tests/ai_schema_generation/test_utils.py::TestDataValidator::test_validate_string_field -v)",
+      "Bash(sed:*)",
+      "Bash(venv/bin/streamlit run app_with_ai_schema.py --server.port=8501)"
     ],
     "deny": [],
     "ask": []
