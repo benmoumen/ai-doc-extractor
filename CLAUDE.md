@@ -28,23 +28,30 @@ Streamlit-based document data extraction application using LiteLLM for unified L
 5. Parse JSON response and display results
 6. Track costs and performance metrics
 
-## Active Development: Schema-Driven Extraction
+## Active Development: Schema Management UI Extension
 
-### Feature Branch: `001-our-data-extraction`
-Adding schema-driven document data extraction with predefined document types and field validation.
+### Feature Branch: `002-schema-management-ui`
+Adding rich web-based interface for creating, editing, and managing document type schemas without code changes.
 
-### Key Changes in Progress
-- **Document Type Selection**: UI for choosing schema (National ID, Passport, etc.)
-- **Schema-Aware Prompts**: Enhanced prompts with field definitions and validation rules
-- **Validation Integration**: AI-embedded validation feedback per field
-- **Enhanced Results Display**: Validation status indicators and detailed feedback
+### Key Features in Development
+- **Visual Schema Builder**: Drag-and-drop interface for creating document schemas
+- **Field Management**: Advanced field editor with validation rule builder
+- **Real-time Preview**: Live schema preview and testing capabilities
+- **Import/Export**: Schema sharing and backup functionality
+- **Version Control**: Schema versioning with migration support
+
+### New Technology Stack
+- **streamlit-elements**: Advanced UI components for drag-drop functionality
+- **python-jsonschema**: Schema validation and compliance checking
+- **SQLite + JSON**: Hybrid storage for metadata and schema content
+- **Material-UI**: Professional UI components via streamlit-elements
 
 ### Implementation Approach
-- Extend existing LiteLLM integration (no architectural changes)
-- Add schema definitions to config.py as Python dictionaries
-- Enhance prompt engineering for structured validation
-- Preserve existing cost tracking and performance monitoring
-- Maintain backward compatibility with generic extraction
+- Extend existing Streamlit app with new schema management module
+- Hybrid storage: JSON files for schemas, SQLite for metadata/indexing
+- Preserve existing schema compatibility and extraction workflow
+- Test-driven development with comprehensive contract testing
+- Modular architecture in schema_management/ package
 
 ## Development Guidelines
 
@@ -113,10 +120,12 @@ DOCUMENT_SCHEMAS = {
 
 ## Key Dependencies
 ```
-streamlit      # Web UI framework
-litellm        # Unified LLM API
-pillow         # Image processing  
-pymupdf        # PDF processing
+streamlit              # Web UI framework
+streamlit-elements     # Advanced UI components (NEW)
+python-jsonschema      # Schema validation (NEW)
+litellm               # Unified LLM API
+pillow                # Image processing  
+pymupdf               # PDF processing
 ```
 
 ## Development Commands
