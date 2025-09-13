@@ -23,7 +23,10 @@
       "Bash(venv/bin/python -m pytest tests/test_document_type_integration.py::TestDocumentTypeSelectionIntegration::test_complete_extraction_workflow_with_schema -v)",
       "Bash(venv/bin/python -m pytest tests/test_document_type_integration.py::TestExtractionWorkflowIntegration::test_complete_extraction_workflow_with_schema -v)",
       "Bash(venv/bin/python:*)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(python:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []
