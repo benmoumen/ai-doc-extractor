@@ -1,3 +1,14 @@
 venv/
 .streamlit/secrets.toml
 __pycache__
+logs/*
+
+# Runtime data and generated content
+data/schemas/*.json
+data/db/schema_metadata.db
+data/cache/
+data/performance_metrics.db
+backups/
+
+# IDE and local settings
+.claude/settings.local.json
