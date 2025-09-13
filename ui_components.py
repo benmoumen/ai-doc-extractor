@@ -6,7 +6,7 @@ from config import PROVIDER_OPTIONS, MODEL_OPTIONS, DOCUMENT_SCHEMAS
 from utils import format_time_display, clear_session_state
 from cost_tracking import format_cost_display, should_show_cost
 from performance import get_provider_stats, format_performance_stats_display
-from schema_utils import get_available_document_types, format_validation_results_for_display
+from schema_utils import get_available_document_types, get_all_available_schemas, format_validation_results_for_display
 from utils import is_schema_aware_response, extract_validation_info
 
 
@@ -23,27 +23,58 @@ def render_sidebar():
         
         # Document type selection
         st.markdown("**📋 Document Type**")
-        document_types = get_available_document_types()
+        all_schemas = get_all_available_schemas()
         
-        # Add "Generic Extraction" option
-        document_type_options = ["Generic Extraction"] + list(document_types.keys())
+        # Separate predefined and custom schemas
+        predefined_schemas = {}
+        custom_schemas = {}
+        
+        for schema_id, schema in all_schemas.items():
+            if schema.get('custom', False):
+                custom_schemas[schema['name']] = schema_id
+            else:
+                predefined_schemas[schema['name']] = schema_id
+        
+        # Build options list with visual grouping
+        document_type_options = ["Generic Extraction"]
+        
+        # Add predefined schemas
+        if predefined_schemas:
+            document_type_options.append("--- Predefined Schemas ---")
+            document_type_options.extend(list(predefined_schemas.keys()))
+        
+        # Add custom schemas with custom indicator
+        if custom_schemas:
+            document_type_options.append("--- Custom Schemas ---")
+            for schema_name in custom_schemas.keys():
+                document_type_options.append(f"🔧 {schema_name}")
         
         selected_doc_type_name = st.selectbox(
             "Choose document type",
             options=document_type_options,
             index=0,
-            help="Select the type of document you're uploading for schema-aware extraction"
+            help="Select the type of document you're uploading for schema-aware extraction. Custom schemas are marked with 🔧"
         )
         
         # Get document type ID
-        if selected_doc_type_name == "Generic Extraction":
+        if selected_doc_type_name == "Generic Extraction" or selected_doc_type_name.startswith("---"):
             selected_doc_type = None
         else:
-            selected_doc_type = document_types[selected_doc_type_name]
+            # Handle custom schema name format (remove 🔧 prefix)
+            clean_name = selected_doc_type_name.replace("🔧 ", "")
+            
+            # Look up schema ID
+            if clean_name in predefined_schemas:
+                selected_doc_type = predefined_schemas[clean_name]
+            elif clean_name in custom_schemas:
+                selected_doc_type = custom_schemas[clean_name]
+            else:
+                selected_doc_type = None
         
         # Schema preview for selected document type
         if selected_doc_type:
-            render_schema_preview(selected_doc_type, selected_doc_type_name)
+            clean_name = selected_doc_type_name.replace("🔧 ", "")
+            render_schema_preview(selected_doc_type, clean_name)
         
         st.divider()
         

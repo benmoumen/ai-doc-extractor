@@ -3,23 +3,217 @@ Schema utilities for document data extraction.
 Handles schema loading, validation, and prompt generation for AI processing.
 """
 import json
+import os
 from typing import Dict, Any, List, Optional, Tuple
 from config import DOCUMENT_SCHEMAS
 
 
+def load_custom_schemas() -> Dict[str, Dict[str, Any]]:
+    """
+    Load custom schemas from the schema management system.
+    
+    Returns:
+        Dictionary of custom schemas with schema_id as key
+    """
+    custom_schemas = {}
+    data_dir = "data"
+    
+    if not os.path.exists(data_dir):
+        return custom_schemas
+    
+    # Load schemas from JSON files in data directory
+    for filename in os.listdir(data_dir):
+        if filename.endswith('.json') and filename.startswith('schema_'):
+            schema_path = os.path.join(data_dir, filename)
+            try:
+                with open(schema_path, 'r', encoding='utf-8') as f:
+                    schema_data = json.load(f)
+                    
+                # Convert custom schema format to extraction format
+                if _is_valid_custom_schema(schema_data):
+                    extraction_schema = _convert_custom_schema_to_extraction_format(schema_data)
+                    custom_schemas[schema_data['id']] = extraction_schema
+                    
+            except (json.JSONDecodeError, IOError, KeyError) as e:
+                # Skip invalid schema files
+                continue
+    
+    return custom_schemas
+
+
+def _is_valid_custom_schema(schema_data: Dict[str, Any]) -> bool:
+    """
+    Check if a loaded schema has the expected custom schema format.
+    
+    Args:
+        schema_data: Schema data from JSON file
+        
+    Returns:
+        True if valid custom schema format
+    """
+    required_fields = ['id', 'name', 'description', 'fields']
+    return all(field in schema_data for field in required_fields)
+
+
+def _convert_custom_schema_to_extraction_format(custom_schema: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Convert custom schema format to the format expected by extraction workflow.
+    
+    Args:
+        custom_schema: Schema in custom management format
+        
+    Returns:
+        Schema in extraction format
+    """
+    # Convert field list to field dictionary
+    fields_dict = {}
+    
+    for field_data in custom_schema.get('fields', []):
+        field_name = field_data.get('name', '')
+        if not field_name:
+            continue
+            
+        # Convert field format
+        extraction_field = {
+            'name': field_name,
+            'display_name': field_data.get('display_name', field_name),
+            'type': field_data.get('type', 'string'),
+            'required': field_data.get('required', False),
+            'description': field_data.get('description', ''),
+        }
+        
+        # Convert validation rules
+        validation_rules = field_data.get('validation_rules', [])
+        if validation_rules:
+            converted_rules = []
+            for rule in validation_rules:
+                converted_rule = _convert_validation_rule_format(rule)
+                if converted_rule:
+                    converted_rules.append(converted_rule)
+            extraction_field['validation_rules'] = converted_rules
+        
+        # Add examples if available
+        if 'examples' in field_data:
+            extraction_field['examples'] = field_data['examples']
+            
+        # Add options for select fields
+        if field_data.get('type') in ['select', 'multiselect'] and 'options' in field_data:
+            extraction_field['options'] = field_data['options']
+        
+        fields_dict[field_name] = extraction_field
+    
+    # Create extraction format schema
+    extraction_schema = {
+        'id': custom_schema['id'],
+        'name': custom_schema['name'],
+        'description': custom_schema['description'],
+        'fields': fields_dict,
+        'category': custom_schema.get('category', 'Custom'),
+        'version': custom_schema.get('version', '1.0.0'),
+        'custom': True  # Mark as custom schema
+    }
+    
+    return extraction_schema
+
+
+def _convert_validation_rule_format(rule: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    Convert validation rule from custom format to extraction format.
+    
+    Args:
+        rule: Validation rule in custom format
+        
+    Returns:
+        Validation rule in extraction format or None if invalid
+    """
+    rule_type = rule.get('rule_type')
+    if not rule_type:
+        return None
+    
+    # Map rule types from custom format to extraction format
+    rule_type_mapping = {
+        'required': 'required',
+        'min_length': 'length',
+        'max_length': 'length', 
+        'regex': 'pattern',
+        'min_value': 'range',
+        'max_value': 'range',
+        'email_format': 'format',
+        'phone_format': 'format',
+        'date_format': 'format'
+    }
+    
+    mapped_type = rule_type_mapping.get(rule_type, rule_type)
+    
+    converted_rule = {
+        'type': mapped_type,
+        'message': rule.get('message', 'Validation failed'),
+        'severity': rule.get('severity', 'error')
+    }
+    
+    # Convert parameters based on rule type
+    parameters = rule.get('parameters', {})
+    
+    if rule_type in ['min_length', 'max_length']:
+        if 'length' in parameters:
+            if rule_type == 'min_length':
+                converted_rule['min'] = parameters['length']
+            else:
+                converted_rule['max'] = parameters['length']
+    
+    elif rule_type == 'regex':
+        if 'pattern' in parameters:
+            converted_rule['value'] = parameters['pattern']
+    
+    elif rule_type in ['min_value', 'max_value']:
+        if 'value' in parameters:
+            if rule_type == 'min_value':
+                converted_rule['min'] = parameters['value']
+            else:
+                converted_rule['max'] = parameters['value']
+    
+    elif rule_type in ['email_format', 'phone_format', 'date_format']:
+        format_mapping = {
+            'email_format': 'email',
+            'phone_format': 'phone', 
+            'date_format': 'date'
+        }
+        converted_rule['value'] = format_mapping.get(rule_type, rule_type)
+    
+    return converted_rule
+
+
+def get_all_available_schemas() -> Dict[str, Dict[str, Any]]:
+    """
+    Get all available schemas (both predefined and custom).
+    
+    Returns:
+        Dictionary of all schemas with schema_id as key
+    """
+    # Start with predefined schemas
+    all_schemas = DOCUMENT_SCHEMAS.copy()
+    
+    # Add custom schemas
+    custom_schemas = load_custom_schemas()
+    all_schemas.update(custom_schemas)
+    
+    return all_schemas
+
+
 def get_available_document_types() -> Dict[str, str]:
     """
-    Get mapping of document type names to IDs.
+    Get mapping of document type names to IDs (includes both predefined and custom schemas).
     
     Returns:
         dict: Mapping of display names to document type IDs
     """
-    return {schema['name']: doc_id for doc_id, schema in DOCUMENT_SCHEMAS.items()}
+    all_schemas = get_all_available_schemas()
+    return {schema['name']: doc_id for doc_id, schema in all_schemas.items()}
 
 
 def get_document_schema(document_type_id: str) -> Optional[Dict[str, Any]]:
     """
-    Get schema for a specific document type.
+    Get schema for a specific document type (includes both predefined and custom schemas).
     
     Args:
         document_type_id: ID of the document type
@@ -31,7 +225,8 @@ def get_document_schema(document_type_id: str) -> Optional[Dict[str, Any]]:
     if not isinstance(document_type_id, str) or not document_type_id:
         return None
     
-    return DOCUMENT_SCHEMAS.get(document_type_id)
+    all_schemas = get_all_available_schemas()
+    return all_schemas.get(document_type_id)
 
 
 def validate_schema_structure(schema: Dict[str, Any]) -> Tuple[bool, List[str]]:
