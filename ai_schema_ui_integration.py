@@ -15,35 +15,29 @@ def render_ai_schema_generation_tab():
     """Render the AI Schema Generation tab in the main app"""
     st.subheader("🤖 AI SCHEMA GENERATION", divider='blue')
 
-    # Check if AI schema generation utilities are available
+    # Check if AI schema generation is available
     try:
-        from ai_schema_generation import (
-            get_data_validator, get_schema_validator, get_confidence_calculator,
-            get_performance_monitor, get_logger
-        )
+        from ai_schema_generation.core import get_ai_analyzer
+        from ai_schema_generation import get_data_validator, get_schema_validator
         ai_available = True
     except ImportError:
         ai_available = False
 
     if not ai_available:
         st.error("🚫 AI Schema Generation module is not fully available. Please check the installation.")
-        st.info("💡 The utility components are implemented, but the core AI analysis components need to be added.")
+        st.info("💡 The core AI analysis components need to be properly configured.")
         return
 
     # Initialize components
     if 'ai_schema_validator' not in st.session_state:
         st.session_state.ai_schema_validator = get_data_validator()
         st.session_state.ai_schema_checker = get_schema_validator()
-        st.session_state.ai_confidence_calc = get_confidence_calculator()
-        st.session_state.ai_perf_monitor = get_performance_monitor()
-        st.session_state.ai_logger = get_logger()
 
     # Create tabs for different AI schema functionalities
-    ai_tab1, ai_tab2, ai_tab3, ai_tab4 = st.tabs([
+    ai_tab1, ai_tab2, ai_tab3 = st.tabs([
         "📤 Document Analysis",
         "📋 Schema Preview",
-        "🔍 Data Validation",
-        "📊 Performance Monitor"
+        "🔍 Data Validation"
     ])
 
     with ai_tab1:
@@ -55,13 +49,10 @@ def render_ai_schema_generation_tab():
     with ai_tab3:
         render_data_validation_tab()
 
-    with ai_tab4:
-        render_performance_monitor_tab()
-
 
 def render_document_analysis_tab():
     """Document analysis and AI schema generation"""
-    st.write("### 📄 Upload Document for AI Analysis")
+    st.write("### 📄 Upload Document")
 
     # Check if real AI analyzer is available
     try:
@@ -75,7 +66,7 @@ def render_document_analysis_tab():
 
     # Document upload
     uploaded_file = st.file_uploader(
-        "Choose a document for AI schema generation",
+        "Choose document",
         type=['pdf', 'png', 'jpg', 'jpeg', 'tiff', 'bmp'],
         key="ai_schema_upload"
     )
@@ -85,10 +76,8 @@ def render_document_analysis_tab():
         col1, col2 = st.columns([1, 1])
 
         with col1:
-            st.write("**📋 File Information:**")
-            st.write(f"• **Name:** {uploaded_file.name}")
-            st.write(f"• **Type:** {uploaded_file.type}")
-            st.write(f"• **Size:** {uploaded_file.size / 1024:.1f} KB")
+            st.write(f"**📋 {uploaded_file.name}**")
+            st.caption(f"{uploaded_file.type} • {uploaded_file.size / 1024:.1f} KB")
 
         with col2:
             # Show preview
@@ -100,41 +89,17 @@ def render_document_analysis_tab():
                 st.write("📄 **PDF Document**")
                 st.info("💡 PDF analysis will process the first page")
 
-        # AI Model Configuration
-        st.write("### 🤖 AI Configuration")
-
-        if real_ai_available:
-            st.success("✅ **Real AI Analysis Available** - Using LiteLLM with Groq/Mistral")
-        else:
-            st.warning("⚠️ **Simulation Mode** - Real AI analysis not available")
-
+        # AI Model Selection
         ai_model = st.selectbox(
-            "Select AI Model",
+            "🤖 AI Model",
             available_models,
             help="Select the AI model for document analysis"
         )
 
-        st.info("🔍 The AI will automatically detect the document type and extract relevant fields")
+        # Generate button
+        st.write("")  # Add spacing
 
-        # Show the prompt that will be used
-        st.write("### 📝 AI Prompt Preview")
-        if real_ai_available:
-            # Use real AI analyzer prompt generation - always auto-detect
-            prompt = ai_analyzer._generate_schema_prompt("Auto-detect", uploaded_file.name)
-        else:
-            # Fallback to simulation prompt
-            prompt = generate_ai_prompt("Auto-detect", uploaded_file.name)
-
-        with st.expander("👁️ View AI Prompt", expanded=False):
-            st.text_area("AI Prompt", prompt, height=200, disabled=True)
-            st.caption(f"🤖 Model: **{ai_model}** | 🔍 Mode: **Auto-detect Document Type**")
-            if real_ai_available:
-                st.caption("🔥 **REAL AI ANALYSIS** - This will call the actual LiteLLM API")
-
-        # Simple generate button
-        st.write("### 🚀 Generate Schema")
-
-        if st.button("🤖 **Analyze Document & Generate Schema**", type="primary", use_container_width=True):
+        if st.button("🤖 Generate Schema", type="primary", use_container_width=True):
             if real_ai_available:
                 # Use real AI analysis
                 with st.spinner(f"🔥 Calling {ai_model} via LiteLLM..."):
@@ -162,16 +127,15 @@ def render_document_analysis_tab():
                     # Store results
                     st.session_state.ai_analysis_result = result
                     st.session_state.ai_model_used = ai_model
-                    st.session_state.ai_prompt_used = prompt
 
                     # Clear progress indicators
                     progress_bar.empty()
                     status_text.empty()
 
                     if result.get("success"):
-                        st.success(f"🔥 **Real AI Analysis Complete!** Schema generated using **{ai_model}** via LiteLLM")
+                        st.success(f"✅ Schema generated successfully using **{ai_model}**")
                     else:
-                        st.error(f"❌ AI Analysis Failed: {result.get('error', 'Unknown error')}")
+                        st.error(f"❌ Analysis failed: {result.get('error', 'Unknown error')}")
                         if result.get("is_fallback"):
                             st.info("💡 Showing fallback schema for demonstration")
 
@@ -204,7 +168,6 @@ def render_document_analysis_tab():
                     # Store results
                     st.session_state.ai_analysis_result = result
                     st.session_state.ai_model_used = ai_model
-                    st.session_state.ai_prompt_used = prompt
 
                     # Clear progress indicators
                     progress_bar.empty()
@@ -238,27 +201,11 @@ def show_ai_analysis_results(result: Dict[str, Any]):
     with col4:
         st.metric("Document Type", result.get('document_type', 'Unknown'))
 
-    # Show AI details in expander
-    with st.expander("🤖 AI Analysis Details", expanded=False):
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.write("**AI Model Used:**")
-            st.code(result.get('ai_model', 'Unknown'))
-
-            if result.get('provider'):
-                st.write("**Provider:**")
-                st.code(result.get('provider', 'Unknown'))
-
-        with col2:
-            st.write("**Processing Details:**")
-            st.write(f"- Document Type: {result.get('document_type', 'Unknown')}")
-            st.write(f"- Analysis Time: {result.get('analysis_time', 0):.2f}s")
-            st.write(f"- Fields Detected: {result.get('fields_detected', 0)}")
-
-        if result.get('prompt_used'):
-            st.write("**AI Prompt Used:**")
-            st.text_area("Prompt", result.get('prompt_used', ''), height=150, disabled=True)
+    # Show AI details in expander (simplified)
+    with st.expander("🔍 Analysis Details", expanded=False):
+        st.write(f"**Model:** {result.get('ai_model', 'Unknown')}")
+        st.write(f"**Document Type:** {result.get('document_type', 'Unknown')}")
+        st.write(f"**Processing Time:** {result.get('analysis_time', 0):.2f}s")
 
     # Error handling
     if result.get('success') == False:
@@ -267,7 +214,7 @@ def show_ai_analysis_results(result: Dict[str, Any]):
 
     # Schema preview
     if result.get('schema'):
-        st.write("### 📋 Generated Schema")
+        st.write("### 📋 Schema")
 
         schema = result['schema']
         fields = schema.get('fields', {})
@@ -391,7 +338,7 @@ def render_schema_preview_tab():
 
 def render_data_validation_tab():
     """Data validation utilities"""
-    st.write("### 🔍 Data Validation Testing")
+    st.write("### 🔍 Test Schema")
 
     if 'ai_analysis_result' not in st.session_state:
         st.info("📋 No schema available for validation. Please generate a schema first.")
@@ -400,8 +347,7 @@ def render_data_validation_tab():
     schema = st.session_state.ai_analysis_result.get('schema', {})
     validator = st.session_state.ai_schema_validator
 
-    st.write("#### 📝 Test Data Validation")
-    st.write("Enter sample data to test against the generated schema:")
+    st.write("Enter sample data to test the schema:")
 
     # Create input fields for each schema field
     test_data = {}
@@ -438,7 +384,7 @@ def render_data_validation_tab():
                 summary = validator.get_validation_summary(validation_results)
 
                 # Show results
-                st.write("#### ✅ Validation Results")
+                st.write("#### Results")
 
                 col1, col2, col3 = st.columns(3)
                 with col1:
@@ -461,73 +407,6 @@ def render_data_validation_tab():
                         st.write(f"• {warning}")
 
 
-def render_performance_monitor_tab():
-    """Performance monitoring dashboard"""
-    st.write("### 📊 Performance Monitoring")
-
-    monitor = st.session_state.ai_perf_monitor
-
-    # Performance summary
-    st.write("#### 📈 Recent Performance")
-    summary = monitor.get_performance_summary()
-
-    if summary.get('metrics'):
-        # Show performance metrics
-        metrics = summary['metrics']
-
-        # Create columns for key metrics
-        if metrics:
-            col1, col2, col3 = st.columns(3)
-
-            # Get some sample metrics to display
-            metric_names = list(metrics.keys())[:6]  # Show up to 6 metrics
-
-            for i, metric_name in enumerate(metric_names):
-                metric_data = metrics[metric_name]
-                col_idx = i % 3
-
-                if col_idx == 0:
-                    with col1:
-                        st.metric(
-                            metric_name.replace('_', ' ').title(),
-                            f"{metric_data.get('average', 0):.2f} {metric_data.get('unit', '')}"
-                        )
-                elif col_idx == 1:
-                    with col2:
-                        st.metric(
-                            metric_name.replace('_', ' ').title(),
-                            f"{metric_data.get('average', 0):.2f} {metric_data.get('unit', '')}"
-                        )
-                else:
-                    with col3:
-                        st.metric(
-                            metric_name.replace('_', ' ').title(),
-                            f"{metric_data.get('average', 0):.2f} {metric_data.get('unit', '')}"
-                        )
-    else:
-        st.info("📊 No performance data available yet. Run some AI schema generation operations to see metrics.")
-
-    # Performance issues
-    issues = summary.get('performance_issues', [])
-    if issues:
-        st.write("#### ⚠️ Performance Issues")
-        for issue in issues:
-            st.warning(f"• {issue}")
-    else:
-        st.success("✅ No performance issues detected")
-
-    # System monitoring controls
-    st.write("#### ⚙️ Monitoring Controls")
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("🔄 Refresh Performance Data"):
-            st.rerun()
-
-    with col2:
-        if st.button("🗑️ Clear Performance History"):
-            monitor.cleanup_old_metrics(days=0)
-            st.success("Performance history cleared!")
 
 
 def generate_ai_prompt(document_type: str, filename: str) -> str:
