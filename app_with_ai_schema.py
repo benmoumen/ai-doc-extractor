@@ -244,8 +244,3 @@ if AI_SCHEMA_AVAILABLE:
 else:
     # Single page mode - just show document extraction
     render_document_extraction()
-
-
-# Footer
-st.markdown("---")
-st.markdown("Made with ❤️ using Streamlit and LiteLLM")
