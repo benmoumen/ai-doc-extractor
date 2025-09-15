@@ -19,6 +19,12 @@ from ui_components import (
     render_download_buttons, render_pdf_controls, render_welcome_message
 )
 
+# Import dynamic structured output for JSON Mode
+from dynamic_structured_output import (
+    create_response_format_for_document, validate_extraction_with_schema,
+    generate_simplified_prompt, get_schema_from_storage
+)
+
 # Import schema compatibility functions
 from schema_compatibility import get_extraction_configuration, handle_extraction_error, validate_schema_for_extraction
 
@@ -117,17 +123,39 @@ def render_document_extraction():
 
                     # Make API call with timing
                     api_start_time = time.time()
-                    response = completion(
-                        model=model_param,
-                        messages=[{
+
+                    # Prepare completion kwargs
+                    completion_kwargs = {
+                        "model": model_param,
+                        "messages": [{
                             "role": "user",
                             "content": [
                                 {"type": "text", "text": prompt},
                                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
                             ]
                         }],
-                        temperature=0.1
-                    )
+                        "temperature": 0.1
+                    }
+
+                    # Add response_format for structured output (JSON Mode always enabled)
+                    if selected_doc_type and selected_doc_type != "generic":
+                        # Try to create response format from user-defined schema
+                        # Pass provider name for provider-specific formatting
+                        response_format = create_response_format_for_document(selected_doc_type, selected_provider)
+
+                        if response_format:
+                            completion_kwargs["response_format"] = response_format
+
+                            # Get schema for simplified prompt
+                            schema = get_schema_from_storage(selected_doc_type)
+                            if schema:
+                                # Use simplified prompt for structured output (provider-specific)
+                                completion_kwargs["messages"][0]["content"][0]["text"] = generate_simplified_prompt(schema, selected_provider)
+                        else:
+                            # Fallback to regular extraction if schema not found
+                            st.warning("Schema not found for JSON Mode, using regular extraction")
+
+                    response = completion(**completion_kwargs)
                     api_end_time = time.time()
 
                     end_time = time.time()
@@ -138,6 +166,21 @@ def render_document_extraction():
 
                     # Parse and format JSON if present
                     is_json, parsed_data, formatted_text = extract_and_parse_json(raw_content)
+
+                    # Validate against schema if using structured output
+                    validation_passed = True
+                    validation_errors = []
+
+                    if selected_doc_type and selected_doc_type != "generic":
+                        schema = get_schema_from_storage(selected_doc_type)
+                        if schema and is_json and parsed_data:
+                            # Validate extraction result against dynamic schema
+                            validation_passed, validated_model, validation_errors = validate_extraction_with_schema(
+                                schema, parsed_data
+                            )
+
+                            if not validation_passed:
+                                st.warning(f"⚠️ Schema validation issues: {', '.join(validation_errors[:3])}")
 
                     if selected_doc_type != "generic":
                         # For schema-aware responses, use enhanced formatting
