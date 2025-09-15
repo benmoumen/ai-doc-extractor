@@ -1,0 +1,277 @@
+'use client'
+
+import React, { useState, useEffect } from 'react'
+import { Check, ChevronsUpDown, Sparkles, FileText, Search } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import { Separator } from '@/components/ui/separator'
+
+export interface Schema {
+  id: string
+  name: string
+  description?: string
+  category?: string
+  fields_count?: number
+  last_used?: string
+  confidence_threshold?: number
+}
+
+interface SchemaSelectorProps {
+  schemas?: Schema[]
+  onSchemaSelect: (schemaId: string | null, useAI: boolean) => void
+  className?: string
+}
+
+export function SchemaSelector({
+  schemas = [],
+  onSchemaSelect,
+  className
+}: SchemaSelectorProps) {
+  const [open, setOpen] = useState(false)
+  const [selectedSchema, setSelectedSchema] = useState<string | null>(null)
+  const [extractionMode, setExtractionMode] = useState<'schema' | 'ai'>('ai')
+  const [searchValue, setSearchValue] = useState('')
+  const [useHybrid, setUseHybrid] = useState(false)
+
+  // Mock schemas for demonstration (replace with actual API call)
+  const defaultSchemas: Schema[] = schemas.length > 0 ? schemas : [
+    {
+      id: 'invoice',
+      name: 'Invoice',
+      description: 'Standard invoice extraction',
+      category: 'Financial',
+      fields_count: 15,
+      last_used: '2 hours ago'
+    },
+    {
+      id: 'passport',
+      name: 'Passport',
+      description: 'International passport data',
+      category: 'Identity',
+      fields_count: 12,
+      last_used: '1 day ago'
+    },
+    {
+      id: 'receipt',
+      name: 'Receipt',
+      description: 'Retail receipt extraction',
+      category: 'Financial',
+      fields_count: 8,
+      last_used: '3 days ago'
+    },
+    {
+      id: 'contract',
+      name: 'Contract',
+      description: 'Legal contract analysis',
+      category: 'Legal',
+      fields_count: 20,
+      last_used: '1 week ago'
+    }
+  ]
+
+  const handleModeChange = (mode: string) => {
+    setExtractionMode(mode as 'schema' | 'ai')
+    if (mode === 'ai') {
+      setSelectedSchema(null)
+      onSchemaSelect(null, true)
+    } else if (selectedSchema) {
+      onSchemaSelect(selectedSchema, useHybrid)
+    }
+  }
+
+  const handleSchemaSelect = (schemaId: string) => {
+    setSelectedSchema(schemaId)
+    setOpen(false)
+    if (extractionMode === 'schema') {
+      onSchemaSelect(schemaId, useHybrid)
+    }
+  }
+
+  const handleHybridToggle = (checked: boolean) => {
+    setUseHybrid(checked)
+    if (selectedSchema && extractionMode === 'schema') {
+      onSchemaSelect(selectedSchema, checked)
+    }
+  }
+
+  const selectedSchemaData = defaultSchemas.find(s => s.id === selectedSchema)
+
+  // Group schemas by category
+  const groupedSchemas = defaultSchemas.reduce((acc, schema) => {
+    const category = schema.category || 'Other'
+    if (!acc[category]) acc[category] = []
+    acc[category].push(schema)
+    return acc
+  }, {} as Record<string, Schema[]>)
+
+  return (
+    <div className={cn("space-y-4", className)}>
+      {/* Extraction Mode Selection */}
+      <div className="space-y-3">
+        <Label className="text-sm font-medium">Extraction Mode</Label>
+        <RadioGroup value={extractionMode} onValueChange={handleModeChange}>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="ai" id="ai-mode" />
+              <Label htmlFor="ai-mode" className="flex items-center gap-2 cursor-pointer">
+                <Sparkles className="h-4 w-4 text-purple-500" />
+                <span>AI Auto-Extract</span>
+                <Badge variant="secondary" className="ml-1">Recommended</Badge>
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="schema" id="schema-mode" />
+              <Label htmlFor="schema-mode" className="flex items-center gap-2 cursor-pointer">
+                <FileText className="h-4 w-4 text-blue-500" />
+                <span>Use Schema</span>
+              </Label>
+            </div>
+          </div>
+        </RadioGroup>
+      </div>
+
+      {/* Schema Selection (shown when schema mode is selected) */}
+      {extractionMode === 'schema' && (
+        <>
+          <Separator />
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Select Schema</Label>
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={open}
+                  className="w-full justify-between"
+                >
+                  {selectedSchemaData ? (
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      <span>{selectedSchemaData.name}</span>
+                      {selectedSchemaData.category && (
+                        <Badge variant="outline" className="ml-2">
+                          {selectedSchemaData.category}
+                        </Badge>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">Select a schema...</span>
+                  )}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[400px] p-0">
+                <Command>
+                  <CommandInput
+                    placeholder="Search schemas..."
+                    value={searchValue}
+                    onValueChange={setSearchValue}
+                  />
+                  <CommandList>
+                    <CommandEmpty>No schema found.</CommandEmpty>
+                    {Object.entries(groupedSchemas).map(([category, categorySchemas]) => (
+                      <CommandGroup key={category} heading={category}>
+                        {categorySchemas.map((schema) => (
+                          <CommandItem
+                            key={schema.id}
+                            value={schema.id}
+                            onSelect={handleSchemaSelect}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedSchema === schema.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{schema.name}</span>
+                                {schema.fields_count && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {schema.fields_count} fields
+                                  </Badge>
+                                )}
+                              </div>
+                              {schema.description && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {schema.description}
+                                </p>
+                              )}
+                              {schema.last_used && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Last used: {schema.last_used}
+                                </p>
+                              )}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    ))}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            {/* Hybrid Mode Option */}
+            {selectedSchema && (
+              <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-purple-500" />
+                  <div>
+                    <Label htmlFor="hybrid-mode" className="text-sm font-medium cursor-pointer">
+                      Hybrid Mode
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Use AI to find additional fields
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="hybrid-mode"
+                  checked={useHybrid}
+                  onCheckedChange={handleHybridToggle}
+                />
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* AI Mode Information */}
+      {extractionMode === 'ai' && (
+        <>
+          <Separator />
+          <div className="p-4 border rounded-lg bg-purple-50 dark:bg-purple-950/20">
+            <div className="flex items-start gap-3">
+              <Sparkles className="h-5 w-5 text-purple-500 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium">AI Auto-Extract Mode</p>
+                <p className="text-xs text-muted-foreground">
+                  Our AI will automatically detect the document type and extract all relevant fields.
+                  No schema configuration required.
+                </p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
