@@ -157,11 +157,31 @@ DOCUMENT_SCHEMAS = {
 - **2025-09-12**: Added schema-driven extraction feature planning
 - **2025-09-13**: Completed Schema Management UI Extension implementation ✓
 - **2025-09-13**: Started AI Schema Generation feature development (003-ai-schema-generation)
+- **2025-09-15**: Started Next.js 15 Frontend Development (005-build-a-next) ⚡ NEW
 - **Architecture Decision**: Extended existing LiteLLM integration for AI analysis
 - **Storage Implementation**: Hybrid JSON/SQLite storage extended with AI metadata
 - **AI Integration**: Multi-stage analysis with confidence scoring and fallback strategies
 - **Performance Optimization**: Document processing pipeline with caching for <500ms responses
 - **Testing Strategy**: TDD approach with comprehensive contract and integration tests
+
+## New Next.js 15 Frontend Development (005-build-a-next) ⚡
+Building a modern Next.js 15 frontend to replace Streamlit UI while maintaining backend integration.
+
+### Next.js 15 Technology Stack
+- **Frontend Framework**: Next.js 15 with App Router and TypeScript
+- **UI Components**: shadcn/ui v2 with Tailwind CSS for minimal, neutral design
+- **Form Management**: React Hook Form + Zod validation for type-safe forms
+- **Real-time Updates**: Server-Sent Events (SSE) for document processing progress
+- **File Upload**: Enhanced Server Actions with streaming support for large files
+- **Integration**: API proxy pattern connecting to existing Streamlit backend
+
+### Key Features
+- **Schema-Driven Forms**: Dynamic form generation from document schemas
+- **Real-time Progress**: Live updates during AI document processing
+- **Inline Editing**: Direct field editing with validation feedback
+- **Multi-format Export**: JSON, CSV, PDF export capabilities
+- **Responsive Design**: Mobile-first with sidebar navigation
+- **Type Safety**: End-to-end TypeScript with Zod validation
 
 ## Key Dependencies
 ```

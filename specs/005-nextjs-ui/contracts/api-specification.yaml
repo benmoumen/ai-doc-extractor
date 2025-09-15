@@ -1,0 +1,666 @@
+openapi: 3.0.3
+info:
+  title: AI Document Processing HTTP API
+  description: HTTP endpoints exposing existing AISchemaGenerationAPI functionality
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:8000
+    description: FastAPI development server
+  - url: https://api.example.com
+    description: Production server
+
+paths:
+  /api/documents:
+    post:
+      summary: Upload and analyze document
+      description: Upload document and trigger AI analysis using existing AISchemaGenerationAPI
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Document file (PDF, JPEG, PNG)
+                model:
+                  type: string
+                  description: AI model to use (optional)
+                document_type_hint:
+                  type: string
+                  description: Document type hint for better analysis
+                metadata:
+                  type: object
+                  description: Additional metadata
+              required:
+                - file
+      responses:
+        '200':
+          description: Document analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentAnalysisResponse'
+        '400':
+          description: Invalid file or request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Analysis pipeline error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/documents/{document_id}:
+    get:
+      summary: Get document details
+      description: Get document metadata and processing status
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Document identifier
+      responses:
+        '200':
+          description: Document details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDetails'
+        '404':
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/analysis/{analysis_id}:
+    get:
+      summary: Get analysis results
+      description: Get complete analysis results using AISchemaGenerationAPI.get_analysis_results()
+      parameters:
+        - name: analysis_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Analysis result identifier
+      responses:
+        '200':
+          description: Analysis results retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisResults'
+        '404':
+          description: Analysis not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/analysis/{analysis_id}/retry:
+    post:
+      summary: Retry analysis
+      description: Retry analysis with different parameters using existing retry logic
+      parameters:
+        - name: analysis_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Previous analysis identifier
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                  description: AI model for retry
+                document_type_hint:
+                  type: string
+                  description: New document type hint
+      responses:
+        '200':
+          description: Retry analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetryAnalysisResponse'
+        '400':
+          description: Invalid retry request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/schemas:
+    get:
+      summary: Get available schemas
+      description: Get list of available document schemas from existing schema management
+      responses:
+        '200':
+          description: Schemas retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SchemaListItem'
+
+  /api/schemas/{schema_id}:
+    get:
+      summary: Get schema details
+      description: Get detailed schema information using existing schema storage
+      parameters:
+        - name: schema_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Schema identifier
+      responses:
+        '200':
+          description: Schema details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaDetails'
+        '404':
+          description: Schema not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/status:
+    get:
+      summary: Get service status
+      description: Get status of all services using AISchemaGenerationAPI.get_service_status()
+      responses:
+        '200':
+          description: Service status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceStatus'
+
+  /api/models:
+    get:
+      summary: Get supported models
+      description: Get list of supported AI models using existing model configuration
+      responses:
+        '200':
+          description: Supported models retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportedModels'
+
+components:
+  schemas:
+    DocumentAnalysisResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        processing_stages:
+          type: object
+          properties:
+            document_processing:
+              $ref: '#/components/schemas/ProcessingStage'
+            ai_analysis:
+              $ref: '#/components/schemas/ProcessingStage'
+            field_enhancement:
+              $ref: '#/components/schemas/ProcessingStage'
+            validation_inference:
+              $ref: '#/components/schemas/ProcessingStage'
+            schema_generation:
+              $ref: '#/components/schemas/ProcessingStage'
+            confidence_analysis:
+              $ref: '#/components/schemas/ProcessingStage'
+        document:
+          type: object
+          properties:
+            id:
+              type: string
+            filename:
+              type: string
+            file_type:
+              type: string
+            file_size:
+              type: number
+            processing_status:
+              type: string
+        analysis:
+          type: object
+          properties:
+            id:
+              type: string
+            detected_document_type:
+              type: string
+            document_type_confidence:
+              type: number
+            total_fields_detected:
+              type: number
+            high_confidence_fields:
+              type: number
+            overall_quality_score:
+              type: number
+            model_used:
+              type: string
+        schema:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            description:
+              type: string
+            total_fields:
+              type: number
+            high_confidence_fields:
+              type: number
+            generation_confidence:
+              type: number
+            validation_status:
+              type: string
+            production_ready:
+              type: boolean
+        confidence:
+          type: object
+          properties:
+            overall_confidence:
+              type: number
+            confidence_level:
+              type: string
+              enum: [low, medium, high]
+        recommendations:
+          type: array
+          items:
+            type: string
+        errors:
+          type: array
+          items:
+            type: string
+        total_processing_time:
+          type: number
+
+    ProcessingStage:
+      type: object
+      properties:
+        success:
+          type: boolean
+        duration:
+          type: number
+        error:
+          type: string
+
+    DocumentDetails:
+      type: object
+      properties:
+        id:
+          type: string
+        filename:
+          type: string
+        file_type:
+          type: string
+        file_size:
+          type: number
+        processing_status:
+          type: string
+          enum: [uploaded, processing, completed, failed]
+        upload_timestamp:
+          type: string
+          format: date-time
+        processing_metadata:
+          type: object
+
+    AnalysisResults:
+      type: object
+      properties:
+        success:
+          type: boolean
+        analysis:
+          type: object
+          properties:
+            id:
+              type: string
+            detected_document_type:
+              type: string
+            document_type_confidence:
+              type: number
+            total_fields_detected:
+              type: number
+            model_used:
+              type: string
+            processing_timestamp:
+              type: string
+              format: date-time
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtractedField'
+        validation_rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationRule'
+        generated_schemas:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeneratedSchema'
+        confidence_analysis:
+          type: object
+          properties:
+            overall_confidence:
+              type: number
+            field_confidences:
+              type: object
+              additionalProperties:
+                type: number
+            quality_metrics:
+              type: object
+
+    ExtractedField:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        display_name:
+          type: string
+        field_type:
+          type: string
+          enum: [string, number, date, boolean, array]
+        extracted_value:
+          description: The extracted value (type varies)
+        confidence_score:
+          type: number
+        validation_status:
+          type: string
+          enum: [valid, warning, invalid, missing]
+        requires_review:
+          type: boolean
+        extraction_source:
+          type: string
+        alternatives:
+          type: array
+          description: Alternative values considered
+
+    ValidationRule:
+      type: object
+      properties:
+        id:
+          type: string
+        field_id:
+          type: string
+        rule_type:
+          type: string
+          enum: [pattern, min_length, max_length, required, format]
+        rule_value:
+          description: Rule value (type varies)
+        priority:
+          type: number
+        is_recommended:
+          type: boolean
+        confidence:
+          type: number
+
+    GeneratedSchema:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/SchemaField'
+        total_fields_generated:
+          type: number
+        high_confidence_fields:
+          type: number
+        generation_confidence:
+          type: number
+        validation_status:
+          type: string
+        user_review_status:
+          type: string
+        created_timestamp:
+          type: string
+          format: date-time
+
+    SchemaField:
+      type: object
+      properties:
+        name:
+          type: string
+        display_name:
+          type: string
+        field_type:
+          type: string
+        required:
+          type: boolean
+        validation_rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationRule'
+        description:
+          type: string
+        examples:
+          type: array
+          items:
+            type: string
+
+    RetryAnalysisResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        retry_analysis:
+          type: object
+          properties:
+            id:
+              type: string
+            model_used:
+              type: string
+            retry_count:
+              type: number
+        schema:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            total_fields:
+              type: number
+            generation_confidence:
+              type: number
+        confidence:
+          type: object
+          properties:
+            overall_confidence:
+              type: number
+            confidence_level:
+              type: string
+        improved:
+          type: boolean
+        error:
+          type: string
+
+    SchemaListItem:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        document_type:
+          type: string
+        field_count:
+          type: number
+        is_custom:
+          type: boolean
+        created_timestamp:
+          type: string
+          format: date-time
+        usage_count:
+          type: number
+
+    SchemaDetails:
+      type: object
+      properties:
+        success:
+          type: boolean
+        schema:
+          $ref: '#/components/schemas/GeneratedSchema'
+        confidence_analysis:
+          type: object
+        quality_metrics:
+          type: object
+          properties:
+            completeness_score:
+              type: number
+            consistency_score:
+              type: number
+            validation_coverage:
+              type: number
+        review_summary:
+          type: object
+          properties:
+            total_reviews:
+              type: number
+            average_rating:
+              type: number
+            production_ready:
+              type: boolean
+        compatibility_info:
+          type: object
+          properties:
+            supported_formats:
+              type: array
+              items:
+                type: string
+            integration_examples:
+              type: array
+              items:
+                type: object
+        standard_format:
+          type: object
+          description: Schema converted to standard JSON Schema format
+
+    ServiceStatus:
+      type: object
+      properties:
+        success:
+          type: boolean
+        services:
+          type: object
+          properties:
+            document_processor:
+              $ref: '#/components/schemas/ServiceHealth'
+            ai_analyzer:
+              $ref: '#/components/schemas/ServiceHealth'
+            field_extractor:
+              $ref: '#/components/schemas/ServiceHealth'
+            validation_rule_inferencer:
+              $ref: '#/components/schemas/ServiceHealth'
+            schema_generator:
+              $ref: '#/components/schemas/ServiceHealth'
+            confidence_scorer:
+              $ref: '#/components/schemas/ServiceHealth'
+        storage:
+          type: object
+          properties:
+            documents:
+              type: object
+            analyses:
+              type: object
+            schemas:
+              type: object
+
+    ServiceHealth:
+      type: object
+      properties:
+        available:
+          type: boolean
+        stats:
+          type: object
+          properties:
+            total_processed:
+              type: number
+            success_rate:
+              type: number
+            average_processing_time:
+              type: number
+            errors_last_hour:
+              type: number
+
+    SupportedModels:
+      type: object
+      properties:
+        success:
+          type: boolean
+        models:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              provider:
+                type: string
+              capabilities:
+                type: array
+                items:
+                  type: string
+              cost_per_1k_tokens:
+                type: object
+                properties:
+                  input:
+                    type: number
+                  output:
+                    type: number
+        default_model:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+        error_code:
+          type: string
+        details:
+          type: object
+        traceback:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+security: []
