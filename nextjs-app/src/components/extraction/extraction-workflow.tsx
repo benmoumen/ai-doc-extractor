@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   FileText, Upload, Loader2, CheckCircle, AlertCircle,
-  ArrowRight, RefreshCw, Download, Sparkles, Zap
+  ArrowRight, RefreshCw, Download, Sparkles, Zap, Eye,
+  Code, Settings, X, ExternalLink
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,6 +12,7 @@ import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 
 import { DocumentUpload } from '@/components/document-upload/document-upload'
@@ -30,10 +32,81 @@ export function ExtractionWorkflow() {
   const [currentStep, setCurrentStep] = useState<'upload' | 'configure' | 'extract' | 'results'>('upload')
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [selectedSchema, setSelectedSchema] = useState<string | null>(null)
+  const [selectedModel, setSelectedModel] = useState<string | null>(null)
+  const [availableModels, setAvailableModels] = useState<any[]>([])
   const [useAI, setUseAI] = useState(true)
   const [isExtracting, setIsExtracting] = useState(false)
   const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null)
   const [extractionProgress, setExtractionProgress] = useState(0)
+  const [availableSchemas, setAvailableSchemas] = useState<any>({})
+  const [selectedSchemaDetails, setSelectedSchemaDetails] = useState<any>(null)
+  const [documentPreview, setDocumentPreview] = useState<string | null>(null)
+  const [usedPrompt, setUsedPrompt] = useState<string | null>(null)
+
+  // Load available models on component mount
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        const response = await apiClient.getSupportedModels()
+        if (response.success && response.models) {
+          setAvailableModels(response.models)
+          // Set default model to first available
+          if (response.models.length > 0) {
+            setSelectedModel(response.models[0].id)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load models:', error)
+      }
+    }
+    loadModels()
+  }, [])
+
+  // Load available schemas
+  useEffect(() => {
+    const loadSchemas = async () => {
+      try {
+        const response = await apiClient.getAvailableSchemas()
+        if (response.success && response.schemas) {
+          setAvailableSchemas(response.schemas)
+        }
+      } catch (error) {
+        console.error('Failed to load schemas:', error)
+      }
+    }
+    loadSchemas()
+  }, [])
+
+  // Create document preview when file is uploaded
+  useEffect(() => {
+    if (uploadedFile) {
+      if (uploadedFile.type.startsWith('image/') || uploadedFile.type === 'application/pdf') {
+        const url = URL.createObjectURL(uploadedFile)
+        setDocumentPreview(url)
+        return () => URL.revokeObjectURL(url)
+      }
+    }
+  }, [uploadedFile])
+
+  // Fetch detailed schema information when schema is selected
+  useEffect(() => {
+    if (selectedSchema && selectedSchema !== 'ai') {
+      const loadSchemaDetails = async () => {
+        try {
+          const details = await apiClient.getSchemaDetails(selectedSchema)
+          if (details.success && details.schema) {
+            setSelectedSchemaDetails(details.schema)
+          }
+        } catch (error) {
+          console.error('Failed to load schema details:', error)
+          setSelectedSchemaDetails(null)
+        }
+      }
+      loadSchemaDetails()
+    } else {
+      setSelectedSchemaDetails(null)
+    }
+  }, [selectedSchema])
 
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([
     {
@@ -112,40 +185,66 @@ export function ExtractionWorkflow() {
 
     try {
       // Call real API for data extraction
+      const startTime = Date.now()
       const result = await apiClient.extractData(
         uploadedFile,
         selectedSchema || undefined,
         useAI,
-        'llama-scout' // Default model - could be made configurable
+        selectedModel || undefined
       )
+      const endTime = Date.now()
+      const clientSideProcessingTime = (endTime - startTime) / 1000
 
       clearInterval(progressInterval)
       setExtractionProgress(100)
 
       if (result.success) {
+        // Store the prompt used for this extraction
+        if (result.metadata?.prompt_used) {
+          setUsedPrompt(result.metadata.prompt_used)
+        }
+
         // Transform API response to match our component interface
+        // Our backend returns: { success, extracted_data, validation, metadata }
         const extractionResult: ExtractionResult = {
-          id: result.extraction_id,
-          documentType: result.document_type,
-          extractionMode: result.extraction_mode,
-          schemaUsed: result.schema_used,
-          processingTime: result.processing_time,
-          confidence: result.confidence,
-          extractedFields: result.extracted_fields.map((field: any) => ({
-            id: field.id,
-            name: field.name,
-            displayName: field.display_name,
-            value: field.value,
-            type: field.type,
-            confidence: field.confidence,
-            source: field.source,
-            validation: {
-              isValid: field.validation?.is_valid ?? true,
-              errors: field.validation?.errors || []
-            }
-          })),
-          warnings: result.warnings || [],
-          suggestions: result.suggestions || []
+          id: `extraction_${Date.now()}`,
+          documentType: result.metadata?.file_type || 'document',
+          extractionMode: result.metadata?.extraction_mode || (selectedSchema ? 'schema' : 'ai'),
+          schemaUsed: result.metadata?.schema_id || selectedSchema,
+          processingTime: result.metadata?.processing_time || clientSideProcessingTime,
+          confidence: result.validation?.passed ? 0.9 : 0.7,
+          extractedFields: result.extracted_data?.structured_data ?
+            Object.entries(result.extracted_data.structured_data).map(([key, value], index) => ({
+              id: key,
+              name: key,
+              displayName: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+              value: Array.isArray(value) ? value.join(', ') : String(value),
+              type: typeof value === 'number' ? 'number' :
+                    typeof value === 'boolean' ? 'boolean' :
+                    Array.isArray(value) ? 'array' : 'text',
+              confidence: result.validation?.passed ? 0.9 : 0.7,
+              source: 'ai_extraction',
+              validation: {
+                isValid: result.validation?.passed ?? true,
+                errors: result.validation?.errors || []
+              }
+            })) : [
+              {
+                id: 'raw_content',
+                name: 'raw_content',
+                displayName: 'Extracted Content',
+                value: result.extracted_data?.formatted_text || result.extracted_data?.raw_content || 'No content extracted',
+                type: 'text',
+                confidence: result.validation?.passed ? 0.9 : 0.7,
+                source: 'ai_extraction',
+                validation: {
+                  isValid: result.validation?.passed ?? true,
+                  errors: result.validation?.errors || []
+                }
+              }
+            ],
+          warnings: result.validation?.errors?.map((error: string) => `Validation warning: ${error}`) || [],
+          suggestions: []
         }
 
         setExtractionResult(extractionResult)
@@ -265,6 +364,8 @@ export function ExtractionWorkflow() {
     setUseAI(true)
     setExtractionResult(null)
     setExtractionProgress(0)
+    setDocumentPreview(null)
+    setUsedPrompt(null)
     setWorkflowSteps(prev => prev.map(step => ({
       ...step,
       status: step.id === 'upload' ? 'active' : 'pending',
@@ -336,7 +437,57 @@ export function ExtractionWorkflow() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <SchemaSelector onSchemaSelect={handleSchemaSelect} />
+                <SchemaSelector
+                  schemas={Object.values(availableSchemas).map(schema => ({
+                    id: schema.id,
+                    name: schema.name || schema.display_name,
+                    description: schema.description,
+                    category: schema.category || 'Other'
+                  }))}
+                  onSchemaSelect={handleSchemaSelect}
+                />
+
+                <Separator />
+
+                {/* Model Selection */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium">AI Model</label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {availableModels.map((model) => (
+                      <div
+                        key={model.id}
+                        className={`
+                          p-3 rounded-lg border cursor-pointer transition-colors
+                          ${selectedModel === model.id
+                            ? 'border-blue-200 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                          }
+                        `}
+                        onClick={() => setSelectedModel(model.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">{model.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {model.provider} • {model.model}
+                            </p>
+                          </div>
+                          <div className={`
+                            w-4 h-4 rounded-full border-2
+                            ${selectedModel === model.id
+                              ? 'bg-blue-500 border-blue-500'
+                              : 'border-gray-300'
+                            }
+                          `}>
+                            {selectedModel === model.id && (
+                              <div className="w-full h-full bg-white rounded-full scale-50" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 <Separator />
 
@@ -344,9 +495,9 @@ export function ExtractionWorkflow() {
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Ready to extract</p>
                     <p className="text-xs text-muted-foreground">
-                      {useAI ? 'AI will automatically detect and extract fields' :
-                       selectedSchema ? `Using ${selectedSchema} schema` :
-                       'Please select a schema or use AI mode'}
+                      {selectedSchema ? `Schema-guided extraction: ${selectedSchema}` :
+                       useAI ? 'AI free-form extraction: automatic field detection' :
+                       'Please select a schema or enable AI mode'}
                     </p>
                   </div>
                   <Button
@@ -423,6 +574,153 @@ export function ExtractionWorkflow() {
                   </div>
                 </div>
 
+                {/* Document Preview Button */}
+                {uploadedFile && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full">
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Document
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[80vh]">
+                      <DialogHeader>
+                        <DialogTitle>Document Preview</DialogTitle>
+                        <DialogDescription>
+                          {uploadedFile.name}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="max-h-[60vh] overflow-auto">
+                        {uploadedFile.type === 'application/pdf' ? (
+                          <div className="space-y-4">
+                            <embed
+                              src={documentPreview || ''}
+                              type="application/pdf"
+                              className="w-full h-[50vh]"
+                            />
+                            <div className="text-center">
+                              <p className="text-sm text-muted-foreground mb-2">
+                                PDF not displaying? Open in new tab:
+                              </p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => window.open(documentPreview || '', '_blank')}
+                              >
+                                <ExternalLink className="h-4 w-4 mr-2" />
+                                Open PDF in New Tab
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <img
+                            src={documentPreview || ''}
+                            alt="Document preview"
+                            className="w-full h-auto"
+                          />
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
+
+                {/* Prompt Viewer Button */}
+                {extractionResult && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full">
+                        <Code className="h-4 w-4 mr-2" />
+                        View AI Prompt
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[80vh]">
+                      <DialogHeader>
+                        <DialogTitle>AI Prompt Used</DialogTitle>
+                        <DialogDescription>
+                          The exact prompt sent to the AI model for extraction
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="max-h-[60vh] overflow-auto">
+                        <pre className="text-xs bg-muted p-4 rounded-md whitespace-pre-wrap">
+                          {usedPrompt || 'Prompt information not available'}
+                        </pre>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
+
+                {/* Extraction Details Button */}
+                {extractionResult && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full">
+                        <Settings className="h-4 w-4 mr-2" />
+                        View Extraction Details
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[80vh]">
+                      <DialogHeader>
+                        <DialogTitle>Extraction Details</DialogTitle>
+                        <DialogDescription>
+                          Configuration and details for this extraction
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="max-h-[60vh] overflow-auto">
+                        <div className="space-y-6">
+                          {/* Extraction Summary */}
+                          <div>
+                            <h4 className="text-sm font-medium mb-2">Extraction Summary</h4>
+                            <div className="text-xs space-y-1 bg-muted p-3 rounded-md">
+                              <p><strong>Mode:</strong> {extractionResult.extractionMode === 'ai_freeform' ? 'AI Free-form Detection' : 'Schema-guided'}</p>
+                              <p><strong>Processing Time:</strong> {extractionResult.processingTime?.toFixed(2)}s</p>
+                              <p><strong>Overall Confidence:</strong> {Math.round((extractionResult.confidence || 0) * 100)}%</p>
+                              <p><strong>Fields Extracted:</strong> {extractionResult.extractedFields.length}</p>
+                            </div>
+                          </div>
+
+                          {/* Schema Information */}
+                          {selectedSchema && selectedSchema !== 'ai' ? (
+                            <div>
+                              <h4 className="text-sm font-medium mb-2">Schema Information</h4>
+                              <div className="bg-muted p-3 rounded-md text-xs">
+                                <p><strong>Schema Used:</strong> {selectedSchema}</p>
+                                <p className="mt-1 text-muted-foreground">
+                                  This extraction used a predefined schema to guide field extraction and validation.
+                                </p>
+                                {selectedSchemaDetails && selectedSchemaDetails.fields && (
+                                  <div className="mt-3">
+                                    <p className="text-muted-foreground mb-2">Schema Fields ({Object.keys(selectedSchemaDetails.fields).length}):</p>
+                                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                                      {Object.entries(selectedSchemaDetails.fields).map(([fieldName, fieldDef]: [string, any]) => (
+                                        <div key={fieldName} className="flex items-center gap-2">
+                                          <span className="text-xs">{fieldDef.display_name || fieldName}</span>
+                                          <Badge variant={fieldDef.required ? "destructive" : "outline"} className="text-xs px-1 py-0 h-4">
+                                            {fieldDef.required ? "Required" : "Optional"}
+                                          </Badge>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <h4 className="text-sm font-medium mb-2">AI Free-form Extraction</h4>
+                              <div className="bg-muted p-3 rounded-md text-xs">
+                                <p>This extraction used AI free-form detection without a predefined schema.</p>
+                                <p className="mt-1 text-muted-foreground">
+                                  The AI automatically identified and extracted fields based on document structure and content.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
+
                 {extractionResult && (
                   <>
                     <Separator />
@@ -430,6 +728,14 @@ export function ExtractionWorkflow() {
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Document Type</span>
                         <Badge variant="outline">{extractionResult.documentType}</Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Extraction Mode</span>
+                        <Badge variant={extractionResult.extractionMode === 'schema' ? 'default' : 'secondary'}>
+                          {extractionResult.extractionMode === 'schema' ? 'Schema-guided' :
+                           extractionResult.extractionMode === 'ai_freeform' ? 'AI Free-form' :
+                           'AI'}
+                        </Badge>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Fields Extracted</span>

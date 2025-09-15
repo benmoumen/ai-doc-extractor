@@ -14,8 +14,8 @@ import {
   RetryAnalysisRequest
 } from '@/types'
 
-// API base URL - uses Next.js proxy in development
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+// API base URL - point to the data extraction API server
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
 
 class APIError extends Error {
   constructor(
@@ -145,6 +145,21 @@ export class APIClient {
     })
 
     return this.handleResponse<SupportedModelsResponse>(response)
+  }
+
+  /**
+   * Get list of available document schemas/types
+   * Calls GET /api/schemas endpoint
+   */
+  async getAvailableSchemas(): Promise<any> {
+    const response = await fetch(`${this.baseURL}/api/schemas`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    return this.handleResponse(response)
   }
 
   /**

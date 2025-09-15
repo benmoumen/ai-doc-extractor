@@ -318,23 +318,6 @@ Use null for missing optional fields."""
 
     return prompt
 
-
-# Compatibility wrapper for existing code
-def create_response_format(document_type: str, schema_name: Optional[str] = None) -> Optional[dict]:
-    """
-    Create response_format parameter for LiteLLM completion.
-    This is a compatibility wrapper that works with both predefined and custom schemas.
-
-    Args:
-        document_type: Type of document to extract
-        schema_name: Optional custom schema name
-
-    Returns:
-        Dictionary with response_format configuration for LiteLLM or None
-    """
-    return create_response_format_for_document(document_type)
-
-
 def validate_extraction_result(document_type: str, result: dict) -> tuple[bool, Any, List[str]]:
     """
     Validate extraction result against schema.

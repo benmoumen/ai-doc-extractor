@@ -1,35 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(source:*)",
-      "Bash(streamlit run:*)",
-      "WebFetch(domain:github.com)",
-      "WebFetch(domain:mozilla-ai.github.io)",
-      "Bash(pip install:*)",
-      "WebFetch(domain:docs.litellm.ai)",
-      "Bash(.specify/scripts/create-new-feature.sh:*)",
-      "Bash(.specify/scripts/setup-plan.sh:*)",
-      "WebSearch",
-      "Bash(.specify/scripts/check-task-prerequisites.sh:*)",
-      "Bash(python -m pytest tests/test_schema_validation.py::TestSchemaLoading::test_get_available_document_types_returns_dict -v)",
-      "Bash(./venv/bin/python -m pytest tests/test_schema_validation.py::TestSchemaLoading::test_get_available_document_types_returns_dict -v)",
-      "Bash(python3:*)",
-      "Bash(venv/bin/pip install:*)",
-      "Bash(venv/bin/python -m pytest tests/test_schema_validation.py::TestSchemaLoading::test_get_available_document_types_returns_dict -v)",
-      "Bash(venv/bin/python -m pytest tests/test_validation_parsing.py::TestValidationResultParsing::test_parse_standard_validation_response -v)",
-      "Bash(venv/bin/python -m pytest tests/test_document_type_integration.py::TestDocumentTypeSelectionIntegration::test_document_type_selection_workflow -v)",
-      "Bash(venv/bin/python -m pytest tests/ -v --tb=short)",
-      "Bash(venv/bin/python -m pytest tests/test_document_type_integration.py::TestErrorHandlingIntegration::test_invalid_document_type_handling -v)",
-      "Bash(venv/bin/python -m pytest tests/test_document_type_integration.py::TestDocumentTypeSelectionIntegration::test_complete_extraction_workflow_with_schema -v)",
-      "Bash(venv/bin/python -m pytest tests/test_document_type_integration.py::TestExtractionWorkflowIntegration::test_complete_extraction_workflow_with_schema -v)",
-      "Bash(venv/bin/python:*)",
-      "Bash(sqlite3:*)",
-      "Bash(python:*)",
-      "Bash(find:*)",
-      "Bash(grep:*)",
-      "Bash(PYTHONPATH=/Users/moulaymehdi/PROJECTS/00AI/ai-doc-extractor venv/bin/python -m pytest tests/ai_schema_generation/test_utils.py::TestDataValidator::test_validate_string_field -v)",
-      "Bash(sed:*)",
-      "Bash(venv/bin/streamlit run app_with_ai_schema.py --server.port=8501)"
+      "Bash(xargs kill:*)",
+      "Bash(awk:*)"
     ],
     "deny": [],
     "ask": []

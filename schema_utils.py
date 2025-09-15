@@ -8,8 +8,18 @@ from typing import Dict, Any, List, Optional, Tuple
 from schema_management.services.schema_service import SchemaService
 
 
-# Global Schema Service instance
-schema_service = SchemaService()
+# Global Schema Service instance with absolute path to data directory
+import os
+from pathlib import Path
+
+# Get the absolute path to the project root data directory
+project_root = Path(__file__).parent
+data_dir = project_root / "data"
+
+# Use custom storage with absolute path
+from schema_management.storage.schema_storage import SchemaStorage
+schema_storage = SchemaStorage(str(data_dir))
+schema_service = SchemaService(storage=schema_storage)
 
 
 def get_all_available_schemas() -> Dict[str, Dict[str, Any]]:
