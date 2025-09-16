@@ -1,17 +1,23 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { FileText, Sparkles, Zap, Shield, ArrowRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Toaster } from 'sonner'
-import { ExtractionWorkflow } from '@/components/extraction/extraction-workflow'
-import { SchemaGenerator } from '@/components/schema/schema-generator'
+import { useState } from "react";
+import { FileText, Sparkles, Zap, Shield, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Toaster } from "sonner";
+import { ExtractionWorkflow } from "@/components/extraction/extraction-workflow";
+import { SchemaGenerator } from "@/components/schema/schema-generator";
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState('extract')
+  const [activeTab, setActiveTab] = useState("extract");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -27,17 +33,15 @@ export default function Home() {
               </div>
               <div>
                 <h1 className="text-xl font-bold">AI Document Extractor</h1>
-                <p className="text-xs text-muted-foreground">Intelligent data extraction platform</p>
+                <p className="text-xs text-muted-foreground">
+                  Intelligent data extraction platform
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="gap-1">
                 <Sparkles className="h-3 w-3" />
                 AI Powered
-              </Badge>
-              <Badge variant="outline" className="gap-1">
-                <Shield className="h-3 w-3" />
-                Secure
               </Badge>
             </div>
           </div>
@@ -56,59 +60,19 @@ export default function Home() {
             Extract Data from Any Document
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Upload your documents and let our AI automatically extract structured data.
-            Use predefined schemas for consistency or let AI discover fields automatically.
+            Upload your documents and let our AI automatically extract
+            structured data. Use predefined schemas for consistency or let AI
+            discover fields automatically.
           </p>
-        </div>
-
-        {/* Features Grid */}
-        <div className="grid md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-12">
-          <Card className="border-2 hover:border-blue-500 transition-colors">
-            <CardHeader>
-              <div className="p-2 w-fit rounded-lg bg-blue-100 dark:bg-blue-950/50 mb-2">
-                <Sparkles className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <CardTitle className="text-lg">AI Auto-Extract</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Intelligent field detection without configuration
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 hover:border-purple-500 transition-colors">
-            <CardHeader>
-              <div className="p-2 w-fit rounded-lg bg-purple-100 dark:bg-purple-950/50 mb-2">
-                <FileText className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <CardTitle className="text-lg">Schema-Based</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Consistent extraction with predefined templates
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 hover:border-green-500 transition-colors">
-            <CardHeader>
-              <div className="p-2 w-fit rounded-lg bg-green-100 dark:bg-green-950/50 mb-2">
-                <Zap className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </div>
-              <CardTitle className="text-lg">Hybrid Mode</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Combine schema structure with AI discovery
-              </p>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Main Workflow Tabs */}
         <div className="max-w-7xl mx-auto">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="space-y-6"
+          >
             <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
               <TabsTrigger value="extract" className="gap-2">
                 <Sparkles className="h-4 w-4" />
@@ -129,29 +93,7 @@ export default function Home() {
             </TabsContent>
           </Tabs>
         </div>
-
-        {/* Stats Section */}
-        <div className="max-w-4xl mx-auto mt-16 pt-8 border-t">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div>
-              <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">95%</p>
-              <p className="text-sm text-muted-foreground">Accuracy</p>
-            </div>
-            <div>
-              <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">50+</p>
-              <p className="text-sm text-muted-foreground">Document Types</p>
-            </div>
-            <div>
-              <p className="text-3xl font-bold text-green-600 dark:text-green-400">&lt;5s</p>
-              <p className="text-sm text-muted-foreground">Avg. Processing</p>
-            </div>
-            <div>
-              <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">100%</p>
-              <p className="text-sm text-muted-foreground">Secure</p>
-            </div>
-          </div>
-        </div>
       </main>
     </div>
-  )
+  );
 }
