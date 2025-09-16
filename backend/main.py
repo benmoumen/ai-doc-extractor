@@ -655,6 +655,60 @@ async def generate_schema(
         print(f"Schema generation error: {e}")
         raise HTTPException(status_code=500, detail=f"Schema generation failed: {str(e)}")
 
+@app.post("/api/schemas")
+async def save_schema(schema_data: Dict[str, Any]):
+    """Save a generated schema to make it available for data extraction"""
+    try:
+        # Validate required fields
+        required_fields = ["id", "name", "description", "category", "fields"]
+        for field in required_fields:
+            if field not in schema_data:
+                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+
+        schema_id = schema_data["id"]
+
+        # Ensure schema ID is valid (snake_case)
+        if not schema_id.replace("_", "").replace("-", "").isalnum():
+            raise HTTPException(status_code=400, detail="Schema ID must be alphanumeric with underscores or dashes")
+
+        # Check if schema ID already exists
+        if schema_id in SCHEMAS:
+            raise HTTPException(status_code=409, detail=f"Schema with ID '{schema_id}' already exists")
+
+        # Validate fields structure
+        if not isinstance(schema_data["fields"], dict):
+            raise HTTPException(status_code=400, detail="Fields must be a dictionary")
+
+        for field_name, field_config in schema_data["fields"].items():
+            if not isinstance(field_config, dict):
+                raise HTTPException(status_code=400, detail=f"Field '{field_name}' configuration must be a dictionary")
+            if "type" not in field_config or "required" not in field_config:
+                raise HTTPException(status_code=400, detail=f"Field '{field_name}' must have 'type' and 'required' properties")
+
+        # Save schema to the in-memory store
+        SCHEMAS[schema_id] = {
+            "id": schema_id,
+            "name": schema_data["name"],
+            "description": schema_data["description"],
+            "category": schema_data["category"],
+            "fields": schema_data["fields"],
+            "created_at": datetime.now().isoformat(),
+            "generated": True  # Flag to distinguish from predefined schemas
+        }
+
+        return {
+            "success": True,
+            "message": f"Schema '{schema_data['name']}' saved successfully",
+            "schema_id": schema_id,
+            "available_for_extraction": True
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Schema save error: {e}")
+        raise HTTPException(status_code=500, detail=f"Schema save failed: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
 

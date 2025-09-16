@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Upload, FileText, Brain, Wand2, CheckCircle, AlertCircle, Loader2, Eye, Download } from 'lucide-react'
+import { Upload, FileText, Brain, Wand2, CheckCircle, AlertCircle, Loader2, Eye, Download, Edit2, Check, X, Plus, Trash2, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -43,6 +44,15 @@ export function SchemaGenerator({ onSchemaGenerated, className }: SchemaGenerati
   const [analysisId, setAnalysisId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [documentPreview, setDocumentPreview] = useState<string | null>(null)
+
+  // Edit mode states
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editingSchema, setEditingSchema] = useState<any>(null)
+
+  // Save schema states
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   // Load available models on component mount
   useEffect(() => {
@@ -147,6 +157,8 @@ export function SchemaGenerator({ onSchemaGenerated, className }: SchemaGenerati
           id: generatedSchema.schema_data.id,
           name: generatedSchema.schema_data.name,
           description: generatedSchema.schema_data.description,
+          category: generatedSchema.schema_data.category,
+          fields: generatedSchema.schema_data.fields, // Store the complete fields data
           total_fields: Object.keys(generatedSchema.schema_data.fields).length,
           generation_confidence: 0.85, // Default confidence since backend doesn't provide it yet
           production_ready: generatedSchema.ready_for_extraction,
@@ -206,17 +218,102 @@ export function SchemaGenerator({ onSchemaGenerated, className }: SchemaGenerati
     }
   }
 
+  // Edit mode functions
+  const startEditMode = () => {
+    setIsEditMode(true)
+    setEditingSchema(JSON.parse(JSON.stringify(generatedSchema))) // Deep copy
+  }
+
+  const saveChanges = () => {
+    setGeneratedSchema(editingSchema)
+    setIsEditMode(false)
+    // Here you could also send the updated schema to the backend
+  }
+
+  const cancelEdit = () => {
+    setEditingSchema(null)
+    setIsEditMode(false)
+  }
+
+  const updateSchemaField = (field: string, value: any) => {
+    setEditingSchema({
+      ...editingSchema,
+      [field]: value
+    })
+  }
+
+  const updateFieldProperty = (fieldName: string, property: string, value: any) => {
+    setEditingSchema({
+      ...editingSchema,
+      fields: {
+        ...editingSchema.fields,
+        [fieldName]: {
+          ...editingSchema.fields[fieldName],
+          [property]: value
+        }
+      }
+    })
+  }
+
+  const deleteField = (fieldName: string) => {
+    const updatedFields = { ...editingSchema.fields }
+    delete updatedFields[fieldName]
+    setEditingSchema({
+      ...editingSchema,
+      fields: updatedFields,
+      total_fields: Object.keys(updatedFields).length
+    })
+  }
+
+  const addNewField = () => {
+    const newFieldName = `new_field_${Date.now()}`
+    setEditingSchema({
+      ...editingSchema,
+      fields: {
+        ...editingSchema.fields,
+        [newFieldName]: {
+          type: 'text',
+          required: false,
+          description: 'New field description'
+        }
+      },
+      total_fields: Object.keys(editingSchema.fields).length + 1
+    })
+  }
+
+  const renameField = (oldName: string, newName: string) => {
+    if (oldName === newName || !newName) return
+
+    // Preserve field order by recreating object in same order
+    const updatedFields: Record<string, any> = {}
+    Object.entries(editingSchema.fields).forEach(([key, value]) => {
+      if (key === oldName) {
+        updatedFields[newName] = value
+      } else {
+        updatedFields[key] = value
+      }
+    })
+
+    setEditingSchema({
+      ...editingSchema,
+      fields: updatedFields
+    })
+  }
+
   const downloadSchema = () => {
-    if (!generatedSchema) return
+    const schemaToDownload = isEditMode ? editingSchema : generatedSchema
+    if (!schemaToDownload) return
 
     const schemaData = {
-      id: generatedSchema.id,
-      name: generatedSchema.name,
-      description: generatedSchema.description,
+      id: schemaToDownload.id,
+      name: schemaToDownload.name,
+      description: schemaToDownload.description,
+      category: schemaToDownload.category,
+      fields: schemaToDownload.fields,
+      total_fields: schemaToDownload.total_fields,
       generated_at: new Date().toISOString(),
-      confidence: generatedSchema.generation_confidence,
-      fields: generatedSchema.total_fields,
-      production_ready: generatedSchema.production_ready
+      confidence: schemaToDownload.generation_confidence,
+      production_ready: schemaToDownload.production_ready
     }
 
     const blob = new Blob([JSON.stringify(schemaData, null, 2)], { type: 'application/json' })
@@ -228,6 +325,43 @@ export function SchemaGenerator({ onSchemaGenerated, className }: SchemaGenerati
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+  }
+
+  const saveSchemaForExtraction = async () => {
+    const schemaToSave = isEditMode ? editingSchema : generatedSchema
+    if (!schemaToSave) return
+
+    setIsSaving(true)
+    setSaveError(null)
+    setSaveMessage(null)
+
+    try {
+      const schemaData = {
+        id: schemaToSave.id,
+        name: schemaToSave.name,
+        description: schemaToSave.description || '',
+        category: schemaToSave.category || 'Government',
+        fields: schemaToSave.fields
+      }
+
+      const response = await apiClient.saveSchema(schemaData)
+
+      if (response.success) {
+        setSaveMessage(`Schema "${schemaToSave.name}" saved successfully! It's now available for data extraction.`)
+
+        // Notify parent component that schema was saved
+        if (onSchemaGenerated) {
+          onSchemaGenerated(response.schema_id)
+        }
+      } else {
+        throw new Error('Failed to save schema')
+      }
+    } catch (err: any) {
+      console.error('Save schema error:', err)
+      setSaveError(err.message || 'Failed to save schema')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -426,99 +560,262 @@ export function SchemaGenerator({ onSchemaGenerated, className }: SchemaGenerati
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="overview" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="confidence">Confidence</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="overview" className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Schema Name</Label>
-                    <p className="text-sm">{generatedSchema.name}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Total Fields</Label>
-                    <p className="text-sm">{generatedSchema.total_fields}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">High Confidence Fields</Label>
-                    <p className="text-sm">{generatedSchema.high_confidence_fields}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Production Ready</Label>
-                    <Badge variant={generatedSchema.production_ready ? "default" : "secondary"}>
-                      {generatedSchema.production_ready ? "Yes" : "Needs Review"}
-                    </Badge>
-                  </div>
-                </div>
-
-                {generatedSchema.description && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Description</Label>
-                    <p className="text-sm text-muted-foreground">{generatedSchema.description}</p>
+            <div className="space-y-4">
+              {/* Header with Edit Controls */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Schema Details</h3>
+                {!isEditMode ? (
+                  <Button onClick={startEditMode} variant="outline" size="sm">
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    Edit Schema
+                  </Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button onClick={saveChanges} variant="default" size="sm">
+                      <Check className="h-4 w-4 mr-2" />
+                      Save Changes
+                    </Button>
+                    <Button onClick={cancelEdit} variant="outline" size="sm">
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
                   </div>
                 )}
+              </div>
 
-                <Separator />
+              {/* Schema Basic Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Schema Name</Label>
+                  {!isEditMode ? (
+                    <p className="text-sm">{generatedSchema.name}</p>
+                  ) : (
+                    <Input
+                      value={editingSchema.name}
+                      onChange={(e) => updateSchemaField('name', e.target.value)}
+                      className="text-sm"
+                    />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Schema ID</Label>
+                  {!isEditMode ? (
+                    <p className="text-sm font-mono">{generatedSchema.id}</p>
+                  ) : (
+                    <Input
+                      value={editingSchema.id}
+                      onChange={(e) => updateSchemaField('id', e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))}
+                      className="text-sm font-mono"
+                      placeholder="snake_case_id"
+                    />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Category</Label>
+                  {!isEditMode ? (
+                    <Badge variant="outline">{generatedSchema.category || 'Unknown'}</Badge>
+                  ) : (
+                    <Select
+                      value={editingSchema.category || 'Government'}
+                      onValueChange={(value) => updateSchemaField('category', value)}
+                    >
+                      <SelectTrigger className="text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Government">Government</SelectItem>
+                        <SelectItem value="Business">Business</SelectItem>
+                        <SelectItem value="Personal">Personal</SelectItem>
+                        <SelectItem value="Healthcare">Healthcare</SelectItem>
+                        <SelectItem value="Education">Education</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Total Fields</Label>
+                  <p className="text-sm">{isEditMode ? editingSchema.total_fields : generatedSchema.total_fields}</p>
+                </div>
+              </div>
 
-                <div className="flex gap-2">
-                  <Button onClick={downloadSchema} variant="outline">
-                    <Download className="h-4 w-4 mr-2" />
-                    Download Schema
-                  </Button>
-                  {onSchemaGenerated && (
-                    <Button onClick={() => onSchemaGenerated!(generatedSchema.id)}>
-                      Use This Schema
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Description</Label>
+                {!isEditMode ? (
+                  <p className="text-sm text-muted-foreground">{generatedSchema.description || 'No description'}</p>
+                ) : (
+                  <Input
+                    value={editingSchema.description || ''}
+                    onChange={(e) => updateSchemaField('description', e.target.value)}
+                    className="text-sm"
+                    placeholder="Enter schema description"
+                  />
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Generation Confidence */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Generation Confidence</Label>
+                <div className="flex items-center gap-2">
+                  <Progress value={generatedSchema.generation_confidence * 100} className="flex-1" />
+                  <span className="text-sm">{Math.round(generatedSchema.generation_confidence * 100)}%</span>
+                </div>
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    {generatedSchema.generation_confidence >= 0.8
+                      ? "High confidence - This schema is ready for production use."
+                      : generatedSchema.generation_confidence >= 0.6
+                      ? "Medium confidence - Review recommended before production use."
+                      : "Low confidence - Manual review and adjustment required."}
+                  </AlertDescription>
+                </Alert>
+              </div>
+
+              <Separator />
+
+              {/* Schema Fields */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">
+                    Generated Fields ({isEditMode ? editingSchema?.total_fields : generatedSchema.total_fields})
+                  </Label>
+                  {isEditMode && (
+                    <Button onClick={addNewField} variant="outline" size="sm">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Field
                     </Button>
                   )}
                 </div>
-              </TabsContent>
-
-              <TabsContent value="details" className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Schema ID</Label>
-                  <code className="text-xs bg-muted p-2 rounded block">{generatedSchema.id}</code>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Validation Status</Label>
-                  <Badge variant={generatedSchema.validation_status === 'valid' ? "default" : "destructive"}>
-                    {generatedSchema.validation_status}
-                  </Badge>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">User Review Status</Label>
-                  <Badge variant="secondary">{generatedSchema.user_review_status || 'Pending'}</Badge>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="confidence" className="space-y-4">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Generation Confidence</Label>
-                    <div className="flex items-center gap-2">
-                      <Progress value={generatedSchema.generation_confidence * 100} className="flex-1" />
-                      <span className="text-sm">{Math.round(generatedSchema.generation_confidence * 100)}%</span>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {(isEditMode ? editingSchema?.fields : generatedSchema.fields) &&
+                   Object.entries(isEditMode ? editingSchema.fields : generatedSchema.fields).map(([fieldName, fieldConfig]: [string, any], index) => (
+                    <div key={`field-${index}`} className="border rounded-lg p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        {!isEditMode ? (
+                          <span className="text-sm font-medium">{fieldName}</span>
+                        ) : (
+                          <Input
+                            value={fieldName}
+                            onChange={(e) => renameField(fieldName, e.target.value)}
+                            className="text-sm font-medium w-48"
+                            placeholder="field_name"
+                          />
+                        )}
+                        <div className="flex gap-1">
+                          {!isEditMode ? (
+                            <>
+                              <Badge variant="outline" className="text-xs">
+                                {fieldConfig.type || 'text'}
+                              </Badge>
+                              <Badge variant={fieldConfig.required ? "destructive" : "secondary"} className="text-xs">
+                                {fieldConfig.required ? "Required" : "Optional"}
+                              </Badge>
+                            </>
+                          ) : (
+                            <>
+                              <Select
+                                value={fieldConfig.type || 'text'}
+                                onValueChange={(value) => updateFieldProperty(fieldName, 'type', value)}
+                              >
+                                <SelectTrigger className="w-24 h-7 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="text">text</SelectItem>
+                                  <SelectItem value="number">number</SelectItem>
+                                  <SelectItem value="date">date</SelectItem>
+                                  <SelectItem value="email">email</SelectItem>
+                                  <SelectItem value="phone">phone</SelectItem>
+                                  <SelectItem value="url">url</SelectItem>
+                                  <SelectItem value="boolean">boolean</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Select
+                                value={fieldConfig.required ? 'required' : 'optional'}
+                                onValueChange={(value) => updateFieldProperty(fieldName, 'required', value === 'required')}
+                              >
+                                <SelectTrigger className="w-24 h-7 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="required">Required</SelectItem>
+                                  <SelectItem value="optional">Optional</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                onClick={() => deleteField(fieldName)}
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      {!isEditMode ? (
+                        fieldConfig.description && (
+                          <p className="text-xs text-muted-foreground">{fieldConfig.description}</p>
+                        )
+                      ) : (
+                        <Input
+                          value={fieldConfig.description || ''}
+                          onChange={(e) => updateFieldProperty(fieldName, 'description', e.target.value)}
+                          className="text-xs"
+                          placeholder="Field description"
+                        />
+                      )}
                     </div>
-                  </div>
-
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      {generatedSchema.generation_confidence >= 0.8
-                        ? "High confidence - This schema is ready for production use."
-                        : generatedSchema.generation_confidence >= 0.6
-                        ? "Medium confidence - Review recommended before production use."
-                        : "Low confidence - Manual review and adjustment required."}
-                    </AlertDescription>
-                  </Alert>
+                  ))}
                 </div>
-              </TabsContent>
-            </Tabs>
+              </div>
+
+              <Separator />
+
+              {/* Save/Success/Error Messages */}
+              {saveMessage && (
+                <Alert>
+                  <CheckCircle className="h-4 w-4" />
+                  <AlertDescription>{saveMessage}</AlertDescription>
+                </Alert>
+              )}
+
+              {saveError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{saveError}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={saveSchemaForExtraction}
+                  disabled={isSaving}
+                  variant="default"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save for Extraction
+                    </>
+                  )}
+                </Button>
+                <Button onClick={downloadSchema} variant="outline">
+                  <Download className="h-4 w-4 mr-2" />
+                  Download JSON
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}

@@ -244,6 +244,33 @@ export class APIClient {
   }
 
   /**
+   * Save a generated schema to make it available for data extraction
+   * Calls POST /api/schemas endpoint
+   */
+  async saveSchema(schemaData: {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+    fields: Record<string, any>;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    schema_id: string;
+    available_for_extraction: boolean;
+  }> {
+    const response = await fetch(`${this.baseURL}/api/schemas`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(schemaData),
+    });
+
+    return this.handleResponse(response);
+  }
+
+  /**
    * Health check endpoint for monitoring
    */
   async healthCheck(): Promise<{
