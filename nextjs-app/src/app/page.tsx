@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Toaster } from 'sonner'
 import { ExtractionWorkflow } from '@/components/extraction/extraction-workflow'
+import { SchemaGenerator } from '@/components/schema/schema-generator'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('extract')
@@ -124,32 +125,7 @@ export default function Home() {
             </TabsContent>
 
             <TabsContent value="schemas" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Schema Generation</CardTitle>
-                  <CardDescription>
-                    Upload sample documents to automatically generate extraction schemas
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex items-center justify-center py-12">
-                  <div className="text-center space-y-4">
-                    <div className="p-4 rounded-full bg-blue-100 dark:bg-blue-950/50 w-fit mx-auto">
-                      <FileText className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-lg font-medium">Schema Generation Coming Soon</p>
-                      <p className="text-sm text-muted-foreground max-w-md">
-                        This feature will allow you to upload sample documents and automatically
-                        generate reusable extraction schemas with AI assistance.
-                      </p>
-                    </div>
-                    <Button disabled>
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      Generate Schema
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <SchemaGenerator />
             </TabsContent>
           </Tabs>
         </div>

@@ -11,11 +11,13 @@ import {
   ServiceStatusResponse,
   SupportedModelsResponse,
   RetryAnalysisResponse,
-  RetryAnalysisRequest
-} from '@/types'
+  RetryAnalysisRequest,
+  AvailableSchemasResponse,
+  ExtractDataResponse,
+} from "@/types";
 
 // API base URL - point to the data extraction API server
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 class APIError extends Error {
   constructor(
@@ -23,8 +25,8 @@ class APIError extends Error {
     public status?: number,
     public response?: Response
   ) {
-    super(message)
-    this.name = 'APIError'
+    super(message);
+    this.name = "APIError";
   }
 }
 
@@ -32,27 +34,27 @@ class APIError extends Error {
  * API Client for document processing operations
  */
 export class APIClient {
-  private baseURL: string
+  private baseURL: string;
 
   constructor(baseURL: string = API_BASE) {
-    this.baseURL = baseURL
+    this.baseURL = baseURL;
   }
 
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error')
+      const errorText = await response.text().catch(() => "Unknown error");
       throw new APIError(
         `HTTP ${response.status}: ${errorText}`,
         response.status,
         response
-      )
+      );
     }
 
-    const contentType = response.headers.get('content-type')
-    if (contentType && contentType.includes('application/json')) {
-      return response.json()
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      return response.json();
     } else {
-      throw new APIError('Expected JSON response from API')
+      throw new APIError("Expected JSON response from API");
     }
   }
 
@@ -60,40 +62,44 @@ export class APIClient {
    * Upload and analyze document using existing AISchemaGenerationAPI
    * Calls POST /api/documents endpoint which uses AISchemaGenerationAPI.analyze_document()
    */
-  async uploadDocument(request: DocumentUploadRequest): Promise<DocumentAnalysisResponse> {
-    const formData = new FormData()
-    formData.append('file', request.file)
+  async uploadDocument(
+    request: DocumentUploadRequest
+  ): Promise<DocumentAnalysisResponse> {
+    const formData = new FormData();
+    formData.append("file", request.file);
 
     if (request.model) {
-      formData.append('model', request.model)
+      formData.append("model", request.model);
     }
 
     if (request.document_type_hint) {
-      formData.append('document_type_hint', request.document_type_hint)
+      formData.append("document_type_hint", request.document_type_hint);
     }
 
     const response = await fetch(`${this.baseURL}/api/documents`, {
-      method: 'POST',
+      method: "POST",
       body: formData,
       // Don't set Content-Type header - let browser set it for multipart/form-data
-    })
+    });
 
-    return this.handleResponse<DocumentAnalysisResponse>(response)
+    return this.handleResponse<DocumentAnalysisResponse>(response);
   }
 
   /**
    * Get complete analysis results by ID
    * Calls GET /api/analysis/{id} endpoint which uses AISchemaGenerationAPI.get_analysis_results()
    */
-  async getAnalysisResults(analysisId: string): Promise<AnalysisResultsResponse> {
+  async getAnalysisResults(
+    analysisId: string
+  ): Promise<AnalysisResultsResponse> {
     const response = await fetch(`${this.baseURL}/api/analysis/${analysisId}`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-    })
+    });
 
-    return this.handleResponse<AnalysisResultsResponse>(response)
+    return this.handleResponse<AnalysisResultsResponse>(response);
   }
 
   /**
@@ -102,34 +108,39 @@ export class APIClient {
    */
   async getSchemaDetails(schemaId: string): Promise<SchemaDetailsResponse> {
     const response = await fetch(`${this.baseURL}/api/schemas/${schemaId}`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-    })
+    });
 
-    return this.handleResponse<SchemaDetailsResponse>(response)
+    return this.handleResponse<SchemaDetailsResponse>(response);
   }
 
   /**
    * Retry analysis with different model or parameters
    * Calls POST /api/analysis/{id}/retry endpoint which uses AISchemaGenerationAPI.retry_analysis()
    */
-  async retryAnalysis(request: RetryAnalysisRequest): Promise<RetryAnalysisResponse> {
+  async retryAnalysis(
+    request: RetryAnalysisRequest
+  ): Promise<RetryAnalysisResponse> {
     const body = {
       document_id: request.document_id,
-      ...(request.model && { model: request.model })
-    }
+      ...(request.model && { model: request.model }),
+    };
 
-    const response = await fetch(`${this.baseURL}/api/analysis/${request.analysis_id}/retry`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    })
+    const response = await fetch(
+      `${this.baseURL}/api/analysis/${request.analysis_id}/retry`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      }
+    );
 
-    return this.handleResponse<RetryAnalysisResponse>(response)
+    return this.handleResponse<RetryAnalysisResponse>(response);
   }
 
   /**
@@ -138,28 +149,28 @@ export class APIClient {
    */
   async getSupportedModels(): Promise<SupportedModelsResponse> {
     const response = await fetch(`${this.baseURL}/api/models`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-    })
+    });
 
-    return this.handleResponse<SupportedModelsResponse>(response)
+    return this.handleResponse<SupportedModelsResponse>(response);
   }
 
   /**
    * Get list of available document schemas/types
    * Calls GET /api/schemas endpoint
    */
-  async getAvailableSchemas(): Promise<any> {
+  async getAvailableSchemas(): Promise<AvailableSchemasResponse> {
     const response = await fetch(`${this.baseURL}/api/schemas`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-    })
+    });
 
-    return this.handleResponse(response)
+    return this.handleResponse<AvailableSchemasResponse>(response);
   }
 
   /**
@@ -168,13 +179,13 @@ export class APIClient {
    */
   async getServiceStatus(): Promise<ServiceStatusResponse> {
     const response = await fetch(`${this.baseURL}/api/status`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-    })
+    });
 
-    return this.handleResponse<ServiceStatusResponse>(response)
+    return this.handleResponse<ServiceStatusResponse>(response);
   }
 
   /**
@@ -185,45 +196,49 @@ export class APIClient {
     schemaId?: string,
     useAI: boolean = true,
     model?: string
-  ): Promise<any> {
-    const formData = new FormData()
-    formData.append('file', file)
+  ): Promise<ExtractDataResponse> {
+    const formData = new FormData();
+    formData.append("file", file);
 
     if (schemaId) {
-      formData.append('schema_id', schemaId)
+      formData.append("schema_id", schemaId);
     }
 
-    formData.append('use_ai', useAI.toString())
+    formData.append("use_ai", useAI.toString());
 
     if (model) {
-      formData.append('model', model)
+      formData.append("model", model);
     }
 
     const response = await fetch(`${this.baseURL}/api/extract`, {
-      method: 'POST',
+      method: "POST",
       body: formData,
-    })
+    });
 
-    return this.handleResponse(response)
+    return this.handleResponse<ExtractDataResponse>(response);
   }
 
   /**
    * Health check endpoint for monitoring
    */
-  async healthCheck(): Promise<{ status: string; backend_available: boolean; timestamp: string }> {
+  async healthCheck(): Promise<{
+    status: string;
+    backend_available: boolean;
+    timestamp: string;
+  }> {
     const response = await fetch(`${this.baseURL}/health`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-    })
+    });
 
-    return this.handleResponse(response)
+    return this.handleResponse(response);
   }
 }
 
 // Export singleton instance
-export const apiClient = new APIClient()
+export const apiClient = new APIClient();
 
 // Export utility functions for common patterns
 
@@ -235,49 +250,54 @@ export async function uploadDocumentWithProgress(
   onProgress?: (progress: number) => void
 ): Promise<DocumentAnalysisResponse> {
   return new Promise((resolve, reject) => {
-    const formData = new FormData()
-    formData.append('file', request.file)
+    const formData = new FormData();
+    formData.append("file", request.file);
 
     if (request.model) {
-      formData.append('model', request.model)
+      formData.append("model", request.model);
     }
 
     if (request.document_type_hint) {
-      formData.append('document_type_hint', request.document_type_hint)
+      formData.append("document_type_hint", request.document_type_hint);
     }
 
-    const xhr = new XMLHttpRequest()
+    const xhr = new XMLHttpRequest();
 
     // Track upload progress
     if (onProgress) {
-      xhr.upload.addEventListener('progress', (e) => {
+      xhr.upload.addEventListener("progress", (e) => {
         if (e.lengthComputable) {
-          const percent = Math.round((e.loaded * 100) / e.total)
-          onProgress(percent)
+          const percent = Math.round((e.loaded * 100) / e.total);
+          onProgress(percent);
         }
-      })
+      });
     }
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
-          const result = JSON.parse(xhr.responseText)
-          resolve(result)
+          const result = JSON.parse(xhr.responseText);
+          resolve(result);
         } catch (error) {
-          reject(new APIError('Failed to parse response JSON'))
+          reject(new APIError("Failed to parse response JSON"));
         }
       } else {
-        reject(new APIError(`Upload failed: ${xhr.status} ${xhr.statusText}`, xhr.status))
+        reject(
+          new APIError(
+            `Upload failed: ${xhr.status} ${xhr.statusText}`,
+            xhr.status
+          )
+        );
       }
-    }
+    };
 
     xhr.onerror = () => {
-      reject(new APIError('Network error during upload'))
-    }
+      reject(new APIError("Network error during upload"));
+    };
 
-    xhr.open('POST', `${API_BASE}/api/documents`)
-    xhr.send(formData)
-  })
+    xhr.open("POST", `${API_BASE}/api/documents`);
+    xhr.send(formData);
+  });
 }
 
 /**
@@ -285,37 +305,40 @@ export async function uploadDocumentWithProgress(
  */
 export async function pollAnalysisProgress(
   analysisId: string,
-  onProgress: (progress: any) => void,
+  onProgress: (progress: AnalysisResultsResponse) => void,
   intervalMs: number = 2000
 ): Promise<() => void> {
-  let isPolling = true
+  let isPolling = true;
 
   const poll = async () => {
     while (isPolling) {
       try {
-        const result = await apiClient.getAnalysisResults(analysisId)
-        onProgress(result)
+        const result = await apiClient.getAnalysisResults(analysisId);
+        onProgress(result);
 
         // Stop polling if analysis is completed or failed
-        if (result.success === false ||
-            (result.analysis && ['completed', 'failed'].includes(result.analysis.id))) {
-          break
+        if (
+          result.success === false ||
+          (result.analysis &&
+            ["completed", "failed"].includes(result.analysis.id))
+        ) {
+          break;
         }
 
-        await new Promise(resolve => setTimeout(resolve, intervalMs))
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
       } catch (error) {
-        console.error('Error polling analysis progress:', error)
+        console.error("Error polling analysis progress:", error);
         // Continue polling on error, but with longer interval
-        await new Promise(resolve => setTimeout(resolve, intervalMs * 2))
+        await new Promise((resolve) => setTimeout(resolve, intervalMs * 2));
       }
     }
-  }
+  };
 
   // Start polling
-  poll()
+  poll();
 
   // Return stop function
   return () => {
-    isPolling = false
-  }
+    isPolling = false;
+  };
 }

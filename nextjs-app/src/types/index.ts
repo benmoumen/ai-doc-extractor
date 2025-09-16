@@ -8,8 +8,14 @@ export interface StageResult {
   success: boolean
   duration: number
   error?: string
-  [key: string]: any
+  [key: string]: unknown
 }
+
+// Generic JSON value types for flexible backend payloads
+export type JSONPrimitive = string | number | boolean | null
+export type JSONValue = JSONPrimitive | JSONObject | JSONArray
+export interface JSONObject { [key: string]: JSONValue }
+export type JSONArray = JSONValue[]
 
 // Complete document analysis response from AISchemaGenerationAPI.analyze_document()
 export interface DocumentAnalysisResponse {
@@ -68,14 +74,14 @@ export interface AnalysisResultsResponse {
     field_name: string
     display_name: string
     field_type: string
-    extracted_value: any
+    extracted_value: JSONValue
     confidence_score: number
     validation_status: string
     requires_review: boolean
     field_description?: string
     validation_rules?: Array<{
       rule_type: string
-      rule_value: any
+      rule_value: JSONValue
       rule_description: string
       is_recommended: boolean
     }>
@@ -84,7 +90,7 @@ export interface AnalysisResultsResponse {
     id: string
     field_id: string
     rule_type: string
-    rule_value: any
+    rule_value: JSONValue
     rule_description: string
     priority: number
     is_recommended: boolean
@@ -155,7 +161,7 @@ export interface SchemaDetailsResponse {
     json_schema_version: string
     supported_formats: string[]
   }
-  standard_format?: Record<string, any>
+  standard_format?: Record<string, JSONValue>
   error?: string
 }
 
@@ -165,33 +171,33 @@ export interface ServiceStatusResponse {
   services?: {
     document_processor: {
       available: boolean
-      stats: Record<string, any>
+      stats: Record<string, JSONValue>
     }
     ai_analyzer: {
       available: boolean
-      stats: Record<string, any>
+      stats: Record<string, JSONValue>
     }
     field_extractor: {
       available: boolean
-      stats: Record<string, any>
+      stats: Record<string, JSONValue>
     }
     validation_rule_inferencer: {
       available: boolean
-      stats: Record<string, any>
+      stats: Record<string, JSONValue>
     }
     schema_generator: {
       available: boolean
-      stats: Record<string, any>
+      stats: Record<string, JSONValue>
     }
     confidence_scorer: {
       available: boolean
-      stats: Record<string, any>
+      stats: Record<string, JSONValue>
     }
   }
   storage?: {
-    documents: Record<string, any>
-    analyses: Record<string, any>
-    schemas: Record<string, any>
+    documents: Record<string, JSONValue>
+    analyses: Record<string, JSONValue>
+    schemas: Record<string, JSONValue>
   }
   error?: string
 }
@@ -203,12 +209,50 @@ export interface SupportedModelsResponse {
     id: string
     name: string
     provider: string
-    description: string
+    model: string
+    provider_id: string
+    model_id: string
     max_tokens?: number
     cost_per_token?: number
   }>
   default_model?: string
   error?: string
+}
+
+// Available schemas response from GET /api/schemas
+export interface AvailableSchemasResponse {
+  success: boolean
+  schemas: Record<
+    string,
+    {
+      id: string
+      name: string
+      display_name: string
+    }
+  >
+}
+
+// Extract data response from POST /api/extract
+export interface ExtractDataResponse {
+  success: boolean
+  extracted_data: {
+    raw_content: string
+    formatted_text: string
+    structured_data: Record<string, JSONValue> | null
+    is_structured: boolean
+  }
+  validation: {
+    passed: boolean
+    errors: string[]
+  }
+  metadata: {
+    processing_time: number
+    file_type: string
+    model_used: string
+    extraction_mode: 'schema' | 'ai_freeform'
+    schema_id?: string | null
+    prompt_used?: string
+  }
 }
 
 // Retry analysis response from AISchemaGenerationAPI.retry_analysis()
@@ -267,7 +311,7 @@ export interface UploadState {
 // Form validation types using Zod
 export interface FieldValidation {
   field_name: string
-  value: any
+  value: JSONValue
   is_valid: boolean
   error_message?: string
   confidence_score?: number
