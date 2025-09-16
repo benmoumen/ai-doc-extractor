@@ -36,11 +36,8 @@ export function SchemaGenerator({ onSchemaGenerated, className }: SchemaGenerati
   const [currentStep, setCurrentStep] = useState<string>('')
   const [generationSteps, setGenerationSteps] = useState<GenerationStep[]>([
     { name: 'Document Processing', status: 'pending' },
-    { name: 'AI Analysis', status: 'pending' },
-    { name: 'Field Enhancement', status: 'pending' },
-    { name: 'Validation Rules', status: 'pending' },
-    { name: 'Schema Generation', status: 'pending' },
-    { name: 'Confidence Analysis', status: 'pending' }
+    { name: 'AI Schema Generation', status: 'pending' },
+    { name: 'Schema Validation', status: 'pending' }
   ])
   const [generatedSchema, setGeneratedSchema] = useState<any>(null)
   const [analysisId, setAnalysisId] = useState<string | null>(null)
@@ -118,55 +115,66 @@ export function SchemaGenerator({ onSchemaGenerated, className }: SchemaGenerati
     setCurrentStep('Uploading document...')
 
     try {
-      // Step 1: Upload document and start analysis
+      // Step 1: Process document
       updateStepStatus('Document Processing', 'in_progress')
-
-      const uploadResponse = await apiClient.uploadDocument({
-        file: selectedFile,
-        model: selectedModel || undefined,
-        document_type_hint: documentTypeHint === 'auto-detect' ? undefined : documentTypeHint || undefined
-      })
-
-      if (!uploadResponse.success) {
-        throw new Error('Document upload failed')
-      }
-
-      setAnalysisId(uploadResponse.analysis_id)
       setGenerationProgress(10)
 
-      // Update processing stages based on response
-      if (uploadResponse.analysis_result?.processing_stages) {
-        const stages = uploadResponse.analysis_result.processing_stages
+      // Step 2: Generate schema with AI
+      setCurrentStep('Analyzing document with AI...')
+      updateStepStatus('Document Processing', 'completed')
+      updateStepStatus('AI Schema Generation', 'in_progress')
+      setGenerationProgress(30)
 
-        Object.entries(stages).forEach(([stageName, stageData]: [string, any]) => {
-          const stepName = getStepNameFromStage(stageName)
-          if (stepName) {
-            updateStepStatus(
-              stepName,
-              stageData.success ? 'completed' : 'failed',
-              stageData,
-              stageData.duration
-            )
-          }
+      const schemaResponse = await apiClient.generateSchema({
+        file: selectedFile,
+        model: selectedModel || undefined
+      })
+
+      if (!schemaResponse.success) {
+        throw new Error('Schema generation failed')
+      }
+
+      setGenerationProgress(70)
+      updateStepStatus('AI Schema Generation', 'completed')
+      updateStepStatus('Schema Validation', 'in_progress')
+      setCurrentStep('Validating generated schema...')
+
+      // Process the generated schema
+      const generatedSchema = schemaResponse.generated_schema
+
+      if (generatedSchema.is_valid && generatedSchema.schema_data) {
+        setGeneratedSchema({
+          id: generatedSchema.schema_data.id,
+          name: generatedSchema.schema_data.name,
+          description: generatedSchema.schema_data.description,
+          total_fields: Object.keys(generatedSchema.schema_data.fields).length,
+          generation_confidence: 0.85, // Default confidence since backend doesn't provide it yet
+          production_ready: generatedSchema.ready_for_extraction,
+          validation_status: 'valid',
+          user_review_status: 'pending'
         })
 
-        // Calculate progress based on completed stages
-        const completedStages = Object.values(stages).filter((stage: any) => stage.success).length
-        const totalStages = Object.keys(stages).length
-        setGenerationProgress(Math.round((completedStages / totalStages) * 90))
+        updateStepStatus('Schema Validation', 'completed')
+        setCurrentStep('Schema generation completed!')
+        setGenerationProgress(100)
 
-        // If analysis completed successfully, get the generated schema
-        if (uploadResponse.analysis_result.success && uploadResponse.analysis_result.schema) {
-          setGeneratedSchema(uploadResponse.analysis_result.schema)
-          setCurrentStep('Schema generation completed!')
-          setGenerationProgress(100)
-
-          if (onSchemaGenerated) {
-            onSchemaGenerated(uploadResponse.analysis_result.schema.id)
-          }
-        } else if (!uploadResponse.analysis_result.success) {
-          throw new Error('Schema generation failed: ' + uploadResponse.analysis_result.errors?.join(', '))
+        if (onSchemaGenerated && generatedSchema.schema_id) {
+          onSchemaGenerated(generatedSchema.schema_id)
         }
+      } else {
+        // Show more detailed error information
+        console.error('Schema validation failed:', {
+          is_valid: generatedSchema.is_valid,
+          has_schema_data: !!generatedSchema.schema_data,
+          raw_response_length: generatedSchema.raw_response?.length || 0,
+          raw_response_preview: generatedSchema.raw_response?.substring(0, 200) + '...'
+        })
+
+        const errorMessage = !generatedSchema.is_valid
+          ? 'AI response could not be parsed as valid JSON schema'
+          : 'Generated schema missing required data fields'
+
+        throw new Error(`${errorMessage}. Check console for raw AI response.`)
       }
 
     } catch (err: any) {
@@ -184,17 +192,6 @@ export function SchemaGenerator({ onSchemaGenerated, className }: SchemaGenerati
     }
   }
 
-  const getStepNameFromStage = (stageName: string): string | null => {
-    const stageMap: Record<string, string> = {
-      'document_processing': 'Document Processing',
-      'ai_analysis': 'AI Analysis',
-      'field_enhancement': 'Field Enhancement',
-      'validation_inference': 'Validation Rules',
-      'schema_generation': 'Schema Generation',
-      'confidence_analysis': 'Confidence Analysis'
-    }
-    return stageMap[stageName] || null
-  }
 
   const getStepIcon = (status: GenerationStep['status']) => {
     switch (status) {
@@ -336,12 +333,13 @@ export function SchemaGenerator({ onSchemaGenerated, className }: SchemaGenerati
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto-detect">Auto-detect</SelectItem>
+                <SelectItem value="national_id">National ID Card</SelectItem>
+                <SelectItem value="passport">Passport</SelectItem>
+                <SelectItem value="residence_permit">Residence Permit</SelectItem>
+                <SelectItem value="business_license">Business License</SelectItem>
                 <SelectItem value="invoice">Invoice</SelectItem>
                 <SelectItem value="receipt">Receipt</SelectItem>
-                <SelectItem value="passport">Passport</SelectItem>
                 <SelectItem value="contract">Contract</SelectItem>
-                <SelectItem value="form">Form</SelectItem>
-                <SelectItem value="certificate">Certificate</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>

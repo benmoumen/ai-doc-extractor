@@ -249,9 +249,34 @@ export interface ExtractDataResponse {
     processing_time: number
     file_type: string
     model_used: string
-    extraction_mode: 'schema' | 'ai_freeform'
-    schema_id?: string | null
-    prompt_used?: string
+    extraction_mode: 'schema_guided' | 'freeform'
+    schema_used?: string | null
+  }
+  debug: {
+    completion_params: {
+      model: string
+      messages: Array<{
+        role: string
+        content: Array<{
+          type: string
+          text?: string
+          image_url?: { url: string }
+        }>
+      }>
+      temperature: number
+    }
+    raw_response: {
+      id?: string
+      choices: Array<{
+        message: {
+          role: string
+          content: string
+        }
+        finish_reason?: string
+      }>
+      usage: Record<string, JSONValue>
+      model: string
+    }
   }
 }
 
@@ -338,4 +363,44 @@ export interface ExportResult {
   download_url?: string
   filename?: string
   error?: string
+}
+
+// Schema Generation Response from POST /api/generate-schema
+export interface SchemaGenerationResponse {
+  success: boolean
+  generated_schema: {
+    schema_id: string | null
+    schema_data: {
+      id: string
+      name: string
+      description: string
+      category: string
+      fields: Record<string, {
+        type: string
+        required: boolean
+        description: string
+      }>
+    } | null
+    is_valid: boolean
+    ready_for_extraction: boolean
+    raw_response: string
+    formatted_text: string
+  }
+  next_steps: {
+    available_in_schemas: boolean
+    can_use_for_extraction: boolean
+    schema_endpoint: string | null
+  }
+  metadata: {
+    processing_time: number
+    file_type: string
+    model_used: string
+    fields_generated: number
+  }
+}
+
+// Schema generation request
+export interface SchemaGenerationRequest {
+  file: File
+  model?: string
 }

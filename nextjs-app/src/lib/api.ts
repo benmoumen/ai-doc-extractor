@@ -14,6 +14,8 @@ import {
   RetryAnalysisRequest,
   AvailableSchemasResponse,
   ExtractDataResponse,
+  SchemaGenerationResponse,
+  SchemaGenerationRequest,
 } from "@/types";
 
 // API base URL - point to the data extraction API server
@@ -216,6 +218,29 @@ export class APIClient {
     });
 
     return this.handleResponse<ExtractDataResponse>(response);
+  }
+
+  /**
+   * Generate schema from sample document
+   * Calls POST /api/generate-schema endpoint
+   */
+  async generateSchema(
+    request: SchemaGenerationRequest
+  ): Promise<SchemaGenerationResponse> {
+    const formData = new FormData();
+    formData.append("file", request.file);
+
+    if (request.model) {
+      formData.append("model", request.model);
+    }
+
+    const response = await fetch(`${this.baseURL}/api/generate-schema`, {
+      method: "POST",
+      body: formData,
+      // Don't set Content-Type header - let browser set it for multipart/form-data
+    });
+
+    return this.handleResponse<SchemaGenerationResponse>(response);
   }
 
   /**
