@@ -15,7 +15,7 @@ services:
       - DEBUG=true
       - LOG_LEVEL=debug
       - PYTHONUNBUFFERED=1
-    command: uvicorn http_api.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app
 
   frontend:
     build:
