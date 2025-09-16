@@ -174,6 +174,53 @@ export function SchemaGenerator({
     );
   };
 
+  const simulateProgressWithSteps = async (steps: AIDebugStep[]) => {
+    const stepNames = [
+      "Initial Document Analysis",
+      "Schema Review & Refinement",
+      "Confidence Analysis",
+      "Extraction Hints Generation"
+    ];
+
+    for (let i = 0; i < steps.length && i < stepNames.length; i++) {
+      const stepName = stepNames[i];
+      const stepInfo = steps[i];
+
+      // Start step
+      updateStepStatus(stepName, "in_progress");
+      setCurrentStep(getStepMessage(stepName));
+      setGenerationProgress(((i + 0.3) / 4) * 100);
+
+      // Simulate step duration (minimum 500ms, maximum actual duration)
+      const simulatedDuration = Math.max(500, (stepInfo.duration || 1) * 1000);
+      await new Promise(resolve => setTimeout(resolve, Math.min(simulatedDuration, 3000)));
+
+      // Complete step
+      updateStepStatus(
+        stepName,
+        stepInfo.success ? "completed" : "failed",
+        stepInfo,
+        stepInfo.duration
+      );
+      setGenerationProgress(((i + 1) / 4) * 100);
+    }
+  };
+
+  const getStepMessage = (stepName: string): string => {
+    switch (stepName) {
+      case "Initial Document Analysis":
+        return "Analyzing document and detecting fields...";
+      case "Schema Review & Refinement":
+        return "Reviewing and refining detected schema...";
+      case "Confidence Analysis":
+        return "Analyzing field confidence and quality...";
+      case "Extraction Hints Generation":
+        return "Generating extraction hints and positioning guidance...";
+      default:
+        return "Processing...";
+    }
+  };
+
   const startGeneration = async () => {
     if (!selectedFile) {
       setError("Please select a document to analyze");
@@ -186,16 +233,22 @@ export function SchemaGenerator({
     setCurrentStep("Uploading document...");
 
     try {
-      // Step 1: Initial Document Analysis
-      updateStepStatus("Initial Document Analysis", "in_progress");
-      setGenerationProgress(10);
-      setCurrentStep("Analyzing document and detecting fields...");
+      setGenerationProgress(5);
+      setCurrentStep("Starting multi-step AI analysis...");
 
       // Start the multi-step schema generation
-      const schemaResponse = await apiClient.generateSchema({
+      const schemaResponsePromise = apiClient.generateSchema({
         file: selectedFile,
         model: selectedModel || undefined,
       });
+
+      // Start progress simulation immediately
+      updateStepStatus("Initial Document Analysis", "in_progress");
+      setCurrentStep("Analyzing document and detecting fields...");
+      setGenerationProgress(10);
+
+      // Wait for the actual response
+      const schemaResponse = await schemaResponsePromise;
 
       if (!schemaResponse.success) {
         throw new Error("Multi-step schema generation failed");
@@ -204,38 +257,29 @@ export function SchemaGenerator({
       // Store AI debug information
       setAiDebugInfo(schemaResponse.ai_debug || null);
 
-      // Update progress based on completed steps
-      if (schemaResponse.ai_debug?.steps) {
-        const steps = schemaResponse.ai_debug.steps;
-
-        // Update step statuses based on AI debug info
-        steps.forEach((stepInfo: AIDebugStep, index: number) => {
-          const stepName = generationSteps[index]?.name;
-          if (stepName) {
-            updateStepStatus(
-              stepName,
-              stepInfo.success ? "completed" : "failed",
-              stepInfo,
-              stepInfo.duration
-            );
-          }
-        });
-
-        // Set progress based on completed steps
-        setGenerationProgress((steps.length / 4) * 100);
+      // If we have AI debug steps, simulate progress based on them
+      if (schemaResponse.ai_debug?.steps && schemaResponse.ai_debug.steps.length > 0) {
+        await simulateProgressWithSteps(schemaResponse.ai_debug.steps);
       } else {
-        // Fallback progress update
-        setGenerationProgress(25);
-        updateStepStatus("Initial Document Analysis", "completed");
-        setGenerationProgress(50);
-        updateStepStatus("Schema Review & Refinement", "completed");
-        setGenerationProgress(75);
-        updateStepStatus("Confidence Analysis", "completed");
-        setGenerationProgress(100);
-        updateStepStatus("Extraction Hints Generation", "completed");
+        // Fallback progress simulation without AI debug info
+        const stepNames = [
+          "Initial Document Analysis",
+          "Schema Review & Refinement",
+          "Confidence Analysis",
+          "Extraction Hints Generation"
+        ];
+
+        for (let i = 0; i < stepNames.length; i++) {
+          updateStepStatus(stepNames[i], "in_progress");
+          setCurrentStep(getStepMessage(stepNames[i]));
+          setGenerationProgress(((i + 0.5) / 4) * 100);
+          await new Promise(resolve => setTimeout(resolve, 800));
+          updateStepStatus(stepNames[i], "completed");
+        }
       }
 
       setCurrentStep("Multi-step schema generation completed!");
+      setGenerationProgress(100);
 
       // Process the generated schema
       const generatedSchema = schemaResponse.generated_schema;
@@ -261,7 +305,6 @@ export function SchemaGenerator({
         });
 
         setCurrentStep("Enhanced schema generation completed!");
-        setGenerationProgress(100);
 
         if (onSchemaGenerated && generatedSchema.schema_id) {
           onSchemaGenerated(generatedSchema.schema_id);
