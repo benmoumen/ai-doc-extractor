@@ -17,6 +17,11 @@ services:
       - PYTHONUNBUFFERED=1
       - WATCHFILES_FORCE_POLLING=true
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app
+    # Compose v2.22+: Rebuild when dependencies change
+    develop:
+      watch:
+        - action: rebuild
+          path: ./backend/requirements.txt
 
   frontend:
     build:
@@ -41,6 +46,13 @@ services:
     command: sh -c "[ -d node_modules ] || pnpm install --frozen-lockfile; pnpm exec next dev -H 0.0.0.0 -p 3000"
     healthcheck:
       disable: true
+    # Compose v2.22+: Rebuild when dependencies change
+    develop:
+      watch:
+        - action: rebuild
+          path: ./nextjs-app/package.json
+        - action: rebuild
+          path: ./nextjs-app/pnpm-lock.yaml
 
   # Development database with exposed ports
   db:

@@ -2,6 +2,9 @@
 
 .PHONY: help build up down restart logs clean dev prod shell test
 
+# Prefer modern Docker Compose v2. Override via: make <target> DOCKER_COMPOSE="docker-compose"
+DOCKER_COMPOSE ?= docker compose
+
 help: ## Show this help message
 	@echo "Usage: make [target]"
 	@echo ""
@@ -10,96 +13,96 @@ help: ## Show this help message
 
 # Development commands
 dev: ## Start development environment with hot reloading
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml up
 
 dev-build: ## Build and start development environment
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 dev-down: ## Stop development environment
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
+	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml down
 
 # Production commands
 prod: ## Start production environment in detached mode
-	docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 prod-build: ## Build and start production environment
-	docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 prod-down: ## Stop production environment
-	docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
+	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.prod.yml down
 
 # Basic commands
 build: ## Build all Docker images
-	docker-compose build
+	$(DOCKER_COMPOSE) build
 
 up: ## Start all services
-	docker-compose up -d
+	$(DOCKER_COMPOSE) up -d
 
 down: ## Stop all services
-	docker-compose down
+	$(DOCKER_COMPOSE) down
 
 restart: ## Restart all services
-	docker-compose restart
+	$(DOCKER_COMPOSE) restart
 
 logs: ## View logs from all services
-	docker-compose logs -f
+	$(DOCKER_COMPOSE) logs -f
 
 logs-backend: ## View backend logs
-	docker-compose logs -f backend
+	$(DOCKER_COMPOSE) logs -f backend
 
 logs-frontend: ## View frontend logs
-	docker-compose logs -f frontend
+	$(DOCKER_COMPOSE) logs -f frontend
 
 # Shell access
 shell-backend: ## Access backend container shell
-	docker-compose exec backend /bin/bash
+	$(DOCKER_COMPOSE) exec backend /bin/bash
 
 shell-frontend: ## Access frontend container shell
-	docker-compose exec frontend /bin/sh
+	$(DOCKER_COMPOSE) exec frontend /bin/sh
 
 shell-db: ## Access database shell
-	docker-compose exec db psql -U aidoc -d aidoc_db
+	$(DOCKER_COMPOSE) exec db psql -U aidoc -d aidoc_db
 
 # Database commands
 db-backup: ## Backup database to ./backups/
 	@mkdir -p ./backups
-	docker-compose exec -T db pg_dump -U aidoc aidoc_db > ./backups/db_backup_$$(date +%Y%m%d_%H%M%S).sql
+	$(DOCKER_COMPOSE) exec -T db pg_dump -U aidoc aidoc_db > ./backups/db_backup_$$(date +%Y%m%d_%H%M%S).sql
 	@echo "Database backed up to ./backups/"
 
 db-restore: ## Restore database from backup (usage: make db-restore FILE=./backups/db_backup_*.sql)
-	docker-compose exec -T db psql -U aidoc aidoc_db < $(FILE)
+	$(DOCKER_COMPOSE) exec -T db psql -U aidoc aidoc_db < $(FILE)
 	@echo "Database restored from $(FILE)"
 
 # Maintenance commands
 clean: ## Remove all containers, networks, and volumes
-	docker-compose down -v
+	$(DOCKER_COMPOSE) down -v
 	docker system prune -f
 
 clean-all: ## Remove everything including images
-	docker-compose down -v --rmi all
+	$(DOCKER_COMPOSE) down -v --rmi all
 	docker system prune -af
 
 # Testing
 test-backend: ## Run backend tests
-	docker-compose exec backend python -m pytest tests/
+	$(DOCKER_COMPOSE) exec backend python -m pytest tests/
 
 test-frontend: ## Run frontend tests
-	docker-compose exec frontend npm test
+	$(DOCKER_COMPOSE) exec frontend npm test
 
 test-all: test-backend test-frontend ## Run all tests
 
 # Health checks
 health: ## Check health of all services
 	@echo "Checking service health..."
-	@docker-compose ps
+	@$(DOCKER_COMPOSE) ps
 	@echo "\nBackend health:"
 	@curl -s http://localhost:8501/_stcore/health || echo "Backend not healthy"
 	@echo "\nFrontend health:"
 	@curl -s http://localhost:3000/api/health || echo "Frontend not healthy"
 	@echo "\nDatabase health:"
-	@docker-compose exec db pg_isready -U aidoc || echo "Database not healthy"
+	@$(DOCKER_COMPOSE) exec db pg_isready -U aidoc || echo "Database not healthy"
 	@echo "\nRedis health:"
-	@docker-compose exec redis redis-cli ping || echo "Redis not healthy"
+	@$(DOCKER_COMPOSE) exec redis redis-cli ping || echo "Redis not healthy"
 
 # Environment setup
 env-setup: ## Copy .env.example to .env
@@ -120,11 +123,11 @@ quickstart: env-setup build up ## Quick start: setup environment, build, and sta
 
 # Development utilities
 format: ## Format code (requires services to be running)
-	docker-compose exec backend black .
-	docker-compose exec backend isort .
-	docker-compose exec frontend npm run format
+	$(DOCKER_COMPOSE) exec backend black .
+	$(DOCKER_COMPOSE) exec backend isort .
+	$(DOCKER_COMPOSE) exec frontend npm run format
 
 lint: ## Lint code (requires services to be running)
-	docker-compose exec backend flake8 .
-	docker-compose exec backend mypy .
-	docker-compose exec frontend npm run lint
+	$(DOCKER_COMPOSE) exec backend flake8 .
+	$(DOCKER_COMPOSE) exec backend mypy .
+	$(DOCKER_COMPOSE) exec frontend npm run lint
