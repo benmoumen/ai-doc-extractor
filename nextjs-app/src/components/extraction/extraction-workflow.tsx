@@ -41,7 +41,7 @@ export function ExtractionWorkflow() {
   const [availableSchemas, setAvailableSchemas] = useState<any>({})
   const [selectedSchemaDetails, setSelectedSchemaDetails] = useState<any>(null)
   const [documentPreview, setDocumentPreview] = useState<string | null>(null)
-  const [usedPrompt, setUsedPrompt] = useState<string | null>(null)
+  const [debugInfo, setDebugInfo] = useState<any | null>(null)
 
   // Load available models on component mount
   useEffect(() => {
@@ -199,9 +199,9 @@ export function ExtractionWorkflow() {
       setExtractionProgress(100)
 
       if (result.success) {
-        // Store the prompt used for this extraction
-        if (result.metadata?.prompt_used) {
-          setUsedPrompt(result.metadata.prompt_used)
+        // Store the debug information from this extraction
+        if (result.debug) {
+          setDebugInfo(result.debug)
         }
 
         // Transform API response to match our component interface
@@ -365,7 +365,7 @@ export function ExtractionWorkflow() {
     setExtractionResult(null)
     setExtractionProgress(0)
     setDocumentPreview(null)
-    setUsedPrompt(null)
+    setDebugInfo(null)
     setWorkflowSteps(prev => prev.map(step => ({
       ...step,
       status: step.id === 'upload' ? 'active' : 'pending',
@@ -624,26 +624,89 @@ export function ExtractionWorkflow() {
                   </Dialog>
                 )}
 
-                {/* Prompt Viewer Button */}
-                {extractionResult && (
+                {/* AI Debug Info Viewer Button */}
+                {extractionResult && debugInfo && (
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button variant="outline" size="sm" className="w-full">
                         <Code className="h-4 w-4 mr-2" />
-                        View AI Prompt
+                        View AI Debug Info
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-4xl max-h-[80vh]">
+                    <DialogContent className="max-w-6xl max-h-[80vh]">
                       <DialogHeader>
-                        <DialogTitle>AI Prompt Used</DialogTitle>
+                        <DialogTitle>AI Debug Information</DialogTitle>
                         <DialogDescription>
-                          The exact prompt sent to the AI model for extraction
+                          Completion parameters and raw response from AI model
                         </DialogDescription>
                       </DialogHeader>
                       <div className="max-h-[60vh] overflow-auto">
-                        <pre className="text-xs bg-muted p-4 rounded-md whitespace-pre-wrap">
-                          {usedPrompt || 'Prompt information not available'}
-                        </pre>
+                        <Tabs defaultValue="params" className="w-full">
+                          <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="params">Completion Parameters</TabsTrigger>
+                            <TabsTrigger value="response">Raw AI Response</TabsTrigger>
+                          </TabsList>
+                          <TabsContent value="params" className="space-y-4">
+                            <div>
+                              <h4 className="text-sm font-medium mb-2">Model & Settings</h4>
+                              <div className="bg-muted p-3 rounded-md text-xs space-y-2">
+                                <div><strong>Model:</strong> {debugInfo.completion_params?.model || 'Unknown'}</div>
+                                <div><strong>Temperature:</strong> {debugInfo.completion_params?.temperature ?? 'Not set'}</div>
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-medium mb-2">Messages Sent to AI</h4>
+                              <div className="space-y-2">
+                                {debugInfo.completion_params?.messages?.map((message: any, index: number) => (
+                                  <div key={index} className="bg-muted p-3 rounded-md">
+                                    <div className="text-xs font-medium mb-2">Message {index + 1} (Role: {message.role})</div>
+                                    {message.content?.map((content: any, contentIndex: number) => (
+                                      <div key={contentIndex} className="text-xs space-y-1">
+                                        {content.type === 'text' && (
+                                          <div>
+                                            <strong>Text Prompt:</strong>
+                                            <pre className="mt-1 whitespace-pre-wrap bg-background p-2 rounded border max-h-40 overflow-auto">
+                                              {content.text}
+                                            </pre>
+                                          </div>
+                                        )}
+                                        {content.type === 'image_url' && (
+                                          <div>
+                                            <strong>Image:</strong> Document image (base64 encoded)
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </TabsContent>
+                          <TabsContent value="response" className="space-y-4">
+                            <div>
+                              <h4 className="text-sm font-medium mb-2">Response Metadata</h4>
+                              <div className="bg-muted p-3 rounded-md text-xs space-y-2">
+                                <div><strong>Response ID:</strong> {debugInfo.raw_response?.id || 'Not provided'}</div>
+                                <div><strong>Model Used:</strong> {debugInfo.raw_response?.model || 'Unknown'}</div>
+                                <div><strong>Finish Reason:</strong> {debugInfo.raw_response?.choices?.[0]?.finish_reason || 'Not provided'}</div>
+                                {debugInfo.raw_response?.usage && Object.keys(debugInfo.raw_response.usage).length > 0 && (
+                                  <div>
+                                    <strong>Token Usage:</strong>
+                                    <pre className="mt-1 text-xs bg-background p-2 rounded border">
+                                      {JSON.stringify(debugInfo.raw_response.usage, null, 2)}
+                                    </pre>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-medium mb-2">Raw AI Response Content</h4>
+                              <pre className="text-xs bg-muted p-4 rounded-md whitespace-pre-wrap max-h-96 overflow-auto">
+                                {debugInfo.raw_response?.choices?.[0]?.message?.content || 'No response content available'}
+                              </pre>
+                            </div>
+                          </TabsContent>
+                        </Tabs>
                       </div>
                     </DialogContent>
                   </Dialog>
