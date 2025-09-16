@@ -13,3 +13,4 @@ backups/
 # IDE and local settings
 .claude/settings.local.json
 *.log
+.env

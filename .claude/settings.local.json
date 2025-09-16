@@ -1,8 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xargs kill:*)",
-      "Bash(awk:*)"
+      "Bash(PYTHONPATH:*)",
+      "Bash(grep:*)",
+      "Bash(tree:*)",
+      "Bash(make:*)",
+      "Bash(docker-compose:*)",
+      "Bash(docker system prune:*)",
+      "Bash(python:*)",
+      "Bash(docker build:*)",
+      "Bash(docker logs:*)",
+      "Bash(curl:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker rm:*)",
+      "Read(//Users/moulaymehdi/PROJECTS/00AI/**)"
     ],
     "deny": [],
     "ask": []

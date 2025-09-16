@@ -1,0 +1,46 @@
+# Development overrides for docker-compose.yml
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      # Mount entire backend directory for hot reloading
+      - ./backend:/app:ro
+      - ./backend/data:/app/data
+      - ./backend/logs:/app/logs
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=debug
+      - PYTHONUNBUFFERED=1
+    command: uvicorn http_api.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app
+
+  frontend:
+    build:
+      context: ./nextjs-app
+      dockerfile: Dockerfile
+      target: development # Use development stage with source code
+    restart: "no"
+    # No volume mounts. Use rebuild for code changes or add a safe bind mount in dev.
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_BACKEND_URL=http://backend:8000
+    command: sh -c "pnpm exec next dev -H 0.0.0.0 -p 3000"
+    healthcheck:
+      disable: true
+
+  # Development database with exposed ports
+  db:
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=development
+
+  # Development Redis with exposed ports
+  redis:
+    ports:
+      - "6379:6379"
+    command: redis-server --loglevel debug

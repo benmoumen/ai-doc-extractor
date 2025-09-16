@@ -1,0 +1,130 @@
+# Makefile for AI Document Data Extractor Docker Operations
+
+.PHONY: help build up down restart logs clean dev prod shell test
+
+help: ## Show this help message
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Available targets:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+
+# Development commands
+dev: ## Start development environment with hot reloading
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+dev-build: ## Build and start development environment
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+dev-down: ## Stop development environment
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
+
+# Production commands
+prod: ## Start production environment in detached mode
+	docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+prod-build: ## Build and start production environment
+	docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+prod-down: ## Stop production environment
+	docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
+
+# Basic commands
+build: ## Build all Docker images
+	docker-compose build
+
+up: ## Start all services
+	docker-compose up -d
+
+down: ## Stop all services
+	docker-compose down
+
+restart: ## Restart all services
+	docker-compose restart
+
+logs: ## View logs from all services
+	docker-compose logs -f
+
+logs-backend: ## View backend logs
+	docker-compose logs -f backend
+
+logs-frontend: ## View frontend logs
+	docker-compose logs -f frontend
+
+# Shell access
+shell-backend: ## Access backend container shell
+	docker-compose exec backend /bin/bash
+
+shell-frontend: ## Access frontend container shell
+	docker-compose exec frontend /bin/sh
+
+shell-db: ## Access database shell
+	docker-compose exec db psql -U aidoc -d aidoc_db
+
+# Database commands
+db-backup: ## Backup database to ./backups/
+	@mkdir -p ./backups
+	docker-compose exec -T db pg_dump -U aidoc aidoc_db > ./backups/db_backup_$$(date +%Y%m%d_%H%M%S).sql
+	@echo "Database backed up to ./backups/"
+
+db-restore: ## Restore database from backup (usage: make db-restore FILE=./backups/db_backup_*.sql)
+	docker-compose exec -T db psql -U aidoc aidoc_db < $(FILE)
+	@echo "Database restored from $(FILE)"
+
+# Maintenance commands
+clean: ## Remove all containers, networks, and volumes
+	docker-compose down -v
+	docker system prune -f
+
+clean-all: ## Remove everything including images
+	docker-compose down -v --rmi all
+	docker system prune -af
+
+# Testing
+test-backend: ## Run backend tests
+	docker-compose exec backend python -m pytest tests/
+
+test-frontend: ## Run frontend tests
+	docker-compose exec frontend npm test
+
+test-all: test-backend test-frontend ## Run all tests
+
+# Health checks
+health: ## Check health of all services
+	@echo "Checking service health..."
+	@docker-compose ps
+	@echo "\nBackend health:"
+	@curl -s http://localhost:8501/_stcore/health || echo "Backend not healthy"
+	@echo "\nFrontend health:"
+	@curl -s http://localhost:3000/api/health || echo "Frontend not healthy"
+	@echo "\nDatabase health:"
+	@docker-compose exec db pg_isready -U aidoc || echo "Database not healthy"
+	@echo "\nRedis health:"
+	@docker-compose exec redis redis-cli ping || echo "Redis not healthy"
+
+# Environment setup
+env-setup: ## Copy .env.example to .env
+	@if [ ! -f .env ]; then \
+		cp .env.example .env; \
+		echo "Created .env file. Please update it with your API keys."; \
+	else \
+		echo ".env file already exists."; \
+	fi
+
+# Quick start
+quickstart: env-setup build up ## Quick start: setup environment, build, and start services
+	@echo "Services started! Access the application at:"
+	@echo "  - Frontend: http://localhost:3000"
+	@echo "  - Backend: http://localhost:8501"
+	@echo ""
+	@echo "Remember to update your .env file with API keys!"
+
+# Development utilities
+format: ## Format code (requires services to be running)
+	docker-compose exec backend black .
+	docker-compose exec backend isort .
+	docker-compose exec frontend npm run format
+
+lint: ## Lint code (requires services to be running)
+	docker-compose exec backend flake8 .
+	docker-compose exec backend mypy .
+	docker-compose exec frontend npm run lint
