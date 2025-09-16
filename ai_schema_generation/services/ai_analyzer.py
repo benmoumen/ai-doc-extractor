@@ -20,6 +20,7 @@ from ..models.analysis_result import AIAnalysisResult
 from ..models.extracted_field import ExtractedField
 from ..models.document_type_suggestion import DocumentTypeSuggestion
 from ..storage.analysis_storage import AIAnalysisStorage
+from ..utils.model_utils import convert_model_name_to_litellm_format
 
 
 class AIAnalysisError(Exception):
@@ -41,50 +42,50 @@ class AIAnalyzer:
     ANALYSIS_PROMPT_TEMPLATE = """
 Analyze this document image and extract structured data. Return a JSON response with the following structure:
 
-{
-  "document_type": {
+{{
+  "document_type": {{
     "primary": "string (e.g., 'invoice', 'receipt', 'form', 'drivers_license')",
     "confidence": 0.0-1.0,
     "alternatives": [
-      {"type": "string", "confidence": 0.0-1.0, "reason": "string"}
+      {{"type": "string", "confidence": 0.0-1.0, "reason": "string"}}
     ]
-  },
+  }},
   "fields": [
-    {
+    {{
       "name": "field_name",
       "display_name": "Human Readable Name",
       "type": "string|number|date|boolean|email|phone|url|currency",
       "value": "extracted_value",
-      "confidence_scores": {
+      "confidence_scores": {{
         "visual_clarity": 0.0-1.0,
         "label_confidence": 0.0-1.0,
         "value_confidence": 0.0-1.0,
         "type_confidence": 0.0-1.0,
         "context_confidence": 0.0-1.0
-      },
-      "location": {
+      }},
+      "location": {{
         "x": float,
         "y": float,
         "width": float,
         "height": float
-      },
+      }},
       "alternatives": [
-        {"name": "alt_name", "type": "alt_type", "confidence": 0.0-1.0}
+        {{"name": "alt_name", "type": "alt_type", "confidence": 0.0-1.0}}
       ]
-    }
+    }}
   ],
-  "quality_assessment": {
+  "quality_assessment": {{
     "overall_score": 0.0-1.0,
     "clarity_score": 0.0-1.0,
     "completeness_score": 0.0-1.0,
     "structure_score": 0.0-1.0
-  },
-  "metadata": {
+  }},
+  "metadata": {{
     "processing_notes": "any relevant notes",
     "detected_language": "language_code",
     "image_quality": "high|medium|low"
-  }
-}
+  }}
+}}
 
 Be thorough in extracting all visible fields. For confidence scores:
 - visual_clarity: How clearly the field is visible
@@ -155,9 +156,10 @@ Previous errors: {previous_errors}
 
         try:
             # Create analysis result record
-            analysis_result = AIAnalysisResult.create_for_document(
-                document_id=document.id,
-                model_used=model
+            analysis_result = AIAnalysisResult.create_new(
+                sample_document_id=document.id,
+                model_used=model,
+                processing_time=0.0
             )
 
             # Prepare messages for AI
@@ -286,8 +288,12 @@ Previous errors: {previous_errors}
     def _call_ai_model(self, model: str, messages: List[Dict[str, Any]]) -> str:
         """Call AI model via LiteLLM"""
         try:
+            # Convert model name to LiteLLM format
+            converted_model = convert_model_name_to_litellm_format(model)
+            print(f"🔧 AI Analyzer model conversion: '{model}' -> '{converted_model}'")
+
             response = litellm.completion(
-                model=model,
+                model=converted_model,
                 messages=messages,
                 temperature=self.temperature,
                 max_tokens=4000,
@@ -302,7 +308,9 @@ Previous errors: {previous_errors}
     def _parse_ai_response(self, response_text: str) -> Dict[str, Any]:
         """Parse and validate AI response"""
         try:
-            parsed = json.loads(response_text)
+            # Clean the response text to extract JSON
+            cleaned_json = self._extract_json_from_response(response_text)
+            parsed = json.loads(cleaned_json)
 
             # Basic validation
             required_keys = ['document_type', 'fields', 'quality_assessment']
@@ -314,6 +322,39 @@ Previous errors: {previous_errors}
 
         except json.JSONDecodeError as e:
             raise AIAnalysisError(f"Invalid JSON response: {str(e)}")
+
+    def _extract_json_from_response(self, response_text: str) -> str:
+        """Extract JSON from AI response that may contain markdown or formatting"""
+        import re
+
+        # Strip leading/trailing whitespace
+        response_text = response_text.strip()
+
+        # Try to extract JSON from markdown code blocks
+        json_pattern = r'```(?:json)?\s*(\{.*?\})\s*```'
+        match = re.search(json_pattern, response_text, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+
+        # Look for JSON object that starts with { and ends with }
+        brace_pattern = r'\{.*\}'
+        match = re.search(brace_pattern, response_text, re.DOTALL)
+        if match:
+            return match.group(0).strip()
+
+        # If no clear JSON found, try to clean common prefixes/suffixes
+        # Remove common markdown or text prefixes
+        cleaned = response_text
+        for prefix in ['```json', '```', 'json:', 'JSON:', 'Response:']:
+            if cleaned.startswith(prefix):
+                cleaned = cleaned[len(prefix):].strip()
+
+        # Remove common suffixes
+        for suffix in ['```', '```json']:
+            if cleaned.endswith(suffix):
+                cleaned = cleaned[:-len(suffix)].strip()
+
+        return cleaned
 
     def _populate_analysis_result(self,
                                  analysis_result: AIAnalysisResult,
@@ -336,12 +377,14 @@ Previous errors: {previous_errors}
             if field.get('confidence_scores', {}).get('visual_clarity', 0) >= 0.8
         )
 
-        # Store metadata
-        analysis_result.analysis_metadata = {
+        # Store metadata as analysis notes
+        import json
+        metadata_note = json.dumps({
             'quality_breakdown': quality,
             'document_metadata': parsed_response.get('metadata', {}),
             'field_count_by_type': self._count_fields_by_type(fields)
-        }
+        })
+        analysis_result.add_analysis_note(f"Analysis metadata: {metadata_note}")
 
     def _create_extracted_fields(self,
                                analysis_result_id: str,
@@ -420,9 +463,10 @@ Previous errors: {previous_errors}
                                     error: str,
                                     processing_time: float) -> AIAnalysisResult:
         """Create analysis result for failed analysis"""
-        analysis_result = AIAnalysisResult.create_for_document(
-            document_id=document_id,
-            model_used=model
+        analysis_result = AIAnalysisResult.create_new(
+            sample_document_id=document_id,
+            model_used=model,
+            processing_time=processing_time
         )
 
         analysis_result.detected_document_type = "unknown"
@@ -483,9 +527,10 @@ Previous errors: {previous_errors}
         start_time = time.time()
 
         try:
-            analysis_result = AIAnalysisResult.create_for_document(
-                document_id=document.id,
-                model_used=model
+            analysis_result = AIAnalysisResult.create_new(
+                sample_document_id=document.id,
+                model_used=model,
+                processing_time=0.0
             )
             analysis_result.retry_count = 1
 

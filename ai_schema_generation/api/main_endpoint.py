@@ -17,6 +17,7 @@ from ..services.confidence_scorer import ConfidenceScorer, ConfidenceScoringErro
 from ..storage.sample_document_storage import SampleDocumentStorage
 from ..storage.analysis_storage import AIAnalysisStorage
 from ..storage.generated_schema_storage import GeneratedSchemaStorage
+from ..utils.model_utils import convert_model_name_to_litellm_format, get_supported_models
 
 
 class AISchemaGenerationAPI:
@@ -99,10 +100,14 @@ class AISchemaGenerationAPI:
             # Stage 2: AI Analysis
             stage_start = time.time()
             try:
+                # Convert model name to LiteLLM format
+                converted_model = convert_model_name_to_litellm_format(model)
+                print(f"🔧 Model conversion: '{model}' -> '{converted_model}'")
+
                 analysis_result = self.ai_analyzer.analyze_document(
                     document=document,
                     prepared_data=prepared_data['prepared_data'],
-                    model=model,
+                    model=converted_model,
                     document_type_hint=document_type_hint
                 )
 
@@ -389,12 +394,16 @@ class AISchemaGenerationAPI:
             # Prepare document for analysis
             prepared_data = self.document_processor.prepare_for_analysis(document_id)
 
+            # Convert model name to LiteLLM format for retry
+            converted_model = convert_model_name_to_litellm_format(model)
+            print(f"🔧 Retry model conversion: '{model}' -> '{converted_model}'")
+
             # Retry analysis
             analysis_result = self.ai_analyzer.retry_analysis(
                 document=document,
                 prepared_data=prepared_data['prepared_data'],
                 previous_analysis_id=previous_analysis_id,
-                model=model
+                model=converted_model
             )
 
             # Continue with enhancement pipeline
@@ -435,11 +444,15 @@ class AISchemaGenerationAPI:
     def get_supported_models(self) -> Dict[str, Any]:
         """Get list of supported AI models"""
         try:
-            models = self.ai_analyzer.get_supported_models()
+            from ..utils.model_utils import get_default_model
+
+            models = get_supported_models()
+            default_model = get_default_model()
+
             return {
                 'success': True,
                 'models': models,
-                'default_model': self.ai_analyzer.default_model
+                'default_model': default_model
             }
         except Exception as e:
             return {

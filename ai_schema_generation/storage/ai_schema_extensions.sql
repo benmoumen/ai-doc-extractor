@@ -7,12 +7,17 @@ CREATE TABLE IF NOT EXISTS sample_documents (
     filename TEXT NOT NULL,
     file_type TEXT NOT NULL CHECK (file_type IN ('pdf', 'image')),
     file_size INTEGER NOT NULL,
+    file_path TEXT,
     content_hash TEXT NOT NULL UNIQUE,
     upload_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     processing_status TEXT DEFAULT 'pending' CHECK (processing_status IN ('pending', 'processing', 'completed', 'failed')),
-    page_count INTEGER,
     metadata TEXT, -- JSON
-    user_session_id TEXT
+    error_message TEXT,
+    analysis_count INTEGER DEFAULT 0,
+    page_count INTEGER,
+    user_session_id TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- AI analysis results table
@@ -97,15 +102,30 @@ CREATE TABLE IF NOT EXISTS document_type_suggestions (
     requires_confirmation BOOLEAN DEFAULT FALSE
 );
 
--- Extensions to existing schemas table for AI generation tracking
--- Note: These columns will be added to existing schemas table
--- ALTER TABLE schemas ADD COLUMN source_document_id TEXT REFERENCES sample_documents(id);
--- ALTER TABLE schemas ADD COLUMN analysis_result_id TEXT REFERENCES ai_analysis_results(id);
--- ALTER TABLE schemas ADD COLUMN generation_method TEXT DEFAULT 'manual';
--- ALTER TABLE schemas ADD COLUMN generated_timestamp DATETIME;
--- ALTER TABLE schemas ADD COLUMN ai_model_used TEXT;
--- ALTER TABLE schemas ADD COLUMN generation_confidence REAL CHECK (generation_confidence BETWEEN 0 AND 1);
--- ALTER TABLE schemas ADD COLUMN user_review_status TEXT DEFAULT 'pending';
+-- Generated schemas table for AI-generated schema persistence
+CREATE TABLE IF NOT EXISTS generated_schemas (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    fields TEXT NOT NULL, -- JSON
+    source_document_id TEXT REFERENCES sample_documents(id),
+    analysis_result_id TEXT REFERENCES ai_analysis_results(id),
+    generation_method TEXT NOT NULL DEFAULT 'ai_extraction',
+    generated_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    ai_model_used TEXT NOT NULL,
+    generation_confidence REAL NOT NULL CHECK (generation_confidence BETWEEN 0 AND 1),
+    total_fields_generated INTEGER DEFAULT 0,
+    high_confidence_fields INTEGER DEFAULT 0,
+    user_modified_fields TEXT DEFAULT '[]', -- JSON array
+    validation_status TEXT DEFAULT 'pending' CHECK (validation_status IN ('pending', 'in_progress', 'complete', 'failed')),
+    user_review_status TEXT DEFAULT 'pending' CHECK (user_review_status IN ('pending', 'in_progress', 'reviewed', 'approved', 'rejected')),
+    review_notes TEXT,
+    last_modified_by TEXT DEFAULT 'ai',
+    accuracy_feedback TEXT, -- JSON
+    suggested_improvements TEXT DEFAULT '[]', -- JSON array
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
 -- Indexes for performance optimization
 CREATE INDEX IF NOT EXISTS idx_sample_documents_processing_status ON sample_documents(processing_status);
@@ -116,3 +136,6 @@ CREATE INDEX IF NOT EXISTS idx_extracted_fields_analysis_result_id ON extracted_
 CREATE INDEX IF NOT EXISTS idx_extracted_fields_overall_confidence ON extracted_fields(overall_confidence_score);
 CREATE INDEX IF NOT EXISTS idx_validation_rules_extracted_field_id ON validation_rule_inferences(extracted_field_id);
 CREATE INDEX IF NOT EXISTS idx_document_type_suggestions_analysis_result_id ON document_type_suggestions(analysis_result_id);
+CREATE INDEX IF NOT EXISTS idx_generated_schemas_analysis_result_id ON generated_schemas(analysis_result_id);
+CREATE INDEX IF NOT EXISTS idx_generated_schemas_generated_timestamp ON generated_schemas(generated_timestamp);
+CREATE INDEX IF NOT EXISTS idx_generated_schemas_review_status ON generated_schemas(user_review_status);

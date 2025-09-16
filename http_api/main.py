@@ -406,7 +406,7 @@ async def upload_document(
 async def get_analysis_results(analysis_id: str):
     """Get analysis results by ID"""
     try:
-        results = await ai_api.get_analysis_results(analysis_id)
+        results = ai_api.get_analysis_results(analysis_id)
         return {
             "success": True,
             "analysis": results
@@ -418,7 +418,7 @@ async def get_analysis_results(analysis_id: str):
 async def get_service_status():
     """Get service status"""
     try:
-        status = await ai_api.get_service_status()
+        status = ai_api.get_service_status()
         return {
             "success": True,
             "status": status
@@ -435,12 +435,12 @@ if __name__ == "__main__":
 
     print("🚀 Starting FastAPI HTTP server...")
     print("📡 Focused data extraction API with app.py approach")
-    print("🔗 Next.js frontend can connect to: http://localhost:8001")
+    print("🔗 Next.js frontend can connect to: http://localhost:8000")
 
     uvicorn.run(
         app,
         host="0.0.0.0",
-        port=8001,  # Use port 8001 to avoid conflicts
+        port=8000,  # Use port 8000 to avoid conflicts
         reload=False,
         log_level="info"
     )

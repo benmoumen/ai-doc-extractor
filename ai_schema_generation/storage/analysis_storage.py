@@ -52,10 +52,8 @@ class AIAnalysisStorage:
                     id, sample_document_id, model_used, analysis_timestamp,
                     detected_document_type, document_type_confidence,
                     total_fields_detected, high_confidence_fields,
-                    processing_time_seconds, overall_quality_score,
-                    analysis_metadata, error_details, retry_count,
-                    created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    processing_time, overall_quality_score
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 result.id,
                 result.sample_document_id,
@@ -65,13 +63,8 @@ class AIAnalysisStorage:
                 result.document_type_confidence,
                 result.total_fields_detected,
                 result.high_confidence_fields,
-                result.processing_time_seconds,
-                result.overall_quality_score,
-                json.dumps(result.analysis_metadata) if result.analysis_metadata else None,
-                result.error_details,
-                result.retry_count,
-                datetime.now().isoformat(),
-                datetime.now().isoformat()
+                result.processing_time,
+                result.overall_quality_score
             ))
 
         return result.id
@@ -153,9 +146,8 @@ class AIAnalysisStorage:
                     overall_confidence_score, bounding_box, page_number,
                     context_description, is_required, has_validation_hints,
                     field_group, alternative_names, alternative_types,
-                    extraction_method, requires_review, review_reason,
-                    created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    extraction_method, requires_review, review_reason
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 field.id,
                 field.analysis_result_id,
@@ -179,9 +171,7 @@ class AIAnalysisStorage:
                 json.dumps(field.alternative_types),
                 field.extraction_method,
                 field.requires_review,
-                field.review_reason,
-                datetime.now().isoformat(),
-                datetime.now().isoformat()
+                field.review_reason
             ))
 
         return field.id
@@ -254,8 +244,8 @@ class AIAnalysisStorage:
                     id, extracted_field_id, rule_type, rule_value,
                     rule_description, confidence_score, sample_matches,
                     sample_non_matches, inference_method, is_recommended,
-                    priority, alternative_rules, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    priority, alternative_rules
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 rule.id,
                 rule.extracted_field_id,
@@ -268,9 +258,7 @@ class AIAnalysisStorage:
                 rule.inference_method,
                 rule.is_recommended,
                 rule.priority,
-                json.dumps(rule.alternative_rules),
-                datetime.now().isoformat(),
-                datetime.now().isoformat()
+                json.dumps(rule.alternative_rules)
             ))
 
         return rule.id
@@ -330,8 +318,8 @@ class AIAnalysisStorage:
                     type_description, alternative_types, classification_factors,
                     key_indicators, confidence_explanation, matched_templates,
                     template_similarity_scores, classification_timestamp,
-                    model_used, requires_confirmation, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    model_used, requires_confirmation
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 suggestion.id,
                 suggestion.analysis_result_id,
@@ -346,9 +334,7 @@ class AIAnalysisStorage:
                 json.dumps(suggestion.template_similarity_scores),
                 suggestion.classification_timestamp.isoformat(),
                 suggestion.model_used,
-                suggestion.requires_confirmation,
-                datetime.now().isoformat(),
-                datetime.now().isoformat()
+                suggestion.requires_confirmation
             ))
 
         return suggestion.id
@@ -422,7 +408,7 @@ class AIAnalysisStorage:
             quality_distribution = dict(cursor.fetchall())
 
             # Average processing time
-            cursor.execute("SELECT AVG(processing_time_seconds) FROM ai_analysis_results")
+            cursor.execute("SELECT AVG(processing_time) FROM ai_analysis_results")
             avg_processing_time = cursor.fetchone()[0] or 0
 
             # Fields requiring review
@@ -482,14 +468,7 @@ class AIAnalysisStorage:
 
     def _row_to_analysis_result(self, row: sqlite3.Row) -> AIAnalysisResult:
         """Convert database row to AIAnalysisResult model"""
-        metadata = None
-        if row['analysis_metadata']:
-            try:
-                metadata = json.loads(row['analysis_metadata'])
-            except json.JSONDecodeError:
-                metadata = {}
-
-        return AIAnalysisResult(
+        result = AIAnalysisResult(
             id=row['id'],
             sample_document_id=row['sample_document_id'],
             model_used=row['model_used'],
@@ -498,12 +477,21 @@ class AIAnalysisStorage:
             document_type_confidence=row['document_type_confidence'],
             total_fields_detected=row['total_fields_detected'],
             high_confidence_fields=row['high_confidence_fields'],
-            processing_time_seconds=row['processing_time_seconds'],
-            overall_quality_score=row['overall_quality_score'],
-            analysis_metadata=metadata,
-            error_details=row['error_details'],
-            retry_count=row['retry_count']
+            processing_time=row['processing_time'],
+            overall_quality_score=row['overall_quality_score']
         )
+
+        # Load analysis_notes from database if they exist
+        if row['analysis_notes']:
+            try:
+                notes = json.loads(row['analysis_notes'])
+                for note in notes:
+                    result.add_analysis_note(note)
+            except json.JSONDecodeError:
+                # If it's not valid JSON, treat as a single note
+                result.add_analysis_note(row['analysis_notes'])
+
+        return result
 
     def _row_to_extracted_field(self, row: sqlite3.Row) -> ExtractedField:
         """Convert database row to ExtractedField model"""
@@ -652,3 +640,16 @@ class AIAnalysisStorage:
             model_used=row['model_used'],
             requires_confirmation=bool(row['requires_confirmation'])
         )
+
+    def _extract_metadata_from_notes(self, result) -> Dict[str, Any]:
+        """Extract metadata from analysis notes that contain metadata JSON"""
+        metadata = {}
+        for note in result.analysis_notes:
+            if note.startswith("Analysis metadata: "):
+                try:
+                    metadata_str = note[len("Analysis metadata: "):]
+                    metadata = json.loads(metadata_str)
+                    break
+                except json.JSONDecodeError:
+                    pass
+        return metadata

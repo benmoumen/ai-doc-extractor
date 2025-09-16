@@ -85,12 +85,9 @@ class DocumentProcessor:
                 return existing_doc
 
             # Create document model
-            document = SampleDocument.create_from_upload(
+            document = SampleDocument.from_upload(
                 filename=filename,
-                file_type=file_type,
-                file_size=len(file_content),
-                content_hash=content_hash,
-                metadata=metadata or {}
+                file_data=file_content
             )
 
             # Save file content to temporary storage
@@ -133,7 +130,7 @@ class DocumentProcessor:
 
         try:
             # Update status
-            self.storage.update_status(document_id, 'preparing')
+            self.storage.update_status(document_id, 'processing')
 
             # Load file content
             with open(document.file_path, 'rb') as f:
@@ -148,7 +145,7 @@ class DocumentProcessor:
                 raise DocumentProcessingError(f"Unsupported file type: {document.file_type}")
 
             # Update status
-            self.storage.update_status(document_id, 'ready_for_analysis')
+            self.storage.update_status(document_id, 'completed')
 
             return {
                 'document': document.to_dict(),
@@ -156,7 +153,7 @@ class DocumentProcessor:
             }
 
         except Exception as e:
-            self.storage.update_status(document_id, 'preparation_failed', str(e))
+            self.storage.update_status(document_id, 'failed', str(e))
             raise DocumentProcessingError(f"Failed to prepare document {document_id}: {str(e)}")
 
     def _validate_file(self, file_content: bytes, filename: str):

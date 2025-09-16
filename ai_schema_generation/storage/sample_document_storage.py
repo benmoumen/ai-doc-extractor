@@ -33,12 +33,54 @@ class SampleDocumentStorage:
                 WHERE type='table' AND name='sample_documents'
             """)
 
-            if not cursor.fetchone():
+            table_exists = cursor.fetchone()
+
+            if not table_exists:
                 # Load and execute schema extensions
                 schema_file = Path(__file__).parent / "ai_schema_extensions.sql"
                 if schema_file.exists():
                     with open(schema_file) as f:
                         conn.executescript(f.read())
+            else:
+                # Table exists, check for and add missing columns
+                self._migrate_schema(conn)
+
+    def _migrate_schema(self, conn):
+        """Migrate existing database schema to include missing columns"""
+        cursor = conn.cursor()
+
+        # Get current table schema
+        cursor.execute("PRAGMA table_info(sample_documents)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+
+        # Define required columns with their SQL definitions
+        required_columns = {
+            'file_path': 'TEXT',
+            'error_message': 'TEXT',
+            'analysis_count': 'INTEGER DEFAULT 0',
+            'page_count': 'INTEGER',
+            'user_session_id': 'TEXT',
+            'created_at': 'DATETIME DEFAULT CURRENT_TIMESTAMP',
+            'updated_at': 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+        }
+
+        # Add missing columns
+        for column_name, column_def in required_columns.items():
+            if column_name not in existing_columns:
+                try:
+                    cursor.execute(f"ALTER TABLE sample_documents ADD COLUMN {column_name} {column_def}")
+                    print(f"✅ Added missing column: {column_name}")
+                except Exception as e:
+                    print(f"⚠️  Failed to add column {column_name}: {e}")
+
+        # Update existing rows to have proper timestamps if they're missing
+        cursor.execute("""
+            UPDATE sample_documents
+            SET created_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            WHERE created_at IS NULL OR updated_at IS NULL
+        """)
+
+        conn.commit()
 
     def save(self, document: SampleDocument) -> str:
         """Save document to database"""
@@ -60,7 +102,7 @@ class SampleDocumentStorage:
                 document.upload_timestamp.isoformat(),
                 document.processing_status,
                 json.dumps(document.metadata) if document.metadata else None,
-                document.error_message,
+                document.metadata.get('error_message'),
                 document.analysis_count,
                 datetime.now().isoformat(),
                 datetime.now().isoformat()
@@ -282,24 +324,29 @@ class SampleDocumentStorage:
 
     def _row_to_document(self, row: sqlite3.Row) -> SampleDocument:
         """Convert database row to SampleDocument model"""
-        metadata = None
         if row['metadata']:
             try:
                 metadata = json.loads(row['metadata'])
             except json.JSONDecodeError:
                 metadata = {}
+        else:
+            metadata = {}
+
+        # Add error_message from database to metadata if it exists
+        if row['error_message']:
+            metadata['error_message'] = row['error_message']
 
         return SampleDocument(
             id=row['id'],
             filename=row['filename'],
             file_type=row['file_type'],
             file_size=row['file_size'],
-            file_path=row['file_path'],
             content_hash=row['content_hash'],
             upload_timestamp=datetime.fromisoformat(row['upload_timestamp']),
             processing_status=row['processing_status'],
+            file_data=b'',  # File data loaded separately
             metadata=metadata,
-            error_message=row['error_message'],
+            file_path=row['file_path'],
             analysis_count=row['analysis_count']
         )
 

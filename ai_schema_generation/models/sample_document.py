@@ -29,6 +29,10 @@ class SampleDocument:
     metadata: Dict[str, Any] = field(default_factory=dict)
     user_session_id: Optional[str] = None
 
+    # Storage and processing attributes
+    file_path: Optional[str] = None
+    analysis_count: int = 0
+
     def __post_init__(self):
         """Validate document data after initialization"""
         if self.file_type not in ['pdf', 'image']:
@@ -164,7 +168,9 @@ class SampleDocument:
             'page_count': self.page_count,
             'processed_images': self.processed_images,
             'metadata': self.metadata,
-            'user_session_id': self.user_session_id
+            'user_session_id': self.user_session_id,
+            'file_path': self.file_path,
+            'analysis_count': self.analysis_count
         }
         return data
 
@@ -183,7 +189,9 @@ class SampleDocument:
             file_data=file_data or b'',  # File data loaded separately
             processed_images=data.get('processed_images', []),
             metadata=data.get('metadata', {}),
-            user_session_id=data.get('user_session_id')
+            user_session_id=data.get('user_session_id'),
+            file_path=data.get('file_path'),
+            analysis_count=data.get('analysis_count', 0)
         )
 
     def is_ready_for_analysis(self) -> bool:
