@@ -36,6 +36,7 @@ export function ExtractionWorkflow() {
   const [availableModels, setAvailableModels] = useState<any[]>([])
   const [useAI, setUseAI] = useState(true)
   const [isExtracting, setIsExtracting] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null)
   const [extractionProgress, setExtractionProgress] = useState(0)
   const [availableSchemas, setAvailableSchemas] = useState<any>({})
@@ -113,7 +114,7 @@ export function ExtractionWorkflow() {
       id: 'upload',
       name: 'Upload Document',
       description: 'Select and upload your document',
-      status: 'active'
+      status: 'pending'
     },
     {
       id: 'configure',
@@ -143,10 +144,12 @@ export function ExtractionWorkflow() {
 
   const handleUploadStart = (file: File) => {
     setUploadedFile(file)
+    setIsUploading(true)
     updateStepStatus('upload', 'active')
   }
 
   const handleUploadComplete = (result: any) => {
+    setIsUploading(false)
     if (result.success) {
       updateStepStatus('upload', 'completed')
       updateStepStatus('configure', 'active')
@@ -366,9 +369,10 @@ export function ExtractionWorkflow() {
     setExtractionProgress(0)
     setDocumentPreview(null)
     setDebugInfo(null)
+    setIsUploading(false)
     setWorkflowSteps(prev => prev.map(step => ({
       ...step,
-      status: step.id === 'upload' ? 'active' : 'pending',
+      status: step.id === 'upload' ? 'pending' : 'pending',
       progress: undefined
     })))
   }
@@ -378,10 +382,11 @@ export function ExtractionWorkflow() {
       {/* Workflow Progress */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
+          {/* Circles + Dividers Row using 7-column grid: C | D | C | D | C | D | C */}
+          <div className="grid grid-cols-7 items-center">
             {workflowSteps.map((step, index) => (
               <React.Fragment key={step.id}>
-                <div className="flex flex-col items-center gap-2">
+                <div className="col-span-1 flex justify-center">
                   <div className={`
                     w-10 h-10 rounded-full flex items-center justify-center
                     ${step.status === 'completed' ? 'bg-green-500 text-white' :
@@ -393,23 +398,33 @@ export function ExtractionWorkflow() {
                       <CheckCircle className="h-5 w-5" />
                     ) : step.status === 'error' ? (
                       <AlertCircle className="h-5 w-5" />
-                    ) : step.status === 'active' ? (
+                    ) : step.status === 'active' && ((step.id === 'upload' && isUploading) || (step.id === 'extract' && isExtracting)) ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
                       <span className="text-sm font-medium">{index + 1}</span>
                     )}
                   </div>
-                  <div className="text-center">
-                    <p className="text-xs font-medium">{step.name}</p>
-                    <p className="text-xs text-muted-foreground">{step.description}</p>
-                  </div>
                 </div>
                 {index < workflowSteps.length - 1 && (
-                  <div className={`
-                    flex-1 h-0.5 mx-4
-                    ${workflowSteps[index + 1].status !== 'pending' ? 'bg-blue-500' : 'bg-gray-200'}
-                  `} />
+                  <div
+                    className={`col-span-1 h-0.5 mx-2 ${
+                      workflowSteps[index + 1].status !== 'pending' ? 'bg-blue-500' : 'bg-gray-200'
+                    }`}
+                  />
                 )}
+              </React.Fragment>
+            ))}
+          </div>
+
+          {/* Labels Row aligned under the exact same grid columns as circles */}
+          <div className="mt-3 grid grid-cols-7 items-start">
+            {workflowSteps.map((step, index) => (
+              <React.Fragment key={`${step.id}-labels`}>
+                <div className="col-span-1 text-center">
+                  <p className="text-xs font-medium">{step.name}</p>
+                  <p className="text-xs text-muted-foreground">{step.description}</p>
+                </div>
+                {index < workflowSteps.length - 1 && <div className="col-span-1" />}
               </React.Fragment>
             ))}
           </div>
