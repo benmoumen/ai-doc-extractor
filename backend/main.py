@@ -19,7 +19,11 @@ import fitz  # PyMuPDF
 
 # Import LiteLLM for AI model calls
 try:
+    import litellm
     from litellm import completion
+
+    # Enable JSON schema validation for structured outputs
+    litellm.enable_json_schema_validation = True
 except ImportError:
     raise ImportError("LiteLLM is required. Install with: pip install litellm")
 
@@ -226,7 +230,7 @@ def extract_json_from_text(text: str) -> tuple[bool, Optional[Dict], str]:
     return False, None, text
 
 def create_extraction_prompt(schema_id: Optional[str] = None) -> str:
-    """Create extraction prompt based on schema"""
+    """Create extraction prompt based on schema, with enhanced support for AI-generated schemas"""
     base_prompt = """Extract all text, data, and structure from this document image.
 Analyze the document and organize the information into logical fields.
 Return the data as structured JSON with clear field names and values.
@@ -243,64 +247,179 @@ Focus on:
 
 This appears to be a {schema['name']} document. Extract the following specific fields:
 """
+
+        # Enhanced field extraction with AI-generated schema features
         for field_name, field_info in schema['fields'].items():
             required_text = " (REQUIRED)" if field_info.get('required') else ""
-            schema_prompt += f"- {field_name}: {field_info['description']}{required_text}\n"
 
+            # Core field description
+            description = field_info.get('description', f'Field: {field_name}')
+            field_type = field_info.get('type', 'text')
+            schema_prompt += f"- {field_name} ({field_type}): {description}{required_text}\n"
+
+            # Add extraction hints if available (from multi-step AI generation)
+            if field_info.get('extraction_hints'):
+                hints = field_info['extraction_hints']
+                if isinstance(hints, list) and hints:
+                    schema_prompt += f"  Hints: {'; '.join(hints[:2])}\n"  # Use first 2 hints
+
+            # Add positioning hints if available
+            if field_info.get('positioning_hints'):
+                schema_prompt += f"  Location: {field_info['positioning_hints']}\n"
+
+            # Add validation pattern hints
+            if field_info.get('validation_pattern'):
+                schema_prompt += f"  Expected format: matches pattern {field_info['validation_pattern']}\n"
+
+        # Add document-specific guidance if available
+        if schema.get('document_quality'):
+            quality = schema['document_quality']
+            if quality == 'low':
+                schema_prompt += "\nNote: This document may have quality issues. Be extra careful with OCR interpretation.\n"
+            elif quality == 'high':
+                schema_prompt += "\nNote: This is a high-quality document with clear text.\n"
+
+        # Add extraction difficulty guidance
+        if schema.get('extraction_difficulty'):
+            difficulty = schema['extraction_difficulty']
+            if difficulty == 'hard':
+                schema_prompt += "This document has complex layout. Pay attention to field positioning.\n"
+            elif difficulty == 'easy':
+                schema_prompt += "This document has a straightforward layout.\n"
+
+        # Final instructions
         schema_prompt += f"""
-Return JSON with these exact field names: {list(schema['fields'].keys())}"""
+CRITICAL: Return ONLY a JSON object with these EXACT field names: {list(schema['fields'].keys())}
+Each field must be a simple string or number value, NOT an object or array.
+For missing fields, use empty string "" or null.
+Do not include any explanatory text - respond with valid JSON only."""
 
         return base_prompt + schema_prompt
 
-    return base_prompt + "\n\nFormat your response as JSON with descriptive field names."
+    return base_prompt + "\n\nReturn ONLY a valid JSON object with descriptive field names. Do not include any explanatory text."
 
-def create_schema_generation_prompt() -> str:
-    """Create prompt for generating eGov schemas compatible with data extraction system"""
-    return """Analyze this specific document image and create ONE JSON schema definition that matches the document type shown.
+def create_initial_detection_prompt() -> str:
+    """Step 1: Initial Schema Detection"""
+    return """STEP 1: INITIAL DOCUMENT ANALYSIS
+Analyze this document image and perform initial field detection.
 
-Look at the document carefully and identify what type it is (National ID, Passport, Residence Permit, Business License, etc.).
+Tasks:
+1. Identify the document type (National ID, Passport, Residence Permit, Business License, etc.)
+2. Extract ALL visible text fields, numbers, dates, and data elements
+3. Determine basic field types (text, number, date, email, phone, url, boolean)
+4. Create initial schema structure
 
-Return ONLY ONE JSON schema that matches the specific document type in the image.
-
-IMPORTANT: Return ONLY the JSON schema, no additional text, explanations, or multiple schemas. The schema must match this EXACT format:
-
+Return ONLY a JSON object with this structure:
 {
-  "id": "document_type_id",
-  "name": "Document Type Name",
-  "description": "Brief description of this document type",
-  "category": "Government|Business|Personal",
+  "document_type": "detected document type",
+  "layout_analysis": "brief description of document layout",
   "fields": {
     "field_name": {
-      "type": "text|number|date|email|phone|url",
-      "required": true|false,
-      "description": "What this field contains and where it appears"
+      "type": "text|number|date|email|phone|url|boolean",
+      "location": "brief description of where this field appears",
+      "content_preview": "sample of visible content if readable"
     }
   }
 }
 
-eGov Schema Requirements:
-1. ID: Use snake_case (e.g., "national_id", "passport", "residence_permit", "business_license")
-2. Field names: Use snake_case (e.g., "id_number", "full_name", "issue_date", "license_number")
-3. Categories: Government (for official IDs), Business (for licenses), Personal (for certificates)
-4. Focus on OFFICIAL DATA that government systems need to process
+Focus on completeness - capture EVERY visible field, even small ones."""
 
-Standard eGov Fields to Include:
-- Document numbers (id_number, passport_number, license_number)
-- Personal info (full_name, date_of_birth, nationality, gender)
-- Validity dates (issue_date, expiry_date)
-- Issuing authorities (issuing_authority, issuing_country)
-- Business info (business_name, business_type, owner_name, tax_number)
+def create_review_prompt(initial_schema: dict) -> str:
+    """Step 2: Schema Review & Refinement"""
+    return f"""STEP 2: SCHEMA REVIEW AND REFINEMENT
+Review the initial schema against the document image for accuracy and completeness.
 
-Field Type Guidelines:
-- Use "text" for names, addresses, document numbers
-- Use "date" for all dates (birth, issue, expiry)
-- Use "phone" for contact numbers
-- Use "email" for email addresses
+Initial Schema:
+{json.dumps(initial_schema, indent=2)}
 
-Mark as REQUIRED only fields that appear on ALL documents of this type.
-Mark as OPTIONAL fields that may not always be present.
+Tasks:
+1. Verify all fields are correctly identified
+2. Check if any fields were missed
+3. Validate field types are appropriate
+4. Suggest required/optional status for each field
+5. Add proper field descriptions
 
-Respond with ONLY the JSON schema - no markdown formatting, no explanations, no additional text. Just the raw JSON object."""
+Return ONLY a JSON object with this structure:
+{{
+  "id": "document_type_snake_case",
+  "name": "Human Readable Document Name",
+  "description": "Brief description of document purpose",
+  "category": "Government|Business|Personal|Healthcare|Education|Other",
+  "fields": {{
+    "field_name": {{
+      "type": "text|number|date|email|phone|url|boolean",
+      "required": true|false,
+      "description": "Clear description of what this field represents"
+    }}
+  }},
+  "changes_made": ["list of changes from initial schema"]
+}}"""
+
+def create_confidence_analysis_prompt(refined_schema: dict) -> str:
+    """Step 3: Field Confidence Analysis"""
+    return f"""STEP 3: FIELD CONFIDENCE ANALYSIS
+Analyze the extraction difficulty and confidence for each field in the schema.
+
+Refined Schema:
+{json.dumps(refined_schema, indent=2)}
+
+Tasks:
+1. Score each field's extraction confidence (0-100) based on:
+   - Text legibility and clarity
+   - Field boundaries and layout
+   - Potential OCR challenges
+   - Handwritten vs printed text
+   - Text size and quality
+2. Assess overall document quality
+3. Identify potential extraction challenges
+
+Return ONLY a JSON object with this structure:
+{{
+  "overall_confidence": 85,
+  "document_quality": "high|medium|low",
+  "extraction_difficulty": "easy|medium|hard",
+  "field_confidence": {{
+    "field_name": {{
+      "confidence_score": 95,
+      "legibility": "high|medium|low",
+      "potential_issues": ["list of potential extraction challenges"],
+      "extraction_notes": "specific notes about this field"
+    }}
+  }}
+}}"""
+
+def create_hints_generation_prompt(schema_with_confidence: dict, confidence_analysis: dict) -> str:
+    """Step 4: Extraction Hints Generation"""
+    return f"""STEP 4: EXTRACTION HINTS GENERATION
+Generate specific extraction instructions and hints for each field.
+
+Schema:
+{json.dumps(schema_with_confidence, indent=2)}
+
+Confidence Analysis:
+{json.dumps(confidence_analysis, indent=2)}
+
+Tasks:
+1. Create extraction hints for each field based on document layout
+2. Generate validation patterns where applicable
+3. Provide specific extraction strategies
+4. Include common format patterns
+5. Add fallback strategies for difficult fields
+
+Return ONLY a JSON object with this structure:
+{{
+  "extraction_strategy": {{
+    "field_name": {{
+      "extraction_hints": ["List of specific hints for extracting this field"],
+      "validation_pattern": "regex pattern if applicable",
+      "common_formats": ["expected format examples"],
+      "fallback_strategy": "what to do if primary extraction fails",
+      "positioning_hints": "where to look for this field"
+    }}
+  }},
+  "document_specific_notes": ["general extraction notes for this document type"],
+  "quality_recommendations": ["suggestions for improving extraction accuracy"]
+}}"""
 
 @app.get("/health")
 async def health_check():
@@ -481,7 +600,7 @@ async def extract_data(
             "temperature": 0.1
         }
 
-        # Make API call
+        # Make API call with JSON mode for structured output
         start_time = time.time()
         response = completion(
             model=model_param,
@@ -492,7 +611,8 @@ async def extract_data(
                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
                 ]
             }],
-            temperature=0.1
+            temperature=0.1,
+            response_format={"type": "json_object"}
         )
         end_time = time.time()
 
@@ -520,6 +640,15 @@ async def extract_data(
                 if field_info.get("required") and field_name not in parsed_data:
                     validation_results["errors"].append(f"Required field '{field_name}' is missing")
                     validation_results["passed"] = False
+
+                # Validate field value is not an object (should be simple values)
+                if field_name in parsed_data:
+                    field_value = parsed_data[field_name]
+                    if isinstance(field_value, (dict, list)):
+                        validation_results["errors"].append(f"Field '{field_name}' should be a simple value, not an object/array")
+                        validation_results["passed"] = False
+                        # Convert object to string representation for debugging
+                        parsed_data[field_name] = str(field_value) if field_value else ""
 
         return {
             "success": True,
@@ -552,8 +681,10 @@ async def generate_schema(
     file: UploadFile = File(...),
     model: Optional[str] = Form(None)
 ):
-    """Generate a schema definition from a sample document"""
+    """Generate a schema definition using multi-step AI analysis"""
     try:
+        start_time = time.time()
+
         # Read file data
         file_data = await file.read()
         file_type = determine_file_type(file.filename)
@@ -576,84 +707,252 @@ async def generate_schema(
 
         model_param = get_model_param(provider_id, model_id)
 
-        # Create schema generation prompt
-        prompt = create_schema_generation_prompt()
+        # Multi-step AI processing
+        ai_debug_info = {"steps": []}
 
-        # Make API call
-        start_time = time.time()
-        response = completion(
+        # Step 1: Initial Detection
+        step1_prompt = create_initial_detection_prompt()
+        step1_start = time.time()
+
+        step1_response = completion(
             model=model_param,
             messages=[{
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": prompt},
+                    {"type": "text", "text": step1_prompt},
                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
                 ]
             }],
-            temperature=0.1
+            temperature=0.1,
+            response_format={"type": "json_object"}
         )
-        end_time = time.time()
+        step1_end = time.time()
 
-        # Process response
-        raw_content = response.choices[0].message.content
-        is_json, parsed_schema, formatted_text = extract_json_from_text(raw_content)
+        step1_raw = step1_response.choices[0].message.content
+        step1_valid, step1_data, step1_formatted = extract_json_from_text(step1_raw)
 
-        if is_json and parsed_schema:
-            # Use the schema ID from AI response or generate one
-            schema_id = parsed_schema.get("id") or parsed_schema.get("name", "custom").lower().replace(" ", "_").replace("-", "_")
+        ai_debug_info["steps"].append({
+            "step": 1,
+            "name": "Initial Detection",
+            "duration": step1_end - step1_start,
+            "prompt": step1_prompt,
+            "raw_response": step1_raw,
+            "parsed_data": step1_data,
+            "success": step1_valid
+        })
 
-            # Validate schema has required fields
-            if not parsed_schema.get("fields"):
-                raise ValueError("Generated schema must have fields")
+        if not step1_valid or not step1_data:
+            # Step 1 failed - create generic fallback schema
+            print(f"Step 1 failed, using fallback schema. Raw response: {step1_raw[:200]}...")
+            step1_data = {
+                "document_type": "Unknown Document",
+                "layout_analysis": "Unable to analyze document layout due to AI processing error",
+                "fields": {
+                    "field_1": {
+                        "type": "text",
+                        "location": "Unable to determine location",
+                        "content_preview": "Unable to preview content"
+                    },
+                    "field_2": {
+                        "type": "text",
+                        "location": "Unable to determine location",
+                        "content_preview": "Unable to preview content"
+                    }
+                }
+            }
 
-            # Format schema for compatibility with extraction system
-            formatted_schema = {
-                "id": schema_id,
-                "name": parsed_schema.get("name", "Generated Schema"),
-                "description": parsed_schema.get("description", "AI-generated schema from document"),
-                "category": parsed_schema.get("category", "Custom"),
+        # Step 2: Schema Review & Refinement
+        step2_prompt = create_review_prompt(step1_data)
+        step2_start = time.time()
+
+        step2_response = completion(
+            model=model_param,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": step2_prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                ]
+            }],
+            temperature=0.1,
+            response_format={"type": "json_object"}
+        )
+        step2_end = time.time()
+
+        step2_raw = step2_response.choices[0].message.content
+        step2_valid, step2_data, step2_formatted = extract_json_from_text(step2_raw)
+
+        ai_debug_info["steps"].append({
+            "step": 2,
+            "name": "Schema Review & Refinement",
+            "duration": step2_end - step2_start,
+            "prompt": step2_prompt,
+            "raw_response": step2_raw,
+            "parsed_data": step2_data,
+            "success": step2_valid
+        })
+
+        if not step2_valid or not step2_data:
+            # Step 2 failed - create fallback schema from Step 1 results
+            print(f"Step 2 failed, using Step 1 results with fallbacks. Raw response: {step2_raw[:200]}...")
+            step2_data = {
+                "name": f"{step1_data.get('document_type', 'Unknown')} Schema",
+                "description": f"Auto-generated schema for {step1_data.get('document_type', 'unknown document type')}",
+                "category": "Generated",
                 "fields": {}
             }
 
-            # Validate and format fields
-            for field_name, field_config in parsed_schema.get("fields", {}).items():
-                # Ensure field has required properties
-                if isinstance(field_config, dict):
-                    formatted_schema["fields"][field_name] = {
-                        "type": field_config.get("type", "text"),
-                        "required": field_config.get("required", False),
-                        "description": field_config.get("description", f"Field: {field_name}")
-                    }
+            # Convert Step 1 fields to Step 2 format with fallbacks
+            for field_name, field_info in step1_data.get("fields", {}).items():
+                step2_data["fields"][field_name] = {
+                    "type": field_info.get("type", "text"),
+                    "required": False,  # Conservative fallback
+                    "description": f"Field extracted from {field_info.get('location', 'document')}"
+                }
 
-            # Add to in-memory schemas for immediate use
-            SCHEMAS[schema_id] = formatted_schema
+        # Step 3: Confidence Analysis
+        step3_prompt = create_confidence_analysis_prompt(step2_data)
+        step3_start = time.time()
+
+        step3_response = completion(
+            model=model_param,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": step3_prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                ]
+            }],
+            temperature=0.1,
+            response_format={"type": "json_object"}
+        )
+        step3_end = time.time()
+
+        step3_raw = step3_response.choices[0].message.content
+        step3_valid, step3_data, step3_formatted = extract_json_from_text(step3_raw)
+
+        ai_debug_info["steps"].append({
+            "step": 3,
+            "name": "Confidence Analysis",
+            "duration": step3_end - step3_start,
+            "prompt": step3_prompt,
+            "raw_response": step3_raw,
+            "parsed_data": step3_data,
+            "success": step3_valid
+        })
+
+        # Step 4: Hints Generation
+        step4_prompt = create_hints_generation_prompt(step2_data, step3_data or {})
+        step4_start = time.time()
+
+        step4_response = completion(
+            model=model_param,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": step4_prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                ]
+            }],
+            temperature=0.1,
+            response_format={"type": "json_object"}
+        )
+        step4_end = time.time()
+
+        step4_raw = step4_response.choices[0].message.content
+        step4_valid, step4_data, step4_formatted = extract_json_from_text(step4_raw)
+
+        ai_debug_info["steps"].append({
+            "step": 4,
+            "name": "Extraction Hints Generation",
+            "duration": step4_end - step4_start,
+            "prompt": step4_prompt,
+            "raw_response": step4_raw,
+            "parsed_data": step4_data,
+            "success": step4_valid
+        })
+
+        end_time = time.time()
+
+        # Build final schema with enhanced data
+        schema_id = step2_data.get("id", "generated_schema")
+
+        # Enhanced schema with confidence and hints
+        enhanced_schema = {
+            "id": schema_id,
+            "name": step2_data.get("name", "Generated Schema"),
+            "description": step2_data.get("description", "AI-generated schema"),
+            "category": step2_data.get("category", "Other"),
+            "fields": {}
+        }
+
+        # Add enhanced field data
+        for field_name, field_config in step2_data.get("fields", {}).items():
+            enhanced_field = {
+                "type": field_config.get("type", "text"),
+                "required": field_config.get("required", False),
+                "description": field_config.get("description", f"Field: {field_name}")
+            }
+
+            # Add confidence data if available
+            if step3_valid and step3_data and field_name in step3_data.get("field_confidence", {}):
+                confidence_info = step3_data["field_confidence"][field_name]
+                enhanced_field["confidence_score"] = confidence_info.get("confidence_score", 75)
+                enhanced_field["legibility"] = confidence_info.get("legibility", "medium")
+                enhanced_field["potential_issues"] = confidence_info.get("potential_issues", [])
+
+            # Add extraction hints if available
+            if step4_valid and step4_data and field_name in step4_data.get("extraction_strategy", {}):
+                hints_info = step4_data["extraction_strategy"][field_name]
+                enhanced_field["extraction_hints"] = hints_info.get("extraction_hints", [])
+                enhanced_field["validation_pattern"] = hints_info.get("validation_pattern")
+                enhanced_field["positioning_hints"] = hints_info.get("positioning_hints")
+
+            enhanced_schema["fields"][field_name] = enhanced_field
+
+        # Add overall confidence and document analysis
+        if step3_valid and step3_data:
+            enhanced_schema["overall_confidence"] = step3_data.get("overall_confidence", 75)
+            enhanced_schema["document_quality"] = step3_data.get("document_quality", "medium")
+            enhanced_schema["extraction_difficulty"] = step3_data.get("extraction_difficulty", "medium")
+
+        if step4_valid and step4_data:
+            enhanced_schema["document_specific_notes"] = step4_data.get("document_specific_notes", [])
+            enhanced_schema["quality_recommendations"] = step4_data.get("quality_recommendations", [])
+
+        # Add to schemas for immediate use
+        SCHEMAS[schema_id] = enhanced_schema
 
         return {
             "success": True,
             "generated_schema": {
-                "schema_id": schema_id if is_json and parsed_schema else None,
-                "schema_data": formatted_schema if is_json and parsed_schema else None,
-                "is_valid": is_json and parsed_schema is not None,
-                "ready_for_extraction": is_json and parsed_schema is not None,
-                "raw_response": raw_content,
-                "formatted_text": formatted_text
+                "schema_id": schema_id,
+                "schema_data": enhanced_schema,
+                "is_valid": True,
+                "ready_for_extraction": True,
+                "raw_response": f"Multi-step generation completed with {len(ai_debug_info['steps'])} steps",
+                "formatted_text": json.dumps(enhanced_schema, indent=2)
             },
             "next_steps": {
-                "available_in_schemas": is_json and parsed_schema is not None,
-                "can_use_for_extraction": is_json and parsed_schema is not None,
-                "schema_endpoint": f"/api/schemas/{schema_id}" if is_json and parsed_schema else None
+                "available_in_schemas": True,
+                "can_use_for_extraction": True,
+                "schema_endpoint": f"/api/schemas/{schema_id}"
             },
             "metadata": {
                 "processing_time": end_time - start_time,
                 "file_type": file_type,
                 "model_used": f"{provider_id} - {model_id}",
-                "fields_generated": len(formatted_schema.get("fields", {})) if is_json and parsed_schema else 0
-            }
+                "fields_generated": len(enhanced_schema.get("fields", {})),
+                "steps_completed": len(ai_debug_info["steps"]),
+                "overall_confidence": enhanced_schema.get("overall_confidence", 75),
+                "document_quality": enhanced_schema.get("document_quality", "medium")
+            },
+            "ai_debug": ai_debug_info
         }
 
     except Exception as e:
-        print(f"Schema generation error: {e}")
-        raise HTTPException(status_code=500, detail=f"Schema generation failed: {str(e)}")
+        print(f"Multi-step schema generation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Multi-step schema generation failed: {str(e)}")
 
 @app.post("/api/schemas")
 async def save_schema(schema_data: Dict[str, Any]):
@@ -671,9 +970,8 @@ async def save_schema(schema_data: Dict[str, Any]):
         if not schema_id.replace("_", "").replace("-", "").isalnum():
             raise HTTPException(status_code=400, detail="Schema ID must be alphanumeric with underscores or dashes")
 
-        # Check if schema ID already exists
-        if schema_id in SCHEMAS:
-            raise HTTPException(status_code=409, detail=f"Schema with ID '{schema_id}' already exists")
+        # Check if schema ID already exists - if so, update it instead of rejecting
+        is_update = schema_id in SCHEMAS
 
         # Validate fields structure
         if not isinstance(schema_data["fields"], dict):
@@ -696,11 +994,13 @@ async def save_schema(schema_data: Dict[str, Any]):
             "generated": True  # Flag to distinguish from predefined schemas
         }
 
+        action = "updated" if is_update else "created"
         return {
             "success": True,
-            "message": f"Schema '{schema_data['name']}' saved successfully",
+            "message": f"Schema '{schema_data['name']}' {action} successfully and is now available for data extraction",
             "schema_id": schema_id,
-            "available_for_extraction": True
+            "available_for_extraction": True,
+            "is_update": is_update
         }
 
     except HTTPException:

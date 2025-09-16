@@ -365,6 +365,22 @@ export interface ExportResult {
   error?: string
 }
 
+// AI Debug Step structure
+export interface AIDebugStep {
+  step: number
+  name: string
+  duration: number
+  prompt: string
+  raw_response: string
+  parsed_data: JSONValue | null
+  success: boolean
+}
+
+// AI Debug Information
+export interface AIDebugInfo {
+  steps: AIDebugStep[]
+}
+
 // Schema Generation Response from POST /api/generate-schema
 export interface SchemaGenerationResponse {
   success: boolean
@@ -379,7 +395,14 @@ export interface SchemaGenerationResponse {
         type: string
         required: boolean
         description: string
+        confidence_score?: number
+        extraction_hints?: string[]
+        validation_patterns?: string[]
       }>
+      overall_confidence?: number
+      document_quality?: "high" | "medium" | "low"
+      extraction_difficulty?: "easy" | "medium" | "hard"
+      document_specific_notes?: string[]
     } | null
     is_valid: boolean
     ready_for_extraction: boolean
@@ -396,7 +419,11 @@ export interface SchemaGenerationResponse {
     file_type: string
     model_used: string
     fields_generated: number
+    steps_completed?: number
+    overall_confidence?: number
+    document_quality?: "high" | "medium" | "low"
   }
+  ai_debug?: AIDebugInfo
 }
 
 // Schema generation request

@@ -49,6 +49,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { apiClient } from "@/lib/api";
+import { AIDebugInfo, AIDebugStep } from "@/types";
 
 interface GenerationStep {
   name: string;
@@ -73,9 +74,10 @@ export function SchemaGenerator({
   const [generationProgress, setGenerationProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState<string>("");
   const [generationSteps, setGenerationSteps] = useState<GenerationStep[]>([
-    { name: "Document Processing", status: "pending" },
-    { name: "AI Schema Generation", status: "pending" },
-    { name: "Schema Validation", status: "pending" },
+    { name: "Initial Document Analysis", status: "pending" },
+    { name: "Schema Review & Refinement", status: "pending" },
+    { name: "Confidence Analysis", status: "pending" },
+    { name: "Extraction Hints Generation", status: "pending" },
   ]);
   const [generatedSchema, setGeneratedSchema] = useState<any>(null);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
@@ -90,6 +92,10 @@ export function SchemaGenerator({
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // AI Debug states
+  const [aiDebugInfo, setAiDebugInfo] = useState<AIDebugInfo | null>(null);
+  const [showDebugDialog, setShowDebugDialog] = useState(false);
 
   // Ref to scroll to results section
   const resultsRef = useRef<HTMLDivElement | null>(null);
@@ -180,69 +186,94 @@ export function SchemaGenerator({
     setCurrentStep("Uploading document...");
 
     try {
-      // Step 1: Process document
-      updateStepStatus("Document Processing", "in_progress");
+      // Step 1: Initial Document Analysis
+      updateStepStatus("Initial Document Analysis", "in_progress");
       setGenerationProgress(10);
+      setCurrentStep("Analyzing document and detecting fields...");
 
-      // Step 2: Generate schema with AI
-      setCurrentStep("Analyzing document with AI...");
-      updateStepStatus("Document Processing", "completed");
-      updateStepStatus("AI Schema Generation", "in_progress");
-      setGenerationProgress(30);
-
+      // Start the multi-step schema generation
       const schemaResponse = await apiClient.generateSchema({
         file: selectedFile,
         model: selectedModel || undefined,
       });
 
       if (!schemaResponse.success) {
-        throw new Error("Schema generation failed");
+        throw new Error("Multi-step schema generation failed");
       }
 
-      setGenerationProgress(70);
-      updateStepStatus("AI Schema Generation", "completed");
-      updateStepStatus("Schema Validation", "in_progress");
-      setCurrentStep("Validating generated schema...");
+      // Store AI debug information
+      setAiDebugInfo(schemaResponse.ai_debug || null);
+
+      // Update progress based on completed steps
+      if (schemaResponse.ai_debug?.steps) {
+        const steps = schemaResponse.ai_debug.steps;
+
+        // Update step statuses based on AI debug info
+        steps.forEach((stepInfo: AIDebugStep, index: number) => {
+          const stepName = generationSteps[index]?.name;
+          if (stepName) {
+            updateStepStatus(
+              stepName,
+              stepInfo.success ? "completed" : "failed",
+              stepInfo,
+              stepInfo.duration
+            );
+          }
+        });
+
+        // Set progress based on completed steps
+        setGenerationProgress((steps.length / 4) * 100);
+      } else {
+        // Fallback progress update
+        setGenerationProgress(25);
+        updateStepStatus("Initial Document Analysis", "completed");
+        setGenerationProgress(50);
+        updateStepStatus("Schema Review & Refinement", "completed");
+        setGenerationProgress(75);
+        updateStepStatus("Confidence Analysis", "completed");
+        setGenerationProgress(100);
+        updateStepStatus("Extraction Hints Generation", "completed");
+      }
+
+      setCurrentStep("Multi-step schema generation completed!");
 
       // Process the generated schema
       const generatedSchema = schemaResponse.generated_schema;
 
       if (generatedSchema.is_valid && generatedSchema.schema_data) {
+        const schemaData = generatedSchema.schema_data;
         setGeneratedSchema({
-          id: generatedSchema.schema_data.id,
-          name: generatedSchema.schema_data.name,
-          description: generatedSchema.schema_data.description,
-          category: generatedSchema.schema_data.category,
-          fields: generatedSchema.schema_data.fields, // Store the complete fields data
-          total_fields: Object.keys(generatedSchema.schema_data.fields).length,
-          generation_confidence: 0.85, // Default confidence since backend doesn't provide it yet
+          id: schemaData.id,
+          name: schemaData.name,
+          description: schemaData.description,
+          category: schemaData.category,
+          fields: schemaData.fields,
+          total_fields: Object.keys(schemaData.fields || {}).length,
+          generation_confidence: (schemaData.overall_confidence || 75) / 100,
           production_ready: generatedSchema.ready_for_extraction,
           validation_status: "valid",
           user_review_status: "pending",
+          overall_confidence: schemaData.overall_confidence || 75,
+          document_quality: schemaData.document_quality || "medium",
+          extraction_difficulty: schemaData.extraction_difficulty || "medium",
+          document_specific_notes: schemaData.document_specific_notes || [],
+          quality_recommendations: schemaData.quality_recommendations || [],
         });
 
-        updateStepStatus("Schema Validation", "completed");
-        setCurrentStep("Schema generation completed!");
+        setCurrentStep("Enhanced schema generation completed!");
         setGenerationProgress(100);
 
         if (onSchemaGenerated && generatedSchema.schema_id) {
           onSchemaGenerated(generatedSchema.schema_id);
         }
       } else {
-        // Show more detailed error information
-        console.error("Schema validation failed:", {
+        console.error("Schema generation failed:", {
           is_valid: generatedSchema.is_valid,
           has_schema_data: !!generatedSchema.schema_data,
-          raw_response_length: generatedSchema.raw_response?.length || 0,
-          raw_response_preview:
-            generatedSchema.raw_response?.substring(0, 200) + "...",
+          ai_debug: schemaResponse.ai_debug,
         });
 
-        const errorMessage = !generatedSchema.is_valid
-          ? "AI response could not be parsed as valid JSON schema"
-          : "Generated schema missing required data fields";
-
-        throw new Error(`${errorMessage}. Check console for raw AI response.`);
+        throw new Error("Multi-step schema generation failed to produce valid schema");
       }
     } catch (err: any) {
       console.error("Generation failed:", err);
@@ -413,16 +444,15 @@ export function SchemaGenerator({
       const response = await apiClient.saveSchema(schemaData);
 
       if (response.success) {
-        setSaveMessage(
-          `Schema "${schemaToSave.name}" saved successfully! It's now available for data extraction.`
-        );
+        // Use the backend's user-friendly message
+        setSaveMessage(response.message || `Schema "${schemaToSave.name}" saved successfully!`);
 
         // Notify parent component that schema was saved
         if (onSchemaGenerated) {
           onSchemaGenerated(response.schema_id);
         }
       } else {
-        throw new Error("Failed to save schema");
+        throw new Error(response.message || "Failed to save schema");
       }
     } catch (err: any) {
       console.error("Save schema error:", err);
@@ -971,11 +1001,86 @@ export function SchemaGenerator({
                     <Download className="h-4 w-4 mr-2" />
                     Download JSON
                   </Button>
+                  {aiDebugInfo && (
+                    <Button
+                      onClick={() => setShowDebugDialog(true)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Brain className="h-4 w-4 mr-2" />
+                      View AI Debug
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
         </>
+      )}
+
+      {/* AI Debug Dialog */}
+      {aiDebugInfo && (
+        <Dialog open={showDebugDialog} onOpenChange={setShowDebugDialog}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-purple-500" />
+                Multi-Step AI Schema Generation Debug
+              </DialogTitle>
+              <DialogDescription>
+                Detailed information about the 4-step AI schema generation
+                process
+              </DialogDescription>
+            </DialogHeader>
+            <div className="overflow-y-auto max-h-[70vh] space-y-4">
+              {aiDebugInfo.steps?.map((step: AIDebugStep, index: number) => (
+                <Card key={index} className="border-l-4 border-l-blue-500">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                        Step {step.step}
+                      </span>
+                      {step.name}
+                      <Badge
+                        variant={step.success ? "default" : "destructive"}
+                        className="ml-auto"
+                      >
+                        {step.success ? "Success" : "Failed"}
+                      </Badge>
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Duration: {(step.duration || 0).toFixed(2)}s
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-3 pt-0">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium">AI Prompt:</Label>
+                      <div className="bg-slate-50 p-3 rounded-lg text-xs font-mono max-h-32 overflow-y-auto">
+                        {step.prompt}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium">Raw AI Response:</Label>
+                      <div className="bg-slate-50 p-3 rounded-lg text-xs font-mono max-h-32 overflow-y-auto">
+                        {step.raw_response}
+                      </div>
+                    </div>
+                    {step.parsed_data && (
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium">
+                          Parsed Data:
+                        </Label>
+                        <div className="bg-green-50 p-3 rounded-lg text-xs font-mono max-h-32 overflow-y-auto">
+                          {JSON.stringify(step.parsed_data, null, 2)}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

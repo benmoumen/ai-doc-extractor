@@ -44,9 +44,29 @@ export class APIClient {
 
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
-      const errorText = await response.text().catch(() => "Unknown error");
+      let errorMessage = "Unknown error occurred";
+
+      try {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          // Extract user-friendly message from API error response
+          if (errorData.detail) {
+            errorMessage = errorData.detail;
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          } else {
+            errorMessage = JSON.stringify(errorData);
+          }
+        } else {
+          errorMessage = await response.text();
+        }
+      } catch (parseError) {
+        errorMessage = `HTTP ${response.status} error`;
+      }
+
       throw new APIError(
-        `HTTP ${response.status}: ${errorText}`,
+        errorMessage,
         response.status,
         response
       );
