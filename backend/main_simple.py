@@ -152,6 +152,172 @@ async def get_supported_models():
         "models": models
     }
 
+@app.get("/api/schemas")
+async def get_available_schemas():
+    """Get list of available document schemas"""
+    try:
+        # Try to import and use schema storage, but fall back gracefully
+        import sys
+        import os
+
+        # Check if we can import without streamlit dependencies
+        try:
+            # Import directly from the storage file (use relative paths)
+            from schema_management.storage.schema_storage import SchemaStorage
+
+            # Use local data directory for development
+            data_dir = os.path.join(os.path.dirname(__file__), "data")
+            storage = SchemaStorage(data_dir=data_dir)
+            schema_list = storage.list_schemas(status="active")
+
+            # Format for API response
+            schemas = {}
+            for schema_info in schema_list:
+                schema_id = schema_info["schema_id"]
+                schemas[schema_id] = {
+                    "id": schema_id,
+                    "name": schema_info.get("name", schema_id.title()),
+                    "display_name": schema_info.get("display_name", schema_id.title()),
+                    "description": schema_info.get("description", f"Extract data from {schema_id} documents"),
+                    "category": schema_info.get("category", "document"),
+                    "created_at": schema_info.get("created_at"),
+                    "updated_at": schema_info.get("updated_at"),
+                    "version": schema_info.get("version", "1.0")
+                }
+
+            return {
+                "success": True,
+                "schemas": schemas
+            }
+
+        except ImportError as import_error:
+            print(f"Schema storage import failed: {import_error}")
+            # Return file-based schema discovery as fallback
+            return await get_schemas_from_files()
+
+    except Exception as e:
+        print(f"Error loading schemas: {e}")
+        # Return empty schemas on error rather than failing
+        return {
+            "success": True,
+            "schemas": {},
+            "error": str(e)
+        }
+
+async def get_schemas_from_files():
+    """Fallback method to discover schemas from data directory"""
+    try:
+        import os
+        import json
+
+        data_dir = os.path.join(os.path.dirname(__file__), "data")
+        schemas_dir = os.path.join(data_dir, "schemas")
+
+        schemas = {}
+
+        # Try to read schema files directly
+        if os.path.exists(schemas_dir):
+            for filename in os.listdir(schemas_dir):
+                if filename.endswith('.json'):
+                    schema_id = filename.replace('.json', '')
+                    filepath = os.path.join(schemas_dir, filename)
+
+                    try:
+                        with open(filepath, 'r') as f:
+                            schema_data = json.load(f)
+                            schemas[schema_id] = {
+                                "id": schema_id,
+                                "name": schema_data.get("name", schema_id.title()),
+                                "display_name": schema_data.get("display_name", schema_id.title()),
+                                "description": schema_data.get("description", f"Extract data from {schema_id} documents"),
+                                "category": schema_data.get("category", "document"),
+                                "version": schema_data.get("version", "1.0")
+                            }
+                    except Exception as e:
+                        print(f"Error reading schema file {filename}: {e}")
+
+        return {
+            "success": True,
+            "schemas": schemas
+        }
+
+    except Exception as e:
+        print(f"File-based schema discovery failed: {e}")
+        return {
+            "success": True,
+            "schemas": {}
+        }
+
+@app.get("/api/schemas/{schema_id}")
+async def get_schema_details(schema_id: str):
+    """Get detailed schema information"""
+    try:
+        # Try to import and use schema storage, but fall back to file-based approach
+        try:
+            from schema_management.storage.schema_storage import SchemaStorage
+
+            # Use local data directory for development
+            data_dir = os.path.join(os.path.dirname(__file__), "data")
+            storage = SchemaStorage(data_dir=data_dir)
+            schema = storage.load_schema(schema_id)
+
+            if not schema:
+                raise HTTPException(status_code=404, detail="Schema not found")
+
+            # Convert schema object to dict for API response
+            schema_dict = {
+                "id": schema.id,
+                "name": schema.name,
+                "description": schema.description,
+                "category": schema.category,
+                "version": schema.version,
+                "created_at": schema.created_date.isoformat() if schema.created_date else None,
+                "updated_at": schema.updated_date.isoformat() if schema.updated_date else None,
+                "fields": schema.fields
+            }
+
+            return {
+                "success": True,
+                "schema": schema_dict
+            }
+
+        except ImportError as import_error:
+            print(f"Schema storage import failed: {import_error}")
+            # Fall back to file-based approach
+            return await get_schema_details_from_file(schema_id)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error loading schema {schema_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error loading schema: {str(e)}")
+
+async def get_schema_details_from_file(schema_id: str):
+    """Fallback method to get schema details from file"""
+    try:
+        import json
+
+        data_dir = os.path.join(os.path.dirname(__file__), "data")
+        schemas_dir = os.path.join(data_dir, "schemas")
+        schema_file = os.path.join(schemas_dir, f"{schema_id}.json")
+
+        if not os.path.exists(schema_file):
+            raise HTTPException(status_code=404, detail="Schema not found")
+
+        with open(schema_file, 'r') as f:
+            schema_data = json.load(f)
+
+        return {
+            "success": True,
+            "schema": schema_data
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"File-based schema loading failed for {schema_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error loading schema: {str(e)}")
+
 @app.post("/api/extract")
 async def extract_data(
     file: UploadFile = File(...),
