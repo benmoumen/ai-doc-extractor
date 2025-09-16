@@ -52,7 +52,7 @@ export interface ExtractedField {
   value: any;
   type: "string" | "number" | "date" | "boolean" | "array" | "object";
   confidence?: number;
-  source?: "schema" | "ai" | "hybrid";
+  source?: "schema" | "ai";
   validation?: {
     isValid: boolean;
     errors?: string[];
@@ -72,7 +72,7 @@ export interface ExtractionResult {
   processingTime?: number;
   confidence?: number;
   schemaUsed?: string;
-  extractionMode?: "schema" | "ai" | "hybrid";
+  extractionMode?: "schema" | "ai";
   warnings?: string[];
   suggestions?: string[];
 }
@@ -189,8 +189,6 @@ export function ExtractionResults({
   const getSourceIcon = (source?: string) => {
     if (source === "ai")
       return <Sparkles className="h-3 w-3 text-purple-500" />;
-    if (source === "hybrid")
-      return <Sparkles className="h-3 w-3 text-blue-500" />;
     return null;
   };
 
@@ -524,7 +522,6 @@ export function ExtractionResults({
             )}
           </TabsContent>
         </Tabs>
-
         {/* Warnings and Suggestions */}
         {(result.warnings?.length || result.suggestions?.length) && (
           <>

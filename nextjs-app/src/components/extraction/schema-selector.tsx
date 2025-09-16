@@ -1,9 +1,9 @@
-'use client'
+"use client";
 
-import React, { useState } from 'react'
-import { Check, ChevronsUpDown, Sparkles, FileText } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
+import React, { useState } from "react";
+import { Check, ChevronsUpDown, Sparkles, FileText } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -11,108 +11,113 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from '@/components/ui/command'
+} from "@/components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
+} from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 export interface Schema {
-  id: string
-  name: string
-  description?: string
-  category?: string
-  fields_count?: number
-  last_used?: string
-  confidence_threshold?: number
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  fields_count?: number;
+  last_used?: string;
+  confidence_threshold?: number;
 }
 
 interface SchemaSelectorProps {
-  schemas?: Schema[]
-  onSchemaSelect: (schemaId: string | null, useAI: boolean) => void
-  className?: string
+  schemas?: Schema[];
+  onSchemaSelect: (schemaId: string | null, useAI: boolean) => void;
+  className?: string;
 }
 
 export function SchemaSelector({
   schemas = [],
   onSchemaSelect,
-  className
+  className,
 }: SchemaSelectorProps) {
-  const [open, setOpen] = useState(false)
-  const [selectedSchema, setSelectedSchema] = useState<string | null>(null)
-  const [extractionMode, setExtractionMode] = useState<'schema' | 'ai'>('ai')
-  const [searchValue, setSearchValue] = useState('')
+  const [open, setOpen] = useState(false);
+  const [selectedSchema, setSelectedSchema] = useState<string | null>(null);
+  const [extractionMode, setExtractionMode] = useState<"schema" | "ai">("ai");
+  const [searchValue, setSearchValue] = useState("");
 
   // Mock schemas for demonstration (replace with actual API call)
-  const defaultSchemas: Schema[] = schemas.length > 0 ? schemas : [
-    {
-      id: 'invoice',
-      name: 'Invoice',
-      description: 'Standard invoice extraction',
-      category: 'Financial',
-      fields_count: 15,
-      last_used: '2 hours ago'
-    },
-    {
-      id: 'passport',
-      name: 'Passport',
-      description: 'International passport data',
-      category: 'Identity',
-      fields_count: 12,
-      last_used: '1 day ago'
-    },
-    {
-      id: 'receipt',
-      name: 'Receipt',
-      description: 'Retail receipt extraction',
-      category: 'Financial',
-      fields_count: 8,
-      last_used: '3 days ago'
-    },
-    {
-      id: 'contract',
-      name: 'Contract',
-      description: 'Legal contract analysis',
-      category: 'Legal',
-      fields_count: 20,
-      last_used: '1 week ago'
-    }
-  ]
+  const defaultSchemas: Schema[] =
+    schemas.length > 0
+      ? schemas
+      : [
+          {
+            id: "invoice",
+            name: "Invoice",
+            description: "Standard invoice extraction",
+            category: "Financial",
+            fields_count: 15,
+            last_used: "2 hours ago",
+          },
+          {
+            id: "passport",
+            name: "Passport",
+            description: "International passport data",
+            category: "Identity",
+            fields_count: 12,
+            last_used: "1 day ago",
+          },
+          {
+            id: "receipt",
+            name: "Receipt",
+            description: "Retail receipt extraction",
+            category: "Financial",
+            fields_count: 8,
+            last_used: "3 days ago",
+          },
+          {
+            id: "contract",
+            name: "Contract",
+            description: "Legal contract analysis",
+            category: "Legal",
+            fields_count: 20,
+            last_used: "1 week ago",
+          },
+        ];
 
   const handleModeChange = (mode: string) => {
-    setExtractionMode(mode as 'schema' | 'ai')
-    if (mode === 'ai') {
-      setSelectedSchema(null)
-      onSchemaSelect(null, true)
+    setExtractionMode(mode as "schema" | "ai");
+    if (mode === "ai") {
+      setSelectedSchema(null);
+      onSchemaSelect(null, true);
     } else if (selectedSchema) {
       // In schema mode, AI should be off (no hybrid behavior)
-      onSchemaSelect(selectedSchema, false)
+      onSchemaSelect(selectedSchema, false);
     }
-  }
+  };
 
   const handleSchemaSelect = (schemaId: string) => {
-    setSelectedSchema(schemaId)
-    setOpen(false)
-    if (extractionMode === 'schema') {
+    setSelectedSchema(schemaId);
+    setOpen(false);
+    if (extractionMode === "schema") {
       // When a schema is selected in schema mode, disable AI
-      onSchemaSelect(schemaId, false)
+      onSchemaSelect(schemaId, false);
     }
-  }
+  };
 
-  const selectedSchemaData = defaultSchemas.find(s => s.id === selectedSchema)
+  const selectedSchemaData = defaultSchemas.find(
+    (s) => s.id === selectedSchema
+  );
 
   // Group schemas by category
   const groupedSchemas = defaultSchemas.reduce((acc, schema) => {
-    const category = schema.category || 'Other'
-    if (!acc[category]) acc[category] = []
-    acc[category].push(schema)
-    return acc
-  }, {} as Record<string, Schema[]>)
+    const category = schema.category || "Other";
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(schema);
+    return acc;
+  }, {} as Record<string, Schema[]>);
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -123,17 +128,25 @@ export function SchemaSelector({
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="schema" id="schema-mode" />
-              <Label htmlFor="schema-mode" className="flex items-center gap-2 cursor-pointer">
+              <Label
+                htmlFor="schema-mode"
+                className="flex items-center gap-2 cursor-pointer"
+              >
                 <FileText className="h-4 w-4 text-blue-500" />
-                <span>Use Schema</span>
-                <Badge variant="secondary" className="ml-1">Recommended</Badge>
+                <span>Schema</span>
+                <Badge variant="secondary" className="ml-1">
+                  Recommended
+                </Badge>
               </Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="ai" id="ai-mode" />
-              <Label htmlFor="ai-mode" className="flex items-center gap-2 cursor-pointer">
+              <Label
+                htmlFor="ai-mode"
+                className="flex items-center gap-2 cursor-pointer"
+              >
                 <Sparkles className="h-4 w-4 text-purple-500" />
-                <span>AI Auto-Extract</span>
+                <span>Auto-Extract</span>
               </Label>
             </div>
           </div>
@@ -141,7 +154,7 @@ export function SchemaSelector({
       </div>
 
       {/* Schema Selection (shown when schema mode is selected) */}
-      {extractionMode === 'schema' && (
+      {extractionMode === "schema" && (
         <>
           <Separator />
           <div className="space-y-3">
@@ -165,7 +178,9 @@ export function SchemaSelector({
                       )}
                     </div>
                   ) : (
-                    <span className="text-muted-foreground">Select a schema...</span>
+                    <span className="text-muted-foreground">
+                      Select a schema...
+                    </span>
                   )}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -179,44 +194,53 @@ export function SchemaSelector({
                   />
                   <CommandList>
                     <CommandEmpty>No schema found.</CommandEmpty>
-                    {Object.entries(groupedSchemas).map(([category, categorySchemas]) => (
-                      <CommandGroup key={category} heading={category}>
-                        {categorySchemas.map((schema) => (
-                          <CommandItem
-                            key={schema.id}
-                            value={schema.id}
-                            onSelect={handleSchemaSelect}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                selectedSchema === schema.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">{schema.name}</span>
-                                {schema.fields_count && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {schema.fields_count} fields
-                                  </Badge>
+                    {Object.entries(groupedSchemas).map(
+                      ([category, categorySchemas]) => (
+                        <CommandGroup key={category} heading={category}>
+                          {categorySchemas.map((schema) => (
+                            <CommandItem
+                              key={schema.id}
+                              value={schema.id}
+                              onSelect={handleSchemaSelect}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedSchema === schema.id
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">
+                                    {schema.name}
+                                  </span>
+                                  {schema.fields_count && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-xs"
+                                    >
+                                      {schema.fields_count} fields
+                                    </Badge>
+                                  )}
+                                </div>
+                                {schema.description && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {schema.description}
+                                  </p>
+                                )}
+                                {schema.last_used && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Last used: {schema.last_used}
+                                  </p>
                                 )}
                               </div>
-                              {schema.description && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {schema.description}
-                                </p>
-                              )}
-                              {schema.last_used && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Last used: {schema.last_used}
-                                </p>
-                              )}
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    ))}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      )
+                    )}
                   </CommandList>
                 </Command>
               </PopoverContent>
@@ -228,7 +252,7 @@ export function SchemaSelector({
       )}
 
       {/* AI Mode Information */}
-      {extractionMode === 'ai' && (
+      {extractionMode === "ai" && (
         <>
           <Separator />
           <div className="p-4 border rounded-lg bg-purple-50 dark:bg-purple-950/20">
@@ -237,8 +261,8 @@ export function SchemaSelector({
               <div className="space-y-1">
                 <p className="text-sm font-medium">AI Auto-Extract Mode</p>
                 <p className="text-xs text-muted-foreground">
-                  Our AI will automatically detect the document type and extract all relevant fields.
-                  No schema configuration required.
+                  Our AI will automatically detect the document type and extract
+                  all relevant fields. No schema configuration required.
                 </p>
               </div>
             </div>
@@ -246,5 +270,5 @@ export function SchemaSelector({
         </>
       )}
     </div>
-  )
+  );
 }

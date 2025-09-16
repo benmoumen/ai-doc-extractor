@@ -808,158 +808,299 @@ export function SchemaGenerator({
                 <Separator />
 
                 {/* Schema Fields */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">
-                      Generated Fields (
-                      {isEditMode
-                        ? editingSchema?.total_fields
-                        : generatedSchema.total_fields}
-                      )
-                    </Label>
-                    {isEditMode && (
-                      <Button onClick={addNewField} variant="outline" size="sm">
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Field
-                      </Button>
-                    )}
-                  </div>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {(isEditMode
-                      ? editingSchema?.fields
-                      : generatedSchema.fields) &&
-                      Object.entries(
-                        isEditMode ? editingSchema.fields : generatedSchema.fields
-                      ).map(([fieldName, fieldConfig]: [string, any], index) => (
-                        <div
-                          key={`field-${index}`}
-                          className="border rounded-lg p-3 space-y-2"
-                        >
-                          <div className="flex items-center justify-between">
+                <Tabs defaultValue="fields" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="fields">Field Details</TabsTrigger>
+                    <TabsTrigger value="quality">Quality Metrics</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="fields" className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">
+                        Generated Fields (
+                        {isEditMode
+                          ? editingSchema?.total_fields
+                          : generatedSchema.total_fields}
+                        )
+                      </Label>
+                      {isEditMode && (
+                        <Button onClick={addNewField} variant="outline" size="sm">
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Field
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                      {(isEditMode
+                        ? editingSchema?.fields
+                        : generatedSchema.fields) &&
+                        Object.entries(
+                          isEditMode ? editingSchema.fields : generatedSchema.fields
+                        ).map(([fieldName, fieldConfig]: [string, any], index) => (
+                          <div
+                            key={`field-${index}`}
+                            className="border rounded-lg p-4 space-y-3 bg-white shadow-sm"
+                          >
+                            {/* Field Header */}
+                            <div className="flex items-center justify-between">
+                              {!isEditMode ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium">
+                                    {fieldName}
+                                  </span>
+                                  {fieldConfig.confidence_score && (
+                                    <Badge
+                                      variant={fieldConfig.confidence_score >= 90 ? "default" : fieldConfig.confidence_score >= 70 ? "secondary" : "outline"}
+                                      className="text-xs"
+                                    >
+                                      {fieldConfig.confidence_score}% confidence
+                                    </Badge>
+                                  )}
+                                </div>
+                              ) : (
+                                <Input
+                                  value={fieldName}
+                                  onChange={(e) =>
+                                    renameField(fieldName, e.target.value)
+                                  }
+                                  className="text-sm font-medium w-48"
+                                  placeholder="field_name"
+                                />
+                              )}
+                              <div className="flex gap-1">
+                                {!isEditMode ? (
+                                  <>
+                                    <Badge variant="outline" className="text-xs">
+                                      {fieldConfig.type || "text"}
+                                    </Badge>
+                                    <Badge
+                                      variant={
+                                        fieldConfig.required
+                                          ? "destructive"
+                                          : "secondary"
+                                      }
+                                      className="text-xs"
+                                    >
+                                      {fieldConfig.required
+                                        ? "Required"
+                                        : "Optional"}
+                                    </Badge>
+                                    {fieldConfig.legibility && (
+                                      <Badge
+                                        variant={fieldConfig.legibility === "high" ? "default" : fieldConfig.legibility === "medium" ? "secondary" : "outline"}
+                                        className="text-xs"
+                                      >
+                                        {fieldConfig.legibility} legibility
+                                      </Badge>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    <Select
+                                      value={fieldConfig.type || "text"}
+                                      onValueChange={(value) =>
+                                        updateFieldProperty(
+                                          fieldName,
+                                          "type",
+                                          value
+                                        )
+                                      }
+                                    >
+                                      <SelectTrigger className="w-24 h-7 text-xs">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="text">text</SelectItem>
+                                        <SelectItem value="number">
+                                          number
+                                        </SelectItem>
+                                        <SelectItem value="date">date</SelectItem>
+                                        <SelectItem value="email">email</SelectItem>
+                                        <SelectItem value="phone">phone</SelectItem>
+                                        <SelectItem value="url">url</SelectItem>
+                                        <SelectItem value="boolean">
+                                          boolean
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <Select
+                                      value={
+                                        fieldConfig.required
+                                          ? "required"
+                                          : "optional"
+                                      }
+                                      onValueChange={(value) =>
+                                        updateFieldProperty(
+                                          fieldName,
+                                          "required",
+                                          value === "required"
+                                        )
+                                      }
+                                    >
+                                      <SelectTrigger className="w-24 h-7 text-xs">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="required">
+                                          Required
+                                        </SelectItem>
+                                        <SelectItem value="optional">
+                                          Optional
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <Button
+                                      onClick={() => deleteField(fieldName)}
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 px-2 text-destructive hover:text-destructive"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Field Description */}
                             {!isEditMode ? (
-                              <span className="text-sm font-medium">
-                                {fieldName}
-                              </span>
+                              fieldConfig.description && (
+                                <p className="text-xs text-muted-foreground">
+                                  {fieldConfig.description}
+                                </p>
+                              )
                             ) : (
                               <Input
-                                value={fieldName}
+                                value={fieldConfig.description || ""}
                                 onChange={(e) =>
-                                  renameField(fieldName, e.target.value)
+                                  updateFieldProperty(
+                                    fieldName,
+                                    "description",
+                                    e.target.value
+                                  )
                                 }
-                                className="text-sm font-medium w-48"
-                                placeholder="field_name"
+                                className="text-xs"
+                                placeholder="Field description"
                               />
                             )}
-                            <div className="flex gap-1">
-                              {!isEditMode ? (
-                                <>
-                                  <Badge variant="outline" className="text-xs">
-                                    {fieldConfig.type || "text"}
-                                  </Badge>
-                                  <Badge
-                                    variant={
-                                      fieldConfig.required
-                                        ? "destructive"
-                                        : "secondary"
-                                    }
-                                    className="text-xs"
-                                  >
-                                    {fieldConfig.required
-                                      ? "Required"
-                                      : "Optional"}
-                                  </Badge>
-                                </>
-                              ) : (
-                                <>
-                                  <Select
-                                    value={fieldConfig.type || "text"}
-                                    onValueChange={(value) =>
-                                      updateFieldProperty(
-                                        fieldName,
-                                        "type",
-                                        value
-                                      )
-                                    }
-                                  >
-                                    <SelectTrigger className="w-24 h-7 text-xs">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="text">text</SelectItem>
-                                      <SelectItem value="number">
-                                        number
-                                      </SelectItem>
-                                      <SelectItem value="date">date</SelectItem>
-                                      <SelectItem value="email">email</SelectItem>
-                                      <SelectItem value="phone">phone</SelectItem>
-                                      <SelectItem value="url">url</SelectItem>
-                                      <SelectItem value="boolean">
-                                        boolean
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <Select
-                                    value={
-                                      fieldConfig.required
-                                        ? "required"
-                                        : "optional"
-                                    }
-                                    onValueChange={(value) =>
-                                      updateFieldProperty(
-                                        fieldName,
-                                        "required",
-                                        value === "required"
-                                      )
-                                    }
-                                  >
-                                    <SelectTrigger className="w-24 h-7 text-xs">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="required">
-                                        Required
-                                      </SelectItem>
-                                      <SelectItem value="optional">
-                                        Optional
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <Button
-                                    onClick={() => deleteField(fieldName)}
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 px-2 text-destructive hover:text-destructive"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
+
+                            {/* Enhanced Field Details (only in view mode) */}
+                            {!isEditMode && (
+                              <div className="space-y-2 pt-2 border-t">
+                                {/* Extraction Hints */}
+                                {fieldConfig.extraction_hints && fieldConfig.extraction_hints.length > 0 && (
+                                  <div className="space-y-1">
+                                    <Label className="text-xs font-medium text-blue-600">Extraction Hints:</Label>
+                                    <ul className="list-disc list-inside space-y-1">
+                                      {fieldConfig.extraction_hints.map((hint: string, hintIndex: number) => (
+                                        <li key={hintIndex} className="text-xs text-blue-600 ml-2">
+                                          {hint}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {/* Positioning Hints */}
+                                {fieldConfig.positioning_hints && (
+                                  <div className="space-y-1">
+                                    <Label className="text-xs font-medium text-green-600">Document Position:</Label>
+                                    <p className="text-xs text-green-600">{fieldConfig.positioning_hints}</p>
+                                  </div>
+                                )}
+
+                                {/* Validation Pattern */}
+                                {fieldConfig.validation_pattern && (
+                                  <div className="space-y-1">
+                                    <Label className="text-xs font-medium text-purple-600">Validation Pattern:</Label>
+                                    <code className="text-xs bg-purple-50 px-2 py-1 rounded text-purple-800">
+                                      {fieldConfig.validation_pattern}
+                                    </code>
+                                  </div>
+                                )}
+
+                                {/* Potential Issues */}
+                                {fieldConfig.potential_issues && fieldConfig.potential_issues.length > 0 && (
+                                  <div className="space-y-1">
+                                    <Label className="text-xs font-medium text-orange-600">Potential Issues:</Label>
+                                    <ul className="list-disc list-inside space-y-1">
+                                      {fieldConfig.potential_issues.map((issue: string, issueIndex: number) => (
+                                        <li key={issueIndex} className="text-xs text-orange-600 ml-2">
+                                          {issue}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          {!isEditMode ? (
-                            fieldConfig.description && (
-                              <p className="text-xs text-muted-foreground">
-                                {fieldConfig.description}
-                              </p>
-                            )
-                          ) : (
-                            <Input
-                              value={fieldConfig.description || ""}
-                              onChange={(e) =>
-                                updateFieldProperty(
-                                  fieldName,
-                                  "description",
-                                  e.target.value
-                                )
-                              }
-                              className="text-xs"
-                              placeholder="Field description"
-                            />
-                          )}
+                        ))}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="quality" className="space-y-4">
+                    {/* Overall Quality Metrics */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {generatedSchema.document_quality && (
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Document Quality</Label>
+                          <Badge
+                            variant={generatedSchema.document_quality === "high" ? "default" : generatedSchema.document_quality === "medium" ? "secondary" : "outline"}
+                            className="text-sm"
+                          >
+                            {generatedSchema.document_quality.toUpperCase()}
+                          </Badge>
                         </div>
-                      ))}
-                  </div>
-                </div>
+                      )}
+
+                      {generatedSchema.extraction_difficulty && (
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Extraction Difficulty</Label>
+                          <Badge
+                            variant={generatedSchema.extraction_difficulty === "easy" ? "default" : generatedSchema.extraction_difficulty === "medium" ? "secondary" : "outline"}
+                            className="text-sm"
+                          >
+                            {generatedSchema.extraction_difficulty.toUpperCase()}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Field Confidence Distribution */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Field Confidence Distribution</Label>
+                      <div className="space-y-2">
+                        {generatedSchema.fields && Object.entries(generatedSchema.fields).map(([fieldName, fieldConfig]: [string, any]) => (
+                          fieldConfig.confidence_score && (
+                            <div key={fieldName} className="flex items-center gap-3">
+                              <span className="text-xs w-32 truncate">{fieldName}</span>
+                              <Progress
+                                value={fieldConfig.confidence_score}
+                                className="flex-1 h-2"
+                              />
+                              <span className="text-xs w-12 text-right">{fieldConfig.confidence_score}%</span>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Document Specific Notes */}
+                    {generatedSchema.document_specific_notes && generatedSchema.document_specific_notes.length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Document-Specific Notes</Label>
+                        <ul className="list-disc list-inside space-y-1">
+                          {generatedSchema.document_specific_notes.map((note: string, noteIndex: number) => (
+                            <li key={noteIndex} className="text-xs text-muted-foreground ml-2">
+                              {note}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
 
                 <Separator />
 
