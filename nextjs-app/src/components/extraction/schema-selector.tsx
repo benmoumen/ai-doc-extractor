@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { Check, ChevronsUpDown, Sparkles, FileText, Search } from 'lucide-react'
+import React, { useState } from 'react'
+import { Check, ChevronsUpDown, Sparkles, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,7 +20,6 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 
 export interface Schema {
@@ -48,7 +47,6 @@ export function SchemaSelector({
   const [selectedSchema, setSelectedSchema] = useState<string | null>(null)
   const [extractionMode, setExtractionMode] = useState<'schema' | 'ai'>('ai')
   const [searchValue, setSearchValue] = useState('')
-  const [useHybrid, setUseHybrid] = useState(false)
 
   // Mock schemas for demonstration (replace with actual API call)
   const defaultSchemas: Schema[] = schemas.length > 0 ? schemas : [
@@ -92,7 +90,8 @@ export function SchemaSelector({
       setSelectedSchema(null)
       onSchemaSelect(null, true)
     } else if (selectedSchema) {
-      onSchemaSelect(selectedSchema, useHybrid)
+      // In schema mode, AI should be off (no hybrid behavior)
+      onSchemaSelect(selectedSchema, false)
     }
   }
 
@@ -100,14 +99,8 @@ export function SchemaSelector({
     setSelectedSchema(schemaId)
     setOpen(false)
     if (extractionMode === 'schema') {
-      onSchemaSelect(schemaId, useHybrid)
-    }
-  }
-
-  const handleHybridToggle = (checked: boolean) => {
-    setUseHybrid(checked)
-    if (selectedSchema && extractionMode === 'schema') {
-      onSchemaSelect(selectedSchema, checked)
+      // When a schema is selected in schema mode, disable AI
+      onSchemaSelect(schemaId, false)
     }
   }
 
@@ -129,18 +122,18 @@ export function SchemaSelector({
         <RadioGroup value={extractionMode} onValueChange={handleModeChange}>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="ai" id="ai-mode" />
-              <Label htmlFor="ai-mode" className="flex items-center gap-2 cursor-pointer">
-                <Sparkles className="h-4 w-4 text-purple-500" />
-                <span>AI Auto-Extract</span>
-                <Badge variant="secondary" className="ml-1">Recommended</Badge>
-              </Label>
-            </div>
-            <div className="flex items-center space-x-2">
               <RadioGroupItem value="schema" id="schema-mode" />
               <Label htmlFor="schema-mode" className="flex items-center gap-2 cursor-pointer">
                 <FileText className="h-4 w-4 text-blue-500" />
                 <span>Use Schema</span>
+                <Badge variant="secondary" className="ml-1">Recommended</Badge>
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="ai" id="ai-mode" />
+              <Label htmlFor="ai-mode" className="flex items-center gap-2 cursor-pointer">
+                <Sparkles className="h-4 w-4 text-purple-500" />
+                <span>AI Auto-Extract</span>
               </Label>
             </div>
           </div>
@@ -229,27 +222,7 @@ export function SchemaSelector({
               </PopoverContent>
             </Popover>
 
-            {/* Hybrid Mode Option */}
-            {selectedSchema && (
-              <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-purple-500" />
-                  <div>
-                    <Label htmlFor="hybrid-mode" className="text-sm font-medium cursor-pointer">
-                      Hybrid Mode
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      Use AI to find additional fields
-                    </p>
-                  </div>
-                </div>
-                <Switch
-                  id="hybrid-mode"
-                  checked={useHybrid}
-                  onCheckedChange={handleHybridToggle}
-                />
-              </div>
-            )}
+            {/* Hybrid Mode removed: backend doesn't support it and it caused param confusion */}
           </div>
         </>
       )}

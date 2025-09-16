@@ -209,10 +209,18 @@ export function ExtractionWorkflow() {
 
         // Transform API response to match our component interface
         // Our backend returns: { success, extracted_data, validation, metadata }
+        // Normalize extraction mode values from backend -> UI
+        const modeRaw = result.metadata?.extraction_mode
+        const normalizedMode: 'schema' | 'ai' = modeRaw === 'schema_guided'
+          ? 'schema'
+          : modeRaw === 'freeform'
+            ? 'ai'
+            : (selectedSchema ? 'schema' : 'ai')
+
         const extractionResult: ExtractionResult = {
           id: `extraction_${Date.now()}`,
           documentType: result.metadata?.file_type || 'document',
-          extractionMode: result.metadata?.extraction_mode || (selectedSchema ? 'schema' : 'ai'),
+          extractionMode: normalizedMode,
           schemaUsed: result.metadata?.schema_id || selectedSchema,
           processingTime: result.metadata?.processing_time || clientSideProcessingTime,
           confidence: result.validation?.passed ? 0.9 : 0.7,
@@ -224,9 +232,9 @@ export function ExtractionWorkflow() {
               value: Array.isArray(value) ? value.join(', ') : String(value),
               type: typeof value === 'number' ? 'number' :
                     typeof value === 'boolean' ? 'boolean' :
-                    Array.isArray(value) ? 'array' : 'text',
+                    Array.isArray(value) ? 'array' : 'string',
               confidence: result.validation?.passed ? 0.9 : 0.7,
-              source: 'ai_extraction',
+              source: 'ai',
               validation: {
                 isValid: result.validation?.passed ?? true,
                 errors: result.validation?.errors || []
@@ -237,9 +245,9 @@ export function ExtractionWorkflow() {
                 name: 'raw_content',
                 displayName: 'Extracted Content',
                 value: result.extracted_data?.formatted_text || result.extracted_data?.raw_content || 'No content extracted',
-                type: 'text',
+                type: 'string',
                 confidence: result.validation?.passed ? 0.9 : 0.7,
-                source: 'ai_extraction',
+                source: 'ai',
                 validation: {
                   isValid: result.validation?.passed ?? true,
                   errors: result.validation?.errors || []
@@ -749,7 +757,7 @@ export function ExtractionWorkflow() {
                           <div>
                             <h4 className="text-sm font-medium mb-2">Extraction Summary</h4>
                             <div className="text-xs space-y-1 bg-muted p-3 rounded-md">
-                              <p><strong>Mode:</strong> {extractionResult.extractionMode === 'ai_freeform' ? 'AI Free-form Detection' : 'Schema-guided'}</p>
+                              <p><strong>Mode:</strong> {extractionResult.extractionMode === 'ai' ? 'AI Free-form Detection' : 'Schema-guided'}</p>
                               <p><strong>Processing Time:</strong> {extractionResult.processingTime?.toFixed(2)}s</p>
                               <p><strong>Overall Confidence:</strong> {Math.round((extractionResult.confidence || 0) * 100)}%</p>
                               <p><strong>Fields Extracted:</strong> {extractionResult.extractedFields.length}</p>
