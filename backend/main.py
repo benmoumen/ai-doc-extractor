@@ -65,6 +65,10 @@ async def lifespan(app: FastAPI):
     if not os.getenv("MISTRAL_API_KEY"):
         logger.warning("MISTRAL_API_KEY not configured")
 
+    # Initialize database service
+    from services.database import db_service
+    logger.info(f"Database initialized at {db_service.db_path}")
+
     # Load default schemas
     load_default_schemas()
 

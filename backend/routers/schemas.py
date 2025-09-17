@@ -10,12 +10,10 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Request, Form
 from validators import InputSanitizer
+from services.database import db_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-# Document schemas storage (would be database in production)
-SCHEMAS = {}
 
 # Initialize sanitizer
 input_sanitizer = InputSanitizer()
@@ -24,19 +22,11 @@ input_sanitizer = InputSanitizer()
 @router.get("/api/schemas")
 async def get_available_schemas():
     """Get list of available document schemas"""
-    formatted_schemas = {}
-    for schema_id, schema in SCHEMAS.items():
-        formatted_schemas[schema_id] = {
-            "id": schema_id,
-            "name": schema.get("name", "Unknown Schema"),
-            "description": schema.get("description", ""),
-            "category": schema.get("category", "Other"),
-            "field_count": len(schema.get("fields", {}))
-        }
+    schemas = db_service.get_all_schemas()
 
     return {
         "success": True,
-        "schemas": formatted_schemas
+        "schemas": schemas
     }
 
 
@@ -46,12 +36,13 @@ async def get_schema_details(schema_id: str):
     # Sanitize schema_id
     safe_schema_id = input_sanitizer.sanitize_string(schema_id, max_length=100)
 
-    if safe_schema_id not in SCHEMAS:
+    schema = db_service.get_schema(safe_schema_id)
+    if not schema:
         raise HTTPException(status_code=404, detail="Schema not found")
 
     return {
         "success": True,
-        "schema": SCHEMAS[safe_schema_id]
+        "schema": schema
     }
 
 
@@ -93,8 +84,11 @@ async def save_generated_schema(
             "schema_data": schema_dict
         }
 
-        # Store schema
-        SCHEMAS[schema_id] = schema_with_metadata
+        # Store schema in database
+        success = db_service.save_schema(schema_id, schema_with_metadata)
+
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to save schema to database")
 
         logger.info(f"[{request_id}] Schema saved with ID: {schema_id}")
 
@@ -119,10 +113,15 @@ async def save_generated_schema(
 
 def get_schemas_dict() -> Dict[str, Any]:
     """Get the schemas dictionary (for use by other modules)"""
-    return SCHEMAS
+    return db_service.get_all_schemas()
+
+
+def get_schema_by_id(schema_id: str) -> Optional[Dict[str, Any]]:
+    """Get a specific schema by ID (for use by other modules)"""
+    return db_service.get_schema(schema_id)
 
 
 def load_default_schemas():
     """Load default document schemas"""
-    # This would load from database in production
-    pass
+    from services.database import load_default_schemas
+    load_default_schemas()

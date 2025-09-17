@@ -56,11 +56,12 @@ async def extract_data(
         # Determine model using shared function
         provider_id, model_id, model_param = determine_ai_model(model)
 
-        # Get schemas dict and sanitize schema_id
-        SCHEMAS = get_schemas_dict()
+        # Sanitize and validate schema_id
         if schema_id:
             schema_id = input_sanitizer.sanitize_string(schema_id, max_length=100)
-            if schema_id not in SCHEMAS:
+            # Check if schema exists in database
+            from routers.schemas import get_schema_by_id
+            if not get_schema_by_id(schema_id):
                 logger.warning(f"[{request_id}] Invalid schema_id: {schema_id}")
                 schema_id = None
 
@@ -99,9 +100,12 @@ async def extract_data(
             extraction_result["document_verification"] = parsed_data["document_verification"]
 
         # Add validation results if schema was used
-        if schema_id and schema_id in SCHEMAS and is_json and parsed_data:
-            validation_results = validate_against_schema(parsed_data, SCHEMAS[schema_id])
-            extraction_result["validation"] = validation_results
+        if schema_id and is_json and parsed_data:
+            from routers.schemas import get_schema_by_id
+            schema = get_schema_by_id(schema_id)
+            if schema:
+                validation_results = validate_against_schema(parsed_data, schema)
+                extraction_result["validation"] = validation_results
 
         logger.info(f"[{request_id}] Extraction completed in {time.time() - start_time:.2f}s")
 
@@ -468,9 +472,9 @@ Focus on:
 - Important identifying information
 - Dates, amounts, and reference numbers"""
 
-    SCHEMAS = get_schemas_dict()
-    if schema_id and schema_id in SCHEMAS:
-        schema = SCHEMAS[schema_id]
+    from routers.schemas import get_schema_by_id
+    schema = get_schema_by_id(schema_id) if schema_id else None
+    if schema:
         schema_prompt = f"""
 
 This appears to be a {schema['name']} document. Extract the following specific fields:
