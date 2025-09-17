@@ -9,8 +9,6 @@ services:
     volumes:
       # Mount entire backend directory for hot reloading
       - ./backend:/app
-      - ./backend/data:/app/data
-      - ./backend/logs:/app/logs
     environment:
       - DEBUG=true
       - LOG_LEVEL=debug

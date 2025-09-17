@@ -15,9 +15,7 @@ services:
       # FastAPI settings
       - PYTHONUNBUFFERED=1
       - LOG_LEVEL=${LOG_LEVEL:-info}
-    volumes:
-      - ./backend/data:/app/data
-      - ./backend/logs:/app/logs
+    # No volumes needed - schemas stored in memory
     networks:
       - ai-doc-network
     restart: unless-stopped
@@ -67,7 +65,7 @@ services:
       - POSTGRES_DB=aidoc_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/ai_schema_generation/storage:/docker-entrypoint-initdb.d:ro
+      # No init scripts needed
     ports:
       - "5432:5432"
     networks:
