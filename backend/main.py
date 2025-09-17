@@ -1,6 +1,5 @@
 """
-Production-ready FastAPI backend for AI Data Extractor
-Lightweight main application that assembles all modules
+FastAPI backend for AI Data Extractor
 """
 
 import logging
@@ -82,7 +81,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="Production-ready AI-powered document data extraction service",
+    description="AI-powered document data extraction service",
     lifespan=lifespan
 )
 

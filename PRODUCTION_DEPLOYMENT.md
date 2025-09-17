@@ -40,9 +40,9 @@ This guide provides comprehensive instructions for deploying the AI Data Extract
 ```
 ai-doc-extractor/
 ├── backend/
-│   ├── main.py                # Production-ready backend
-│   ├── config.py               # Configuration management
-│   ├── middleware.py           # Security & monitoring middleware
+│   ├── main.py                # Application entry point
+│   ├── config.py              # Configuration management
+│   ├── middleware.py          # Security & monitoring middleware
 │   ├── validators.py          # Input validation & sanitization
 │   ├── Dockerfile.production  # Optimized Docker image
 │   └── requirements.txt       # Production dependencies
