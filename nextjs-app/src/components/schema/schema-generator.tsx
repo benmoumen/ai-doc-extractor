@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Upload,
   FileText,
@@ -55,7 +55,7 @@ interface GenerationStep {
   name: string;
   status: "pending" | "in_progress" | "completed" | "failed";
   duration?: number;
-  details?: any;
+  details?: AIDebugStep;
 }
 
 interface SchemaGenerationProps {
@@ -69,7 +69,8 @@ export function SchemaGenerator({
 }: SchemaGenerationProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>("");
-  const [availableModels, setAvailableModels] = useState<any[]>([]);
+  type MinimalModel = { id: string; name: string };
+  const [availableModels, setAvailableModels] = useState<MinimalModel[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState<string>("");
@@ -79,14 +80,41 @@ export function SchemaGenerator({
     { name: "Confidence Analysis", status: "pending" },
     { name: "Extraction Hints Generation", status: "pending" },
   ]);
-  const [generatedSchema, setGeneratedSchema] = useState<any>(null);
-  const [analysisId, setAnalysisId] = useState<string | null>(null);
+  type FieldConfig = {
+    type?: string;
+    required?: boolean;
+    description?: string;
+    confidence_score?: number;
+    legibility?: "high" | "medium" | "low";
+    extraction_hints?: string[];
+    positioning_hints?: string[];
+    validation_pattern?: string;
+    potential_issues?: string[];
+  };
+  interface GeneratedSchema {
+    id: string;
+    name: string;
+    description?: string;
+    category?: string;
+    fields: Record<string, FieldConfig>;
+    total_fields: number;
+    generation_confidence: number;
+    production_ready: boolean;
+    validation_status: string;
+    user_review_status: string;
+    overall_confidence: number;
+    document_quality: string;
+    extraction_difficulty: string;
+    document_specific_notes: string[];
+    quality_recommendations: string[];
+  }
+  const [generatedSchema, setGeneratedSchema] = useState<GeneratedSchema | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [documentPreview, setDocumentPreview] = useState<string | null>(null);
 
   // Edit mode states
   const [isEditMode, setIsEditMode] = useState(false);
-  const [editingSchema, setEditingSchema] = useState<any>(null);
+  const [editingSchema, setEditingSchema] = useState<GeneratedSchema | null>(null);
 
   // Save schema states
   const [isSaving, setIsSaving] = useState(false);
@@ -101,9 +129,24 @@ export function SchemaGenerator({
   const resultsRef = useRef<HTMLDivElement | null>(null);
 
   // Load available models on component mount
+  const loadModels = useCallback(async () => {
+    try {
+      const response = await apiClient.getSupportedModels();
+      if (response.success && response.models) {
+        setAvailableModels(response.models as MinimalModel[]);
+        // Set first model as default
+        if (response.models.length > 0) {
+          setSelectedModel(response.models[0].id);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load models:", err);
+    }
+  }, []);
+
   useEffect(() => {
     loadModels();
-  }, []);
+  }, [loadModels]);
 
   // Update document preview when file changes
   useEffect(() => {
@@ -126,20 +169,7 @@ export function SchemaGenerator({
     }
   }, [generatedSchema, isGenerating]);
 
-  const loadModels = async () => {
-    try {
-      const response = await apiClient.getSupportedModels();
-      if (response.success && response.models) {
-        setAvailableModels(response.models);
-        // Set first model as default
-        if (response.models.length > 0) {
-          setSelectedModel(response.models[0].id);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load models:", err);
-    }
-  };
+  // loadModels moved above and memoized with useCallback
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -155,7 +185,6 @@ export function SchemaGenerator({
     setGenerationProgress(0);
     setCurrentStep("");
     setGeneratedSchema(null);
-    setAnalysisId(null);
     setGenerationSteps((steps) =>
       steps.map((step) => ({ ...step, status: "pending" }))
     );
@@ -164,7 +193,7 @@ export function SchemaGenerator({
   const updateStepStatus = (
     stepName: string,
     status: GenerationStep["status"],
-    details?: any,
+    details?: AIDebugStep,
     duration?: number
   ) => {
     setGenerationSteps((steps) =>
@@ -285,7 +314,18 @@ export function SchemaGenerator({
       const generatedSchema = schemaResponse.generated_schema;
 
       if (generatedSchema.is_valid && generatedSchema.schema_data) {
-        const schemaData = generatedSchema.schema_data;
+        const schemaData = generatedSchema.schema_data as {
+          id: string;
+          name: string;
+          description?: string;
+          category?: string;
+          fields: Record<string, FieldConfig>;
+          overall_confidence?: number;
+          document_quality?: string;
+          extraction_difficulty?: string;
+          document_specific_notes?: string[];
+          quality_recommendations?: string[];
+        };
         setGeneratedSchema({
           id: schemaData.id,
           name: schemaData.name,
@@ -318,9 +358,10 @@ export function SchemaGenerator({
 
         throw new Error("Multi-step schema generation failed to produce valid schema");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Generation failed:", err);
-      setError(err.message || "Schema generation failed");
+      const message = err instanceof Error ? err.message : "Schema generation failed";
+      setError(message);
       setCurrentStep("Generation failed");
 
       // Mark current step as failed
@@ -353,10 +394,11 @@ export function SchemaGenerator({
   // Edit mode functions
   const startEditMode = () => {
     setIsEditMode(true);
-    setEditingSchema(JSON.parse(JSON.stringify(generatedSchema))); // Deep copy
+    setEditingSchema(generatedSchema ? JSON.parse(JSON.stringify(generatedSchema)) : null); // Deep copy
   };
 
   const saveChanges = () => {
+    if (!editingSchema) return;
     setGeneratedSchema(editingSchema);
     setIsEditMode(false);
     // Here you could also send the updated schema to the backend
@@ -367,32 +409,35 @@ export function SchemaGenerator({
     setIsEditMode(false);
   };
 
-  const updateSchemaField = (field: string, value: any) => {
+  const updateSchemaField = (field: keyof GeneratedSchema, value: unknown) => {
+    if (!editingSchema) return;
     setEditingSchema({
       ...editingSchema,
-      [field]: value,
+      [field]: value as never,
     });
   };
 
   const updateFieldProperty = (
     fieldName: string,
     property: string,
-    value: any
+    value: unknown
   ) => {
+    if (!editingSchema) return;
     setEditingSchema({
       ...editingSchema,
       fields: {
         ...editingSchema.fields,
         [fieldName]: {
           ...editingSchema.fields[fieldName],
-          [property]: value,
+          [property]: value as never,
         },
       },
     });
   };
 
   const deleteField = (fieldName: string) => {
-    const updatedFields = { ...editingSchema.fields };
+    if (!editingSchema) return;
+    const updatedFields: Record<string, FieldConfig> = { ...editingSchema.fields };
     delete updatedFields[fieldName];
     setEditingSchema({
       ...editingSchema,
@@ -402,6 +447,7 @@ export function SchemaGenerator({
   };
 
   const addNewField = () => {
+    if (!editingSchema) return;
     const newFieldName = `new_field_${Date.now()}`;
     setEditingSchema({
       ...editingSchema,
@@ -421,7 +467,8 @@ export function SchemaGenerator({
     if (oldName === newName || !newName) return;
 
     // Preserve field order by recreating object in same order
-    const updatedFields: Record<string, any> = {};
+    if (!editingSchema) return;
+    const updatedFields: Record<string, FieldConfig> = {};
     Object.entries(editingSchema.fields).forEach(([key, value]) => {
       if (key === oldName) {
         updatedFields[newName] = value;
@@ -458,7 +505,7 @@ export function SchemaGenerator({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `schema-${generatedSchema.name
+    a.download = `schema-${(generatedSchema?.name || "schema")
       .toLowerCase()
       .replace(/\s+/g, "-")}.json`;
     document.body.appendChild(a);
@@ -497,9 +544,10 @@ export function SchemaGenerator({
       } else {
         throw new Error(response.message || "Failed to save schema");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Save schema error:", err);
-      setSaveError(err.message || "Failed to save schema");
+      const message = err instanceof Error ? err.message : "Failed to save schema";
+      setSaveError(message);
     } finally {
       setIsSaving(false);
     }
@@ -737,7 +785,7 @@ export function SchemaGenerator({
                       <p className="text-sm">{generatedSchema.name}</p>
                     ) : (
                       <Input
-                        value={editingSchema.name}
+                        value={editingSchema?.name ?? ""}
                         onChange={(e) =>
                           updateSchemaField("name", e.target.value)
                         }
@@ -751,7 +799,7 @@ export function SchemaGenerator({
                       <p className="text-sm font-mono">{generatedSchema.id}</p>
                     ) : (
                       <Input
-                        value={editingSchema.id}
+                        value={editingSchema?.id ?? ""}
                         onChange={(e) =>
                           updateSchemaField(
                             "id",
@@ -773,7 +821,7 @@ export function SchemaGenerator({
                       </Badge>
                     ) : (
                       <Select
-                        value={editingSchema.category || "Government"}
+                        value={editingSchema?.category || "Government"}
                         onValueChange={(value) =>
                           updateSchemaField("category", value)
                         }
@@ -796,7 +844,7 @@ export function SchemaGenerator({
                     <Label className="text-sm font-medium">Total Fields</Label>
                     <p className="text-sm">
                       {isEditMode
-                        ? editingSchema.total_fields
+                        ? editingSchema?.total_fields ?? generatedSchema.total_fields
                         : generatedSchema.total_fields}
                     </p>
                   </div>
@@ -810,7 +858,7 @@ export function SchemaGenerator({
                     </p>
                   ) : (
                     <Input
-                      value={editingSchema.description || ""}
+                      value={editingSchema?.description || ""}
                       onChange={(e) =>
                         updateSchemaField("description", e.target.value)
                       }
@@ -879,7 +927,7 @@ export function SchemaGenerator({
                         : generatedSchema.fields) &&
                         Object.entries(
                           isEditMode ? editingSchema.fields : generatedSchema.fields
-                        ).map(([fieldName, fieldConfig]: [string, any], index) => (
+                        ).map(([fieldName, fieldConfig]: [string, FieldConfig], index) => (
                           <div
                             key={`field-${index}`}
                             className="border rounded-lg p-4 space-y-3 bg-white shadow-sm"
@@ -1114,7 +1162,7 @@ export function SchemaGenerator({
                     <div className="space-y-3">
                       <Label className="text-sm font-medium">Field Confidence Distribution</Label>
                       <div className="space-y-2">
-                        {generatedSchema.fields && Object.entries(generatedSchema.fields).map(([fieldName, fieldConfig]: [string, any]) => (
+                        {generatedSchema.fields && Object.entries(generatedSchema.fields).map(([fieldName, fieldConfig]: [string, FieldConfig]) => (
                           fieldConfig.confidence_score && (
                             <div key={fieldName} className="flex items-center gap-3">
                               <span className="text-xs w-32 truncate">{fieldName}</span>

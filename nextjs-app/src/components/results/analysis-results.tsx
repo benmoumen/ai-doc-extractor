@@ -17,21 +17,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
+// Table components removed as they are not used in this view
 
 import { DocumentAnalysisResponse } from '@/types'
 
 interface AnalysisResultsProps {
   result: DocumentAnalysisResponse
   onExport?: (format: string) => void
-  onEditField?: (fieldId: string, newValue: any) => void
+  onEditField?: (fieldId: string, newValue: unknown) => void
   onRetryAnalysis?: () => void
   className?: string
 }
@@ -39,7 +32,6 @@ interface AnalysisResultsProps {
 export function AnalysisResults({
   result,
   onExport,
-  onEditField,
   onRetryAnalysis,
   className
 }: AnalysisResultsProps) {

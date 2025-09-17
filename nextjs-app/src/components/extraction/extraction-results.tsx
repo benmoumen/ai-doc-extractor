@@ -49,7 +49,7 @@ export interface ExtractedField {
   id: string;
   name: string;
   displayName: string;
-  value: any;
+  value: unknown;
   type: "string" | "number" | "date" | "boolean" | "array" | "object";
   confidence?: number;
   source?: "schema" | "ai";
@@ -58,10 +58,10 @@ export interface ExtractedField {
     errors?: string[];
   };
   metadata?: {
-    originalValue?: any;
+    originalValue?: unknown;
     pageNumber?: number;
-    boundingBox?: any;
-    alternatives?: any[];
+    boundingBox?: unknown;
+    alternatives?: unknown[];
   };
 }
 
@@ -79,7 +79,7 @@ export interface ExtractionResult {
 
 interface ExtractionResultsProps {
   result: ExtractionResult;
-  onFieldUpdate?: (fieldId: string, newValue: any) => void;
+  onFieldUpdate?: (fieldId: string, newValue: unknown) => void;
   onExport?: (format: "json" | "csv" | "excel") => void;
   className?: string;
 }
@@ -91,7 +91,7 @@ export function ExtractionResults({
   className,
 }: ExtractionResultsProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<Record<string, any>>({});
+  const [editValues, setEditValues] = useState<Record<string, unknown>>({});
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     new Set(["all"])
@@ -144,10 +144,10 @@ export function ExtractionResults({
   };
 
   const handleCopyAll = async () => {
-    const data = result.extractedFields.reduce((acc, field) => {
+    const data = result.extractedFields.reduce<Record<string, unknown>>((acc, field) => {
       acc[field.name] = field.value;
       return acc;
-    }, {} as Record<string, any>);
+    }, {});
 
     try {
       await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
@@ -197,7 +197,7 @@ export function ExtractionResults({
       return (
         <div className="flex items-center gap-2">
           <Input
-            value={editValues[field.id] || ""}
+            value={String(editValues[field.id] ?? "")}
             onChange={(e) =>
               setEditValues({ ...editValues, [field.id]: e.target.value })
             }
@@ -309,7 +309,12 @@ export function ExtractionResults({
         </div>
       </CardHeader>
       <CardContent>
-        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)}>
+        <Tabs
+          value={viewMode}
+          onValueChange={(v) =>
+            setViewMode(v as "table" | "json" | "grouped")
+          }
+        >
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="table">Table</TabsTrigger>
             <TabsTrigger value="json">JSON</TabsTrigger>
@@ -385,10 +390,13 @@ export function ExtractionResults({
             <pre className="p-4 bg-muted rounded-lg overflow-auto max-h-[500px]">
               <code className="text-sm">
                 {JSON.stringify(
-                  result.extractedFields.reduce((acc, field) => {
-                    acc[field.name] = field.value;
-                    return acc;
-                  }, {} as Record<string, any>),
+                  result.extractedFields.reduce<Record<string, unknown>>(
+                    (acc, field) => {
+                      acc[field.name] = field.value;
+                      return acc;
+                    },
+                    {}
+                  ),
                   null,
                   2
                 )}

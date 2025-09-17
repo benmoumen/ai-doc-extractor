@@ -272,7 +272,7 @@ export class APIClient {
     name: string;
     description: string;
     category: string;
-    fields: Record<string, any>;
+    fields: Record<string, unknown>;
   }): Promise<{
     success: boolean;
     message: string;

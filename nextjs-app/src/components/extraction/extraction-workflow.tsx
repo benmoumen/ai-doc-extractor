@@ -41,13 +41,42 @@ import {
 import { toast } from "sonner";
 
 import { DocumentUpload } from "@/components/document-upload/document-upload";
-import { SchemaSelector, type Schema } from "./schema-selector";
-import {
-  ExtractionResults,
-  type ExtractionResult,
-  type ExtractedField,
-} from "./extraction-results";
+import { SchemaSelector } from "./schema-selector";
+import { ExtractionResults, type ExtractionResult } from "./extraction-results";
 import { apiClient } from "@/lib/api";
+
+// Minimal interfaces to avoid `any` while reflecting the structure we access
+interface AIMessageContent {
+  type: "text" | "image_url" | string;
+  text?: string;
+  image_url?: string | { url: string };
+}
+
+interface AIMessage {
+  role: string;
+  content?: AIMessageContent[];
+}
+
+interface DebugInfo {
+  completion_params?: {
+    model?: string;
+    temperature?: number;
+    messages?: AIMessage[];
+  };
+  raw_response?: {
+    id?: string;
+    model?: string;
+    choices?: Array<{
+      finish_reason?: string;
+      message?: { content?: string };
+    }>;
+    usage?: Record<string, unknown>;
+  };
+}
+
+interface SelectedSchemaDetails {
+  fields?: Record<string, { display_name?: string; required?: boolean }>;
+}
 
 interface WorkflowStep {
   id: string;
@@ -64,17 +93,21 @@ export function ExtractionWorkflow() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [selectedSchema, setSelectedSchema] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
-  const [availableModels, setAvailableModels] = useState<any[]>([]);
+  type MinimalModel = { id: string; name: string; provider?: string; model?: string };
+  const [availableModels, setAvailableModels] = useState<MinimalModel[]>([]);
   const [useAI, setUseAI] = useState(true);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [extractionResult, setExtractionResult] =
     useState<ExtractionResult | null>(null);
   const [extractionProgress, setExtractionProgress] = useState(0);
-  const [availableSchemas, setAvailableSchemas] = useState<any>({});
-  const [selectedSchemaDetails, setSelectedSchemaDetails] = useState<any>(null);
+  const [availableSchemas, setAvailableSchemas] = useState<
+    Record<string, { id: string; name?: string; display_name?: string; description?: string; category?: string }>
+  >({});
+  const [selectedSchemaDetails, setSelectedSchemaDetails] =
+    useState<SelectedSchemaDetails | null>(null);
   const [documentPreview, setDocumentPreview] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<any | null>(null);
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
 
   // Load available models on component mount
   useEffect(() => {
@@ -82,7 +115,7 @@ export function ExtractionWorkflow() {
       try {
         const response = await apiClient.getSupportedModels();
         if (response.success && response.models) {
-          setAvailableModels(response.models);
+          setAvailableModels(response.models as MinimalModel[]);
           // Set default model to first available
           if (response.models.length > 0) {
             setSelectedModel(response.models[0].id);
@@ -101,7 +134,9 @@ export function ExtractionWorkflow() {
       try {
         const response = await apiClient.getAvailableSchemas();
         if (response.success && response.schemas) {
-          setAvailableSchemas(response.schemas);
+          setAvailableSchemas(
+            response.schemas as Record<string, { id: string; name?: string; display_name?: string; description?: string; category?: string }>
+          );
         }
       } catch (error) {
         console.error("Failed to load schemas:", error);
@@ -131,7 +166,7 @@ export function ExtractionWorkflow() {
         try {
           const details = await apiClient.getSchemaDetails(selectedSchema);
           if (details.success && details.schema) {
-            setSelectedSchemaDetails(details.schema);
+            setSelectedSchemaDetails(details.schema as SelectedSchemaDetails);
           }
         } catch (error) {
           console.error("Failed to load schema details:", error);
@@ -189,7 +224,7 @@ export function ExtractionWorkflow() {
     updateStepStatus("upload", "active");
   };
 
-  const handleUploadComplete = (result: any) => {
+  const handleUploadComplete = (result: { success: boolean }) => {
     setIsUploading(false);
     if (result.success) {
       updateStepStatus("upload", "completed");
@@ -245,7 +280,7 @@ export function ExtractionWorkflow() {
       if (result.success) {
         // Store the debug information from this extraction
         if (result.debug) {
-          setDebugInfo(result.debug);
+          setDebugInfo(result.debug as DebugInfo);
         }
 
         // Transform API response to match our component interface
@@ -277,17 +312,23 @@ export function ExtractionWorkflow() {
                   displayName: key
                     .replace(/_/g, " ")
                     .replace(/\b\w/g, (l) => l.toUpperCase()),
-                  value: Array.isArray(value)
-                    ? value.join(", ")
-                    : String(value),
-                  type:
-                    typeof value === "number"
-                      ? "number"
-                      : typeof value === "boolean"
-                      ? "boolean"
-                      : Array.isArray(value)
-                      ? "array"
-                      : "string",
+                  // Preserve structured values for arrays/objects; stringify primitives safely
+                  value:
+                    Array.isArray(value) || (value !== null && typeof value === "object")
+                      ? value
+                      : value != null
+                      ? String(value)
+                      : "",
+                  // Infer accurate type including objects
+                  type: Array.isArray(value)
+                    ? "array"
+                    : value !== null && typeof value === "object"
+                    ? "object"
+                    : typeof value === "number"
+                    ? "number"
+                    : typeof value === "boolean"
+                    ? "boolean"
+                    : "string",
                   confidence: result.validation?.passed ? 0.9 : 0.7,
                   source: "ai",
                   validation: {
@@ -344,7 +385,7 @@ export function ExtractionWorkflow() {
     }
   };
 
-  const handleFieldUpdate = (fieldId: string, newValue: any) => {
+  const handleFieldUpdate = (fieldId: string, newValue: unknown) => {
     if (!extractionResult) return;
 
     setExtractionResult({
@@ -358,10 +399,10 @@ export function ExtractionWorkflow() {
   const handleExport = (format: "json" | "csv" | "excel") => {
     if (!extractionResult) return;
 
-    const data = extractionResult.extractedFields.reduce((acc, field) => {
+    const data = extractionResult.extractedFields.reduce<Record<string, unknown>>((acc, field) => {
       acc[field.name] = field.value;
       return acc;
-    }, {} as Record<string, any>);
+    }, {});
 
     if (format === "json") {
       const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -384,14 +425,30 @@ export function ExtractionWorkflow() {
         "Source",
         "Valid",
       ];
-      const rows = extractionResult.extractedFields.map((field) => [
-        field.displayName,
-        field.value?.toString() || "",
-        field.type,
-        (field.confidence * 100).toFixed(1) + "%",
-        field.source,
-        field.validation.isValid ? "Yes" : "No",
-      ]);
+      const rows = extractionResult.extractedFields.map((field) => {
+        const val =
+          field.type === "object" || field.type === "array"
+            ? JSON.stringify(field.value)
+            : field.value?.toString() || "";
+        const conf =
+          typeof field.confidence === "number"
+            ? (field.confidence * 100).toFixed(1) + "%"
+            : "";
+        const valid =
+          field.validation?.isValid === true
+            ? "Yes"
+            : field.validation?.isValid === false
+            ? "No"
+            : "";
+        return [
+          field.displayName,
+          val,
+          field.type,
+          conf,
+          field.source || "",
+          valid,
+        ];
+      });
 
       const csvContent = [
         headers.join(","),
@@ -452,15 +509,31 @@ export function ExtractionWorkflow() {
         ],
         ["", "", "", "", "", "", ""], // Empty row
       ];
-      const fieldRows = extractionResult.extractedFields.map((field) => [
-        field.name,
-        field.value?.toString() || "",
-        field.type,
-        (field.confidence * 100).toFixed(1) + "%",
-        field.source,
-        field.validation.isValid ? "Yes" : "No",
-        field.displayName,
-      ]);
+      const fieldRows = extractionResult.extractedFields.map((field) => {
+        const val =
+          field.type === "object" || field.type === "array"
+            ? JSON.stringify(field.value)
+            : field.value?.toString() || "";
+        const conf =
+          typeof field.confidence === "number"
+            ? (field.confidence * 100).toFixed(1) + "%"
+            : "";
+        const valid =
+          field.validation?.isValid === true
+            ? "Yes"
+            : field.validation?.isValid === false
+            ? "No"
+            : "";
+        return [
+          field.name,
+          val,
+          field.type,
+          conf,
+          field.source || "",
+          valid,
+          field.displayName,
+        ];
+      });
 
       const excelContent = [
         headers.join(","),
@@ -601,9 +674,9 @@ export function ExtractionWorkflow() {
                 <SchemaSelector
                   schemas={Object.values(availableSchemas).map((schema) => ({
                     id: schema.id,
-                    name: schema.name || schema.display_name,
-                    description: schema.description,
-                    category: schema.category || "Other",
+                    name: schema.name ?? schema.display_name ?? "Untitled",
+                    description: schema.description ?? "",
+                    category: schema.category ?? "Other",
                   }))}
                   onSchemaSelect={handleSchemaSelect}
                 />
@@ -847,18 +920,20 @@ export function ExtractionWorkflow() {
                               </h4>
                               <div className="space-y-2">
                                 {debugInfo.completion_params?.messages?.map(
-                                  (message: any, index: number) => (
+                                  (
+                                    message: AIMessage,
+                                    index: number
+                                  ) => (
                                     <div
                                       key={index}
                                       className="bg-muted p-3 rounded-md"
                                     >
                                       <div className="text-xs font-medium mb-2">
-                                        Message {index + 1} (Role:{" "}
-                                        {message.role})
+                                        Message {index + 1} (Role: {message.role})
                                       </div>
                                       {message.content?.map(
                                         (
-                                          content: any,
+                                          content: AIMessageContent,
                                           contentIndex: number
                                         ) => (
                                           <div
@@ -1019,7 +1094,7 @@ export function ExtractionWorkflow() {
                                         ).map(
                                           ([fieldName, fieldDef]: [
                                             string,
-                                            any
+                                            { display_name?: string; required?: boolean }
                                           ]) => (
                                             <div
                                               key={fieldName}
