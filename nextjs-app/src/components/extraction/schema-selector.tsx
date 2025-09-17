@@ -45,7 +45,7 @@ export function SchemaSelector({
 }: SchemaSelectorProps) {
   const [open, setOpen] = useState(false);
   const [selectedSchema, setSelectedSchema] = useState<string | null>(null);
-  const [extractionMode, setExtractionMode] = useState<"schema" | "ai">("ai");
+  const [extractionMode, setExtractionMode] = useState<"schema" | "ai">("schema");
   const [searchValue, setSearchValue] = useState("");
 
   // Mock schemas for demonstration (replace with actual API call)
@@ -146,7 +146,7 @@ export function SchemaSelector({
                 className="flex items-center gap-2 cursor-pointer"
               >
                 <Sparkles className="h-4 w-4 text-purple-500" />
-                <span>Auto-Extract</span>
+                <span>AI Free-form Discovery</span>
               </Label>
             </div>
           </div>
@@ -259,10 +259,9 @@ export function SchemaSelector({
             <div className="flex items-start gap-3">
               <Sparkles className="h-5 w-5 text-purple-500 mt-0.5" />
               <div className="space-y-1">
-                <p className="text-sm font-medium">AI Auto-Extract Mode</p>
+                <p className="text-sm font-medium">AI Free-form Discovery Mode</p>
                 <p className="text-xs text-muted-foreground">
-                  Our AI will automatically detect the document type and extract
-                  all relevant fields. No schema configuration required.
+                  AI analyzes the document and automatically discovers all available data fields without enforcing a predefined schema. Best for exploring unknown document types or extracting all possible information.
                 </p>
               </div>
             </div>
