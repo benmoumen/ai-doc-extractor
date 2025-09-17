@@ -155,8 +155,9 @@ export function ExtractionResults({
   const getConfidenceBadge = (confidence?: number) => {
     if (confidence === undefined) return null;
 
+    // Confidence values are now consistently 0-100
     const level =
-      confidence >= 0.8 ? "high" : confidence >= 0.5 ? "medium" : "low";
+      confidence >= 80 ? "high" : confidence >= 50 ? "medium" : "low";
     const variant =
       level === "high"
         ? "default"
@@ -166,7 +167,7 @@ export function ExtractionResults({
 
     return (
       <Badge variant={variant} className="text-xs">
-        {Math.round(confidence * 100)}%
+        {Math.round(confidence)}%
       </Badge>
     );
   };

@@ -662,7 +662,7 @@ export function ExtractionWorkflow() {
           schemaUsed: result.metadata?.schema_id ?? selectedSchema ?? undefined,
           processingTime:
             result.metadata?.processing_time || clientSideProcessingTime,
-          confidence: overallConfidence / 100, // Convert to 0-1 scale
+          confidence: overallConfidence, // Keep original scale (0-100)
           extractedFields: result.extracted_data?.structured_data
             ? Object.entries(result.extracted_data.structured_data).map(
                 ([key, value]) => ({
@@ -690,9 +690,9 @@ export function ExtractionWorkflow() {
                     ? "boolean"
                     : "string",
                   // Use actual field confidence if available, otherwise use overall confidence
-                  confidence: fieldConfidence[key]
-                    ? fieldConfidence[key] / 100 // Convert from 0-100 to 0-1 scale
-                    : overallConfidence / 100,
+                  confidence: fieldConfidence[key] !== undefined
+                    ? fieldConfidence[key] // Keep original scale (0-100), including 0
+                    : overallConfidence,
                   validation: {
                     isValid: result.validation?.passed ?? true,
                     errors: result.validation?.errors || [],
@@ -709,7 +709,7 @@ export function ExtractionWorkflow() {
                     result.extracted_data?.raw_content ||
                     "No content extracted",
                   type: "string",
-                  confidence: overallConfidence / 100, // Use overall confidence for raw content
+                  confidence: overallConfidence, // Use overall confidence for raw content
                   validation: {
                     isValid: result.validation?.passed ?? true,
                     errors: result.validation?.errors || [],
@@ -1372,10 +1372,7 @@ export function ExtractionWorkflow() {
                               </p>
                               <p>
                                 <strong>Overall Confidence:</strong>{" "}
-                                {Math.round(
-                                  (extractionResult.confidence || 0) * 100
-                                )}
-                                %
+                                {Math.round(extractionResult.confidence || 0)}%
                               </p>
                               <p>
                                 <strong>Fields Extracted:</strong>{" "}
@@ -1514,8 +1511,7 @@ export function ExtractionWorkflow() {
                           Confidence
                         </span>
                         <Badge variant="default">
-                          {Math.round((extractionResult.confidence || 0) * 100)}
-                          %
+                          {Math.round(extractionResult.confidence || 0)}%
                         </Badge>
                       </div>
                       <div className="flex items-center justify-between text-sm">
