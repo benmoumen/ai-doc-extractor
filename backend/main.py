@@ -76,79 +76,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# eGov platform schemas for person and business entities
-SCHEMAS = {
-    "national_id": {
-        "id": "national_id",
-        "name": "National ID Card",
-        "description": "National identity card for citizens",
-        "category": "Government",
-        "fields": {
-            "id_number": {"type": "text", "required": True, "description": "National ID number"},
-            "full_name": {"type": "text", "required": True, "description": "Full name in Arabic and/or English"},
-            "date_of_birth": {"type": "date", "required": True, "description": "Date of birth"},
-            "place_of_birth": {"type": "text", "required": True, "description": "Place of birth"},
-            "nationality": {"type": "text", "required": True, "description": "Nationality"},
-            "gender": {"type": "text", "required": True, "description": "Gender (Male/Female)"},
-            "issue_date": {"type": "date", "required": True, "description": "ID card issue date"},
-            "expiry_date": {"type": "date", "required": True, "description": "ID card expiry date"},
-            "issuing_authority": {"type": "text", "required": True, "description": "Authority that issued the ID"}
-        }
-    },
-    "passport": {
-        "id": "passport",
-        "name": "Passport",
-        "description": "International travel passport document",
-        "category": "Government",
-        "fields": {
-            "passport_number": {"type": "text", "required": True, "description": "Passport number"},
-            "full_name": {"type": "text", "required": True, "description": "Full name as on passport"},
-            "date_of_birth": {"type": "date", "required": True, "description": "Date of birth"},
-            "place_of_birth": {"type": "text", "required": True, "description": "Place of birth"},
-            "nationality": {"type": "text", "required": True, "description": "Nationality"},
-            "gender": {"type": "text", "required": True, "description": "Gender"},
-            "issue_date": {"type": "date", "required": True, "description": "Passport issue date"},
-            "expiry_date": {"type": "date", "required": True, "description": "Passport expiry date"},
-            "issuing_country": {"type": "text", "required": True, "description": "Country that issued passport"},
-            "personal_number": {"type": "text", "required": False, "description": "Personal identification number"}
-        }
-    },
-    "residence_permit": {
-        "id": "residence_permit",
-        "name": "Residence Permit",
-        "description": "Residence permit for foreign nationals",
-        "category": "Government",
-        "fields": {
-            "foreigner_identity_number": {"type": "text", "required": True, "description": "Foreigner Identity Number - unique identifier"},
-            "name": {"type": "text", "required": True, "description": "Given name(s) of permit holder"},
-            "surname": {"type": "text", "required": True, "description": "Surname/family name of permit holder"},
-            "date_of_birth": {"type": "date", "required": True, "description": "Date of birth"},
-            "nationality": {"type": "text", "required": True, "description": "Nationality of permit holder"},
-            "province_of_residence": {"type": "text", "required": True, "description": "Province where permit holder resides"},
-            "serial_number": {"type": "text", "required": True, "description": "Serial number of the permit document"},
-            "issuer": {"type": "text", "required": True, "description": "Issuing authority or office"}
-        }
-    },
-    "business_license": {
-        "id": "business_license",
-        "name": "Business License",
-        "description": "Commercial business license or trade permit",
-        "category": "Business",
-        "fields": {
-            "license_number": {"type": "text", "required": True, "description": "Business license number"},
-            "business_name": {"type": "text", "required": True, "description": "Legal business name"},
-            "business_name_arabic": {"type": "text", "required": False, "description": "Business name in Arabic"},
-            "business_type": {"type": "text", "required": True, "description": "Type of business activity"},
-            "owner_name": {"type": "text", "required": True, "description": "Business owner full name"},
-            "issue_date": {"type": "date", "required": True, "description": "License issue date"},
-            "expiry_date": {"type": "date", "required": True, "description": "License expiry date"},
-            "commercial_registry": {"type": "text", "required": False, "description": "Commercial registry number"},
-            "tax_number": {"type": "text", "required": False, "description": "Tax registration number"},
-            "issuing_authority": {"type": "text", "required": True, "description": "Authority that issued license"},
-            "business_address": {"type": "text", "required": True, "description": "Registered business address"}
-        }
-    }
-}
+# Document schemas - initially empty, populated by schema generation
+SCHEMAS = {}
 
 def image_to_base64(image: Image.Image) -> str:
     """Convert PIL image to base64 string"""
