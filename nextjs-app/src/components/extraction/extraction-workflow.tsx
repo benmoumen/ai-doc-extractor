@@ -10,7 +10,6 @@ import {
   AlertCircle,
   // ArrowRight,
   RefreshCw,
-  Download,
   Sparkles,
   Zap,
   Eye,
@@ -18,6 +17,7 @@ import {
   Settings,
   // X,
   ExternalLink,
+  Database,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,6 +87,280 @@ interface WorkflowStep {
   progress?: number;
 }
 
+// Schema Details Dialog Component
+function SchemaDetailsDialog({
+  schemaId,
+  basicSchema,
+  fetchSchemaDetails,
+}: {
+  schemaId: string;
+  basicSchema: {
+    id: string;
+    name?: string;
+    display_name?: string;
+    description?: string;
+    category?: string;
+  };
+  fetchSchemaDetails: (id: string) => Promise<{
+    id: string;
+    name: string;
+    description: string;
+    category?: string;
+    fields: Record<
+      string,
+      {
+        type: string;
+        required: boolean;
+        description: string;
+        validation_pattern?: string;
+        extraction_hints?: string[];
+        display_name?: string;
+      }
+    >;
+  } | null>;
+}) {
+  const [detailedSchema, setDetailedSchema] = useState<{
+    id: string;
+    name: string;
+    description: string;
+    category?: string;
+    fields: Record<
+      string,
+      {
+        type: string;
+        required: boolean;
+        description: string;
+        validation_pattern?: string;
+        extraction_hints?: string[];
+        display_name?: string;
+      }
+    >;
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const loadSchemaDetails = async () => {
+    if (detailedSchema) return; // Already loaded
+
+    setIsLoading(true);
+    try {
+      const details = await fetchSchemaDetails(schemaId);
+      setDetailedSchema(details);
+    } catch (error) {
+      console.error("Failed to load schema details:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (open && !detailedSchema && !isLoading) {
+      loadSchemaDetails();
+    }
+  };
+
+  const schema = detailedSchema || basicSchema;
+  const schemaName =
+    schema?.name ||
+    (schema as { display_name?: string })?.display_name ||
+    "Schema";
+  const schemaDescription = schema?.description || "";
+  const schemaCategory = schema?.category || "";
+
+  // Type guards for accessing optional properties
+  const hasFieldCount = schema && "field_count" in schema;
+  const fieldCount = hasFieldCount
+    ? (schema as unknown as { field_count: number }).field_count
+    : null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="w-full">
+          <Database className="h-4 w-4 mr-2" />
+          View Schema
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-4xl max-h-[80vh]">
+        <DialogHeader>
+          <DialogTitle>Schema Details</DialogTitle>
+          <DialogDescription>
+            {schemaName} - Structure and field definitions
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[60vh] overflow-auto">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading schema details...</span>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Schema Overview */}
+              <div>
+                <h4 className="text-sm font-medium mb-2">Schema Overview</h4>
+                <div className="bg-muted p-3 rounded-md text-xs space-y-1">
+                  <p>
+                    <strong>ID:</strong> {schema?.id}
+                  </p>
+                  <p>
+                    <strong>Name:</strong> {schemaName}
+                  </p>
+                  {schemaDescription && (
+                    <p>
+                      <strong>Description:</strong> {schemaDescription}
+                    </p>
+                  )}
+                  {schemaCategory && (
+                    <p>
+                      <strong>Category:</strong> {schemaCategory}
+                    </p>
+                  )}
+                  {fieldCount && (
+                    <p>
+                      <strong>Field Count:</strong> {fieldCount}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Schema Fields */}
+              {(() => {
+                // Safely access fields from either detailed or basic schema
+                const hasFields = schema && "fields" in schema;
+                const hasFieldDefinitions =
+                  schema && "field_definitions" in schema;
+                const fields = hasFields
+                  ? (schema as unknown as { fields: Record<string, unknown> })
+                      .fields
+                  : hasFieldDefinitions
+                  ? (
+                      schema as unknown as {
+                        field_definitions: Record<string, unknown>;
+                      }
+                    ).field_definitions
+                  : {};
+                const hasFieldData = fields && Object.keys(fields).length > 0;
+
+                return hasFieldData ? (
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">
+                      Field Definitions ({Object.keys(fields).length} fields)
+                    </h4>
+                    <div className="space-y-2">
+                      {Object.entries(fields).map(([fieldName, fieldDef]) => {
+                        // Type assertion for field definition
+                        const typedFieldDef = fieldDef as {
+                          type?: string;
+                          required?: boolean;
+                          description?: string;
+                          validation_pattern?: string;
+                          extraction_hints?: string[];
+                          display_name?: string;
+                        };
+                        return (
+                          <div
+                            key={fieldName}
+                            className="border rounded-lg p-3 space-y-2"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-sm">
+                                {typedFieldDef?.display_name ||
+                                  (typedFieldDef as { displayName?: string })
+                                    ?.displayName ||
+                                  fieldName}
+                              </span>
+                              <div className="flex gap-1">
+                                <Badge variant="outline" className="text-xs">
+                                  {typedFieldDef?.type || "text"}
+                                </Badge>
+                                <Badge
+                                  variant={
+                                    typedFieldDef?.required
+                                      ? "destructive"
+                                      : "secondary"
+                                  }
+                                  className="text-xs"
+                                >
+                                  {typedFieldDef?.required
+                                    ? "Required"
+                                    : "Optional"}
+                                </Badge>
+                              </div>
+                            </div>
+                            {typedFieldDef?.description && (
+                              <p className="text-xs text-muted-foreground">
+                                {typedFieldDef.description}
+                              </p>
+                            )}
+                            {typedFieldDef?.validation_pattern && (
+                              <div className="text-xs">
+                                <span className="font-medium text-purple-600">
+                                  Pattern:
+                                </span>
+                                <code className="ml-1 bg-purple-50 px-1 py-0.5 rounded">
+                                  {typedFieldDef.validation_pattern}
+                                </code>
+                              </div>
+                            )}
+                            {typedFieldDef?.extraction_hints &&
+                              typedFieldDef.extraction_hints.length > 0 && (
+                                <div className="text-xs">
+                                  <span className="font-medium text-blue-600">
+                                    Hints:
+                                  </span>
+                                  <ul className="ml-2 mt-1 space-y-0.5">
+                                    {typedFieldDef.extraction_hints!.map(
+                                      (hint: string, index: number) => (
+                                        <li
+                                          key={index}
+                                          className="text-blue-600"
+                                        >
+                                          • {hint}
+                                        </li>
+                                      )
+                                    )}
+                                  </ul>
+                                </div>
+                              )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">
+                      Field Definitions
+                    </h4>
+                    <div className="bg-muted p-3 rounded-md text-xs text-muted-foreground">
+                      <p>No field definitions found in this schema.</p>
+                      <p className="mt-1">
+                        {isLoading
+                          ? "Loading detailed schema information..."
+                          : "This may be a simple schema or the field definitions might be stored in a different format."}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Raw JSON View */}
+              <div>
+                <h4 className="text-sm font-medium mb-2">Raw Schema JSON</h4>
+                <pre className="bg-muted p-3 rounded-md text-xs overflow-auto max-h-[300px]">
+                  <code>{JSON.stringify(schema, null, 2)}</code>
+                </pre>
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function ExtractionWorkflow() {
   const [currentStep, setCurrentStep] = useState<
     "upload" | "configure" | "extract" | "results"
@@ -116,6 +390,30 @@ export function ExtractionWorkflow() {
         display_name?: string;
         description?: string;
         category?: string;
+        fields?: Record<string, unknown>;
+        field_definitions?: Record<string, unknown>;
+      }
+    >
+  >({});
+  const [detailedSchemas, setDetailedSchemas] = useState<
+    Record<
+      string,
+      {
+        id: string;
+        name: string;
+        description: string;
+        category?: string;
+        fields: Record<
+          string,
+          {
+            type: string;
+            required: boolean;
+            description: string;
+            validation_pattern?: string;
+            extraction_hints?: string[];
+            display_name?: string;
+          }
+        >;
       }
     >
   >({});
@@ -168,6 +466,29 @@ export function ExtractionWorkflow() {
     };
     loadSchemas();
   }, []);
+
+  // Function to fetch detailed schema information
+  const fetchSchemaDetails = async (schemaId: string) => {
+    if (detailedSchemas[schemaId]) {
+      return detailedSchemas[schemaId]; // Return cached version
+    }
+
+    try {
+      const response = await apiClient.getSchemaDetails(schemaId);
+      if (response.success && response.schema) {
+        // The backend returns the complete schema with fields property
+        const schemaDetails = response.schema;
+        setDetailedSchemas((prev) => ({
+          ...prev,
+          [schemaId]: schemaDetails,
+        }));
+        return schemaDetails;
+      }
+    } catch (error) {
+      console.error("Failed to load schema details:", error);
+    }
+    return null;
+  };
 
   // Create document preview when file is uploaded
   useEffect(() => {
@@ -430,23 +751,31 @@ export function ExtractionWorkflow() {
             const tampering = documentVerification.tampering_indicators;
             if (tampering) {
               const issues = [];
-              if (tampering.photo_manipulation) issues.push("photo manipulation");
+              if (tampering.photo_manipulation)
+                issues.push("photo manipulation");
               if (tampering.text_alterations) issues.push("text alterations");
-              if (tampering.structural_anomalies) issues.push("structural anomalies");
+              if (tampering.structural_anomalies)
+                issues.push("structural anomalies");
               if (tampering.digital_artifacts) issues.push("digital artifacts");
-              if (tampering.font_inconsistencies) issues.push("font inconsistencies");
+              if (tampering.font_inconsistencies)
+                issues.push("font inconsistencies");
 
               if (issues.length > 0) {
                 suggestions.push(
-                  `Potential tampering detected: ${issues.join(", ")}. Document requires careful review.`
+                  `Potential tampering detected: ${issues.join(
+                    ", "
+                  )}. Document requires careful review.`
                 );
               }
             }
 
             // Document type mismatch
-            if (documentVerification.expected_document_type &&
-                documentVerification.detected_document_type &&
-                documentVerification.expected_document_type !== documentVerification.detected_document_type) {
+            if (
+              documentVerification.expected_document_type &&
+              documentVerification.detected_document_type &&
+              documentVerification.expected_document_type !==
+                documentVerification.detected_document_type
+            ) {
               suggestions.push(
                 `Document type mismatch: Expected ${documentVerification.expected_document_type}, but detected ${documentVerification.detected_document_type}.`
               );
@@ -590,7 +919,7 @@ export function ExtractionWorkflow() {
                       ((step.id === "upload" && isUploading) ||
                         (step.id === "extract" && isExtracting)) ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : step.status === "pending" ? (
+                    ) : step.status === "pending" || index === 3 ? (
                       <div className="w-3 h-3 rounded-full bg-gray-400" />
                     ) : (
                       <span className="text-sm font-medium">{index + 1}</span>
@@ -996,6 +1325,17 @@ export function ExtractionWorkflow() {
                   </Dialog>
                 )}
 
+                {/* Schema View Button */}
+                {selectedSchema &&
+                  selectedSchema !== "ai" &&
+                  availableSchemas[selectedSchema] && (
+                    <SchemaDetailsDialog
+                      schemaId={selectedSchema}
+                      basicSchema={availableSchemas[selectedSchema]}
+                      fetchSchemaDetails={fetchSchemaDetails}
+                    />
+                  )}
+
                 {/* Extraction Details Button */}
                 {extractionResult && (
                   <Dialog>
@@ -1208,7 +1548,6 @@ export function ExtractionWorkflow() {
             </Card>
           )}
 
-
           {/* Extraction Guide */}
           <Card>
             <CardHeader>
@@ -1245,10 +1584,16 @@ export function ExtractionWorkflow() {
                     <p className="text-sm font-medium">Extraction Mode</p>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">
-                        <span className="font-medium">• Schema Mode:</span> Structured extraction with predefined fields & validation rules (Recommended)
+                        <span className="font-medium">• Schema Mode:</span>{" "}
+                        Structured extraction with predefined fields &
+                        validation rules (Recommended)
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        <span className="font-medium">• AI Free-form Discovery:</span> AI explores and extracts all discoverable data without constraints
+                        <span className="font-medium">
+                          • AI Free-form Discovery:
+                        </span>{" "}
+                        AI explores and extracts all discoverable data without
+                        constraints
                       </p>
                     </div>
                   </div>

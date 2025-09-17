@@ -1076,56 +1076,134 @@ export function SchemaGenerator({
                               />
                             )}
 
-                            {/* Enhanced Field Details (only in view mode) */}
-                            {!isEditMode && (
-                              <div className="space-y-2 pt-2 border-t">
-                                {/* Extraction Hints */}
-                                {fieldConfig.extraction_hints && fieldConfig.extraction_hints.length > 0 && (
-                                  <div className="space-y-1">
-                                    <Label className="text-xs font-medium text-blue-600">Extraction Hints:</Label>
-                                    <ul className="list-disc list-inside space-y-1">
-                                      {fieldConfig.extraction_hints.map((hint: string, hintIndex: number) => (
-                                        <li key={hintIndex} className="text-xs text-blue-600 ml-2">
-                                          {hint}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )}
+                            {/* Enhanced Field Details */}
+                            <div className="space-y-2 pt-2 border-t">
+                              {!isEditMode ? (
+                                <>
+                                  {/* Extraction Hints */}
+                                  {fieldConfig.extraction_hints && fieldConfig.extraction_hints.length > 0 && (
+                                    <div className="space-y-1">
+                                      <Label className="text-xs font-medium text-blue-600">Extraction Hints:</Label>
+                                      <ul className="list-disc list-inside space-y-1">
+                                        {fieldConfig.extraction_hints.map((hint: string, hintIndex: number) => (
+                                          <li key={hintIndex} className="text-xs text-blue-600 ml-2">
+                                            {hint}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
 
-                                {/* Positioning Hints */}
-                                {fieldConfig.positioning_hints && (
-                                  <div className="space-y-1">
-                                    <Label className="text-xs font-medium text-green-600">Document Position:</Label>
-                                    <p className="text-xs text-green-600">{fieldConfig.positioning_hints}</p>
-                                  </div>
-                                )}
+                                  {/* Positioning Hints */}
+                                  {fieldConfig.positioning_hints && (
+                                    <div className="space-y-1">
+                                      <Label className="text-xs font-medium text-green-600">Document Position:</Label>
+                                      <p className="text-xs text-green-600">{fieldConfig.positioning_hints}</p>
+                                    </div>
+                                  )}
 
-                                {/* Validation Pattern */}
-                                {fieldConfig.validation_pattern && (
+                                  {/* Validation Pattern */}
+                                  {fieldConfig.validation_pattern && (
+                                    <div className="space-y-1">
+                                      <Label className="text-xs font-medium text-purple-600">Validation Pattern:</Label>
+                                      <code className="text-xs bg-purple-50 px-2 py-1 rounded text-purple-800">
+                                        {fieldConfig.validation_pattern}
+                                      </code>
+                                    </div>
+                                  )}
+
+                                  {/* Potential Issues */}
+                                  {fieldConfig.potential_issues && fieldConfig.potential_issues.length > 0 && (
+                                    <div className="space-y-1">
+                                      <Label className="text-xs font-medium text-orange-600">Potential Issues:</Label>
+                                      <ul className="list-disc list-inside space-y-1">
+                                        {fieldConfig.potential_issues.map((issue: string, issueIndex: number) => (
+                                          <li key={issueIndex} className="text-xs text-orange-600 ml-2">
+                                            {issue}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  {/* Validation Pattern Editor */}
                                   <div className="space-y-1">
                                     <Label className="text-xs font-medium text-purple-600">Validation Pattern:</Label>
-                                    <code className="text-xs bg-purple-50 px-2 py-1 rounded text-purple-800">
-                                      {fieldConfig.validation_pattern}
-                                    </code>
+                                    <Input
+                                      value={fieldConfig.validation_pattern || ""}
+                                      onChange={(e) =>
+                                        updateFieldProperty(
+                                          fieldName,
+                                          "validation_pattern",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="text-xs font-mono"
+                                      placeholder="e.g., ^[A-Z]{2}[0-9]{6}$ for passport format"
+                                    />
                                   </div>
-                                )}
 
-                                {/* Potential Issues */}
-                                {fieldConfig.potential_issues && fieldConfig.potential_issues.length > 0 && (
-                                  <div className="space-y-1">
-                                    <Label className="text-xs font-medium text-orange-600">Potential Issues:</Label>
-                                    <ul className="list-disc list-inside space-y-1">
-                                      {fieldConfig.potential_issues.map((issue: string, issueIndex: number) => (
-                                        <li key={issueIndex} className="text-xs text-orange-600 ml-2">
-                                          {issue}
-                                        </li>
+                                  {/* Extraction Hints Editor */}
+                                  <div className="space-y-2">
+                                    <Label className="text-xs font-medium text-blue-600">Extraction Hints:</Label>
+                                    <div className="space-y-1">
+                                      {(fieldConfig.extraction_hints || []).map((hint: string, hintIndex: number) => (
+                                        <div key={hintIndex} className="flex gap-1">
+                                          <Input
+                                            value={hint}
+                                            onChange={(e) => {
+                                              const newHints = [...(fieldConfig.extraction_hints || [])];
+                                              newHints[hintIndex] = e.target.value;
+                                              updateFieldProperty(
+                                                fieldName,
+                                                "extraction_hints",
+                                                newHints
+                                              );
+                                            }}
+                                            className="text-xs"
+                                            placeholder="Extraction hint"
+                                          />
+                                          <Button
+                                            onClick={() => {
+                                              const newHints = [...(fieldConfig.extraction_hints || [])];
+                                              newHints.splice(hintIndex, 1);
+                                              updateFieldProperty(
+                                                fieldName,
+                                                "extraction_hints",
+                                                newHints
+                                              );
+                                            }}
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 p-0 text-destructive"
+                                          >
+                                            <X className="h-3 w-3" />
+                                          </Button>
+                                        </div>
                                       ))}
-                                    </ul>
+                                      <Button
+                                        onClick={() => {
+                                          const newHints = [...(fieldConfig.extraction_hints || []), ""];
+                                          updateFieldProperty(
+                                            fieldName,
+                                            "extraction_hints",
+                                            newHints
+                                          );
+                                        }}
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 text-xs"
+                                      >
+                                        <Plus className="h-3 w-3 mr-1" />
+                                        Add Hint
+                                      </Button>
+                                    </div>
                                   </div>
-                                )}
-                              </div>
-                            )}
+                                </>
+                              )}
+                            </div>
                           </div>
                         ))}
                     </div>

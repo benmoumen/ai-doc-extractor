@@ -132,14 +132,23 @@ export interface SchemaDetailsResponse {
     id: string
     name: string
     description: string
-    total_fields_generated: number
-    high_confidence_fields: number
-    generation_confidence: number
-    validation_status: string
-    user_review_status: string
-    production_ready: boolean
-    created_at: string
-    updated_at: string
+    category?: string
+    fields: Record<string, {
+      type: string
+      required: boolean
+      description: string
+      validation_pattern?: string
+      extraction_hints?: string[]
+      display_name?: string
+    }>
+    total_fields_generated?: number
+    high_confidence_fields?: number
+    generation_confidence?: number
+    validation_status?: string
+    user_review_status?: string
+    production_ready?: boolean
+    created_at?: string
+    updated_at?: string
   }
   confidence_analysis?: {
     overall_confidence: number

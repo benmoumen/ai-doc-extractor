@@ -15,7 +15,10 @@
       "Bash(docker rm:*)",
       "Read(//Users/moulaymehdi/PROJECTS/00AI/**)",
       "Bash(docker exec:*)",
-      "WebFetch(domain:docs.litellm.ai)"
+      "WebFetch(domain:docs.litellm.ai)",
+      "Bash(pnpm run:*)",
+      "Bash(cat:*)",
+      "Bash(pnpm build:*)"
     ],
     "deny": [],
     "ask": []
