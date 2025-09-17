@@ -141,10 +141,8 @@ The system automatically performs KYC-compliant verification:
 
 Supported AI providers and models:
 
-- **OpenAI**: GPT-4, GPT-4 Vision, GPT-3.5 Turbo
-- **Anthropic**: Claude 3.5 Sonnet, Claude 3 Haiku
-- **Groq**: Llama 3.1, Mixtral 8x7B
-- **Mistral**: Mistral Large, Mistral Small
+- **Groq**: Llama Scout 17B (meta-llama/llama-4-scout-17b-16e-instruct)
+- **Mistral**: Mistral Small 3.2 (mistral-small-2506)
 
 ## API Documentation
 
