@@ -230,17 +230,55 @@ def extract_json_from_text(text: str) -> tuple[bool, Optional[Dict], str]:
     return False, None, text
 
 def create_extraction_prompt(schema_id: Optional[str] = None) -> str:
-    """Create extraction prompt based on schema, with enhanced support for AI-generated schemas"""
-    base_prompt = """Extract all text, data, and structure from this document image.
-Analyze the document and organize the information into logical fields.
+    """Create extraction prompt based on schema, with enhanced support for AI-generated schemas and document verification"""
+    base_prompt = """DOCUMENT VERIFICATION & DATA EXTRACTION
 
-For each extracted field, provide:
-1. The field value
-2. A confidence score (0-100) indicating extraction certainty
-3. Any extraction notes or issues
+PART 1: DOCUMENT VERIFICATION (KYC/Authentication)
+Analyze this document for authenticity and type verification:
+
+1. Document Type Identification:
+   - What type of document is this?
+   - How confident are you it matches the expected type?
+   - Check document structure, layout, fonts, and formatting
+
+2. Authenticity Assessment:
+   - Look for signs of tampering (photo replacement, text alterations)
+   - Check for structural anomalies or inconsistencies
+   - Verify field positioning matches expected template
+   - Assess print quality and font consistency
+
+3. Security Validation:
+   - Validate Machine Readable Zone (MRZ) if present
+   - Check date logic (issue < expiry, age consistency)
+   - Verify field format compliance
+   - Cross-check data consistency between fields
+
+PART 2: DATA EXTRACTION
+Extract all text, data, and structure from the document with confidence scores.
 
 Return the data as structured JSON in this format:
 {
+  "document_verification": {
+    "document_type_confidence": 95,
+    "expected_document_type": "expected_type",
+    "detected_document_type": "detected_type",
+    "authenticity_score": 88,
+    "tampering_indicators": {
+      "photo_manipulation": false,
+      "text_alterations": false,
+      "structural_anomalies": false,
+      "digital_artifacts": false,
+      "font_inconsistencies": false
+    },
+    "security_checks": {
+      "mrz_checksum_valid": true,
+      "field_consistency": true,
+      "date_logic_valid": true,
+      "format_compliance": true
+    },
+    "verification_notes": ["specific observations about authenticity"],
+    "risk_level": "low|medium|high"
+  },
   "extracted_fields": {
     "field_name": {
       "value": "extracted value",
@@ -253,6 +291,11 @@ Return the data as structured JSON in this format:
   "extraction_issues": ["list of any general issues"]
 }
 
+Risk Level Guidelines:
+- LOW (80-100% authenticity): Document appears genuine, proceed with automated processing
+- MEDIUM (50-79% authenticity): Some concerns detected, recommend manual review
+- HIGH (0-49% authenticity): Significant issues detected, manual verification required
+
 Confidence scoring guidelines:
 - 90-100: Very clear, unambiguous extraction
 - 70-89: Clear but minor uncertainties (e.g., slight blur, formatting variations)
@@ -261,6 +304,7 @@ Confidence scoring guidelines:
 - 0-29: Very uncertain, mostly guessing
 
 Focus on:
+- Document authenticity and tampering detection
 - Key-value pairs (labels and their corresponding values)
 - Tables and structured data
 - Important identifying information
@@ -312,11 +356,32 @@ This appears to be a {schema['name']} document. Extract the following specific f
             elif difficulty == 'easy':
                 schema_prompt += "This document has a straightforward layout.\n"
 
-        # Final instructions with confidence scoring
+        # Final instructions with confidence scoring and verification
         schema_prompt += f"""
 
 CRITICAL: Return a JSON object with this structure:
 {{
+  "document_verification": {{
+    "document_type_confidence": 0-100,
+    "expected_document_type": "{schema['name'].lower().replace(' ', '_')}",
+    "detected_document_type": "detected_type",
+    "authenticity_score": 0-100,
+    "tampering_indicators": {{
+      "photo_manipulation": true/false,
+      "text_alterations": true/false,
+      "structural_anomalies": true/false,
+      "digital_artifacts": true/false,
+      "font_inconsistencies": true/false
+    }},
+    "security_checks": {{
+      "mrz_checksum_valid": true/false,
+      "field_consistency": true/false,
+      "date_logic_valid": true/false,
+      "format_compliance": true/false
+    }},
+    "verification_notes": ["specific observations"],
+    "risk_level": "low|medium|high"
+  }},
   "extracted_fields": {{
     {', '.join([f'"{field}": {{"value": "extracted value", "confidence": 0-100, "extraction_notes": "optional notes"}}' for field in list(schema['fields'].keys())[:1]])}
     // ... continue for all fields: {list(schema['fields'].keys())}
@@ -325,6 +390,12 @@ CRITICAL: Return a JSON object with this structure:
   "document_quality": "high|medium|low",
   "extraction_issues": []
 }}
+
+Document Verification Requirements:
+- Verify this document matches expected type: {schema['name']}
+- Check authenticity indicators carefully
+- Validate all security features
+- Assess tampering risk
 
 Each field MUST include:
 - value: The extracted value (string/number)
@@ -336,8 +407,14 @@ For missing/unreadable fields: {{"value": "", "confidence": 0, "extraction_notes
         return base_prompt + schema_prompt
 
     return base_prompt + """\n
-Return a JSON object with extracted_fields containing each detected field with value, confidence, and extraction_notes.
-Include overall_confidence, document_quality, and extraction_issues."""
+Return a JSON object with document_verification (including document type detection and authenticity assessment) and extracted_fields containing each detected field with value, confidence, and extraction_notes.
+Include overall_confidence, document_quality, and extraction_issues.
+
+For document_verification:
+- detected_document_type: Identify what type of document this appears to be
+- document_type_confidence: How confident you are in the document type identification (0-100)
+- authenticity_score: Overall assessment of document authenticity (0-100)
+- risk_level: "low", "medium", or "high" based on authenticity concerns"""
 
 def create_initial_detection_prompt() -> str:
     """Step 1: Initial Schema Detection"""
@@ -673,14 +750,19 @@ async def extract_data(
         }
         is_json, parsed_data, formatted_text = extract_json_from_text(raw_content)
 
-        # Process the new confidence-aware response structure
+        # Process the new confidence-aware response structure with document verification
         structured_data = {}
         field_confidence = {}
         overall_confidence = 75  # Default fallback
         document_quality = "medium"  # Default fallback
         extraction_issues = []
+        document_verification = {}  # New verification data
 
         if is_json and parsed_data:
+            # Parse document verification if present
+            if "document_verification" in parsed_data:
+                document_verification = parsed_data.get("document_verification", {})
+
             # Check if response has the new confidence structure
             if "extracted_fields" in parsed_data:
                 # New structure with confidence scores
@@ -737,6 +819,7 @@ async def extract_data(
                 "overall_confidence": overall_confidence,
                 "document_quality": document_quality
             },
+            "document_verification": document_verification,
             "validation": validation_results,
             "metadata": {
                 "processing_time": end_time - start_time,
@@ -745,7 +828,9 @@ async def extract_data(
                 "extraction_mode": "schema_guided" if schema_id else "freeform",
                 "schema_used": schema_id,
                 "overall_confidence": overall_confidence,
-                "document_quality": document_quality
+                "document_quality": document_quality,
+                "verification_risk_level": document_verification.get("risk_level", "unknown") if document_verification else "unknown",
+                "authenticity_score": document_verification.get("authenticity_score", None) if document_verification else None
             },
             "debug": {
                 "completion_params": completion_params,
