@@ -372,7 +372,6 @@ export function ExtractionWorkflow() {
                   confidence: fieldConfidence[key]
                     ? fieldConfidence[key] / 100 // Convert from 0-100 to 0-1 scale
                     : overallConfidence / 100,
-                  source: "ai",
                   validation: {
                     isValid: result.validation?.passed ?? true,
                     errors: result.validation?.errors || [],
@@ -390,7 +389,6 @@ export function ExtractionWorkflow() {
                     "No content extracted",
                   type: "string",
                   confidence: overallConfidence / 100, // Use overall confidence for raw content
-                  source: "ai",
                   validation: {
                     isValid: result.validation?.passed ?? true,
                     errors: result.validation?.errors || [],
@@ -528,15 +526,9 @@ export function ExtractionWorkflow() {
   const handleExport = (format: "json" | "csv" | "excel") => {
     if (!extractionResult) return;
 
-    const data = extractionResult.extractedFields.reduce<
-      Record<string, unknown>
-    >((acc, field) => {
-      acc[field.name] = field.value;
-      return acc;
-    }, {});
-
     if (format === "json") {
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
+      // Export the complete extraction result object
+      const blob = new Blob([JSON.stringify(extractionResult, null, 2)], {
         type: "application/json",
       });
       const url = URL.createObjectURL(blob);
@@ -545,7 +537,7 @@ export function ExtractionWorkflow() {
       a.download = `extraction-${extractionResult.id}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Data exported as JSON");
+      toast.success("Complete extraction data exported as JSON");
     } else if (format === "csv") {
       // Create CSV content
       const headers = [
@@ -553,7 +545,6 @@ export function ExtractionWorkflow() {
         "Value",
         "Type",
         "Confidence",
-        "Source",
         "Valid",
       ];
       const rows = extractionResult.extractedFields.map((field) => {
@@ -576,7 +567,6 @@ export function ExtractionWorkflow() {
           val,
           field.type,
           conf,
-          field.source || "",
           valid,
         ];
       });
@@ -605,16 +595,14 @@ export function ExtractionWorkflow() {
         "Value",
         "Type",
         "Confidence",
-        "Source",
         "Valid",
         "Display Name",
       ];
       const metadataRows = [
-        ["Document Type", extractionResult.documentType, "", "", "", "", ""],
+        ["Document Type", extractionResult.documentType, "", "", "", ""],
         [
           "Extraction Mode",
           extractionResult.extractionMode,
-          "",
           "",
           "",
           "",
@@ -627,7 +615,6 @@ export function ExtractionWorkflow() {
           "",
           "",
           "",
-          "",
         ],
         [
           "Overall Confidence",
@@ -636,9 +623,8 @@ export function ExtractionWorkflow() {
           "",
           "",
           "",
-          "",
         ],
-        ["", "", "", "", "", "", ""], // Empty row
+        ["", "", "", "", "", ""], // Empty row
       ];
       const fieldRows = extractionResult.extractedFields.map((field) => {
         const val =
@@ -660,7 +646,6 @@ export function ExtractionWorkflow() {
           val,
           field.type,
           conf,
-          field.source || "",
           valid,
           field.displayName,
         ];

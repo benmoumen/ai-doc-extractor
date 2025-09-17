@@ -54,7 +54,6 @@ export interface ExtractedField {
   value: unknown;
   type: "string" | "number" | "date" | "boolean" | "array" | "object";
   confidence?: number;
-  source?: "schema" | "ai";
   validation?: {
     isValid: boolean;
     errors?: string[];
@@ -172,11 +171,6 @@ export function ExtractionResults({
     );
   };
 
-  const getSourceIcon = (source?: string) => {
-    if (source === "ai")
-      return <Sparkles className="h-3 w-3 text-purple-500" />;
-    return null;
-  };
 
   const getVerificationIcon = (riskLevel?: string) => {
     switch (riskLevel) {
