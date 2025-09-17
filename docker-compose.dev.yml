@@ -25,13 +25,13 @@ services:
 
   frontend:
     build:
-      context: ./nextjs-app
+      context: ./frontend
       dockerfile: Dockerfile
       target: development # Use development stage with source code
     restart: "no"
     # Bind mount source for hot reload; keep node_modules and .next as container volumes
     volumes:
-      - ./nextjs-app:/app
+      - ./frontend:/app
       - /app/node_modules
       - /app/.next
     environment:
@@ -50,9 +50,9 @@ services:
     develop:
       watch:
         - action: rebuild
-          path: ./nextjs-app/package.json
+          path: ./frontend/package.json
         - action: rebuild
-          path: ./nextjs-app/pnpm-lock.yaml
+          path: ./frontend/pnpm-lock.yaml
 
   # Development database with exposed ports
   db:

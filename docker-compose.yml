@@ -30,7 +30,7 @@ services:
 
   frontend:
     build:
-      context: ./nextjs-app
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: ai-doc-frontend
     ports:

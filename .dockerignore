@@ -54,7 +54,7 @@ logs/
 .streamlit/secrets.toml
 
 # Next.js frontend (handled separately)
-nextjs-app/
+frontend/
 
 # Database files (will be mounted as volumes)
 *.db

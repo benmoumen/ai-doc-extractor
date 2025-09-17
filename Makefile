@@ -96,7 +96,7 @@ health: ## Check health of all services
 	@echo "Checking service health..."
 	@$(DOCKER_COMPOSE) ps
 	@echo "\nBackend health:"
-	@curl -s http://localhost:8501/_stcore/health || echo "Backend not healthy"
+	@curl -s http://localhost:8000/health || echo "Backend not healthy"
 	@echo "\nFrontend health:"
 	@curl -s http://localhost:3000/api/health || echo "Frontend not healthy"
 	@echo "\nDatabase health:"
@@ -117,7 +117,7 @@ env-setup: ## Copy .env.example to .env
 quickstart: env-setup build up ## Quick start: setup environment, build, and start services
 	@echo "Services started! Access the application at:"
 	@echo "  - Frontend: http://localhost:3000"
-	@echo "  - Backend: http://localhost:8501"
+	@echo "  - Backend: http://localhost:8000"
 	@echo ""
 	@echo "Remember to update your .env file with API keys!"
 
