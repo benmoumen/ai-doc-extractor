@@ -742,7 +742,7 @@ export function ExtractionResults({
           </TabsContent>
         </Tabs>
         {/* Warnings and Suggestions */}
-        {(result.warnings?.length || result.suggestions?.length) && (
+        {result.warnings?.length || result.suggestions?.length ? (
           <>
             <Separator className="my-4" />
             <div className="space-y-3">
@@ -766,7 +766,7 @@ export function ExtractionResults({
               ))}
             </div>
           </>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );
