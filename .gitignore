@@ -14,3 +14,4 @@ backups/
 .claude/settings.local.json
 *.log
 .env
+.DS_Store
