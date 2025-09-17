@@ -65,14 +65,26 @@ export default function Home() {
             onValueChange={setActiveTab}
             className="space-y-6"
           >
-            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 gap-4">
               <TabsTrigger value="extract" className="gap-2">
                 <Sparkles className="h-4 w-4" />
                 Data Extraction
+                <Badge
+                  variant="secondary"
+                  className="ml-auto text-xs border border-gray-300"
+                >
+                  DS
+                </Badge>
               </TabsTrigger>
               <TabsTrigger value="schemas" className="gap-2">
                 <FileText className="h-4 w-4" />
                 Schema Generation
+                <Badge
+                  variant="secondary"
+                  className="ml-auto text-xs border border-gray-300"
+                >
+                  BPA
+                </Badge>
               </TabsTrigger>
             </TabsList>
 
