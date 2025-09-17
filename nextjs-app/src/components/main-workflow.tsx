@@ -35,7 +35,7 @@ export function MainWorkflow() {
           </TabsTrigger>
           <TabsTrigger value="schema-generation" className="flex items-center gap-2">
             <Brain className="h-4 w-4" />
-            Schema Generation
+            Document Analysis
           </TabsTrigger>
         </TabsList>
 
@@ -61,10 +61,10 @@ export function MainWorkflow() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Wand2 className="h-5 w-5 text-purple-500" />
-                AI Schema Generation
+                AI Document Analysis
               </CardTitle>
               <CardDescription>
-                Generate custom extraction schemas from sample documents using AI
+                Analyze sample documents to understand structure and create extraction templates
               </CardDescription>
             </CardHeader>
             <CardContent>

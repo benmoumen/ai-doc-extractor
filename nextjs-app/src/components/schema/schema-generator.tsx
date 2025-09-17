@@ -161,7 +161,7 @@ export function SchemaGenerator({
     }
   }, [selectedFile]);
 
-  // Scroll to results when a schema has been generated
+  // Scroll to results when analysis has been completed
   useEffect(() => {
     if (generatedSchema && !isGenerating) {
       // Wait for the UI to paint before scrolling
@@ -275,7 +275,7 @@ export function SchemaGenerator({
       setGenerationProgress(5);
       setCurrentStep("Starting multi-step AI analysis...");
 
-      // Start the multi-step schema generation
+      // Start the multi-step document analysis
       const schemaResponsePromise = apiClient.generateSchema({
         file: selectedFile,
         model: selectedModel || undefined,
@@ -290,7 +290,7 @@ export function SchemaGenerator({
       const schemaResponse = await schemaResponsePromise;
 
       if (!schemaResponse.success) {
-        throw new Error("Multi-step schema generation failed");
+        throw new Error("Multi-step document analysis failed");
       }
 
       // Store AI debug information
@@ -317,7 +317,7 @@ export function SchemaGenerator({
         }
       }
 
-      setCurrentStep("Multi-step schema generation completed!");
+      setCurrentStep("Multi-step document analysis completed!");
       setGenerationProgress(100);
 
       // Process the generated schema
@@ -354,23 +354,23 @@ export function SchemaGenerator({
           quality_recommendations: schemaData.quality_recommendations || [],
         });
 
-        setCurrentStep("Enhanced schema generation completed!");
+        setCurrentStep("Enhanced document analysis completed!");
 
         if (onSchemaGenerated && generatedSchema.schema_id) {
           onSchemaGenerated(generatedSchema.schema_id);
         }
       } else {
-        console.error("Schema generation failed:", {
+        console.error("Document analysis failed:", {
           is_valid: generatedSchema.is_valid,
           has_schema_data: !!generatedSchema.schema_data,
           ai_debug: schemaResponse.ai_debug,
         });
 
-        throw new Error("Multi-step schema generation failed to produce valid schema");
+        throw new Error("Multi-step document analysis failed to produce valid template");
       }
     } catch (err: unknown) {
       console.error("Generation failed:", err);
-      const message = err instanceof Error ? err.message : "Schema generation failed";
+      const message = err instanceof Error ? err.message : "Document analysis failed";
       setError(message);
       setCurrentStep("Generation failed");
 
@@ -569,11 +569,11 @@ export function SchemaGenerator({
       <div className="space-y-2">
         <h2 className="text-2xl font-bold flex items-center gap-2">
           <Brain className="h-6 w-6 text-purple-500" />
-          AI Schema Generator
+          AI Document Analyzer
         </h2>
         <p className="text-muted-foreground">
-          Upload a sample document to automatically generate a custom extraction
-          schema using AI
+          Upload a sample document to automatically analyze its structure and create
+          an extraction template using AI
         </p>
       </div>
 
@@ -682,12 +682,12 @@ export function SchemaGenerator({
             {isGenerating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Generating Schema...
+                Analyzing Document...
               </>
             ) : (
               <>
                 <Brain className="h-4 w-4 mr-2" />
-                Generate Schema
+                Analyze Document
               </>
             )}
           </Button>
@@ -708,7 +708,7 @@ export function SchemaGenerator({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Loader2 className="h-5 w-5 animate-spin" />
-              Generation Progress
+              Analysis Progress
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -760,10 +760,10 @@ export function SchemaGenerator({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-green-500" />
-                Generated Schema
+                Analysis Results
               </CardTitle>
               <CardDescription>
-                Your AI-generated schema is ready for use
+                Your AI-generated extraction template is ready for use
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1345,10 +1345,10 @@ export function SchemaGenerator({
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Brain className="h-5 w-5 text-purple-500" />
-                Multi-Step AI Schema Generation Debug
+                Multi-Step AI Document Analysis Debug
               </DialogTitle>
               <DialogDescription>
-                Detailed information about the 4-step AI schema generation
+                Detailed information about the 4-step AI document analysis
                 process
               </DialogDescription>
             </DialogHeader>

@@ -78,7 +78,7 @@ export default function Home() {
               </TabsTrigger>
               <TabsTrigger value="schemas" className="gap-2">
                 <FileText className="h-4 w-4" />
-                Schema Generation
+                Document Analysis
                 <Badge
                   variant="secondary"
                   className="ml-auto text-xs border border-gray-300"

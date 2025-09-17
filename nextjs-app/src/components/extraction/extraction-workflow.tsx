@@ -690,9 +690,10 @@ export function ExtractionWorkflow() {
                     ? "boolean"
                     : "string",
                   // Use actual field confidence if available, otherwise use overall confidence
-                  confidence: fieldConfidence[key] !== undefined
-                    ? fieldConfidence[key] // Keep original scale (0-100), including 0
-                    : overallConfidence,
+                  confidence:
+                    fieldConfidence[key] !== undefined
+                      ? fieldConfidence[key] // Keep original scale (0-100), including 0
+                      : overallConfidence,
                   validation: {
                     isValid: result.validation?.passed ?? true,
                     errors: result.validation?.errors || [],
@@ -904,7 +905,7 @@ export function ExtractionWorkflow() {
                       step.status === "completed"
                         ? "bg-green-500 text-white"
                         : step.status === "active"
-                        ? "bg-blue-500 text-white"
+                        ? "bg-blue-200 text-white"
                         : step.status === "error"
                         ? "bg-red-500 text-white"
                         : "bg-gray-200 text-gray-400"
@@ -919,10 +920,10 @@ export function ExtractionWorkflow() {
                       ((step.id === "upload" && isUploading) ||
                         (step.id === "extract" && isExtracting)) ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : step.status === "pending" || index === 3 ? (
-                      <div className="w-3 h-3 rounded-full bg-gray-400" />
+                    ) : step.status === "active" ? (
+                      <div className="w-3 h-3 rounded-full bg-blue-400" />
                     ) : (
-                      <span className="text-sm font-medium">{index + 1}</span>
+                      <div className="w-3 h-3 rounded-full bg-gray-400" />
                     )}
                   </div>
                 </div>
