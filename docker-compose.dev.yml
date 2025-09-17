@@ -9,6 +9,8 @@ services:
     volumes:
       # Mount entire backend directory for hot reloading
       - ./backend:/app
+      # Mount data directory for SQLite database (shared with host for persistence)
+      - ./data:/app/data
     environment:
       - DEBUG=true
       - LOG_LEVEL=debug
@@ -52,15 +54,4 @@ services:
         - action: rebuild
           path: ./frontend/pnpm-lock.yaml
 
-  # Development database with exposed ports
-  db:
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_PASSWORD=development
-
-  # Development Redis with exposed ports
-  redis:
-    ports:
-      - "6379:6379"
-    command: redis-server --loglevel debug
+# No additional services needed in development - using SQLite for schema storage

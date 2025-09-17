@@ -13,7 +13,9 @@ services:
       # FastAPI settings
       - PYTHONUNBUFFERED=1
       - LOG_LEVEL=${LOG_LEVEL:-info}
-    # No volumes needed - schemas stored in memory
+    volumes:
+      # Mount data directory for SQLite database persistence
+      - ./data:/app/data
     networks:
       - ai-doc-network
     restart: unless-stopped
@@ -53,50 +55,6 @@ services:
       retries: 3
       start_period: 40s
 
-  # Optional: Add database service if needed
-  db:
-    image: postgres:15-alpine
-    container_name: ai-doc-db
-    environment:
-      - POSTGRES_USER=aidoc
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
-      - POSTGRES_DB=aidoc_db
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      # No init scripts needed
-    ports:
-      - "5432:5432"
-    networks:
-      - ai-doc-network
-    restart: unless-stopped
-    healthcheck:
-      test:
-        ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Optional: Add Redis for caching
-  redis:
-    image: redis:7-alpine
-    container_name: ai-doc-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - ai-doc-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
 networks:
   ai-doc-network:
     driver: bridge
-
-volumes:
-  postgres_data:
-  redis_data:

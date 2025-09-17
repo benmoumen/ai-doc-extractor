@@ -19,7 +19,7 @@ This guide provides comprehensive instructions for deploying the AI Data Extract
 
 ### Performance
 
-- ✅ Request caching with Redis
+- ✅ In-memory schema caching
 - ✅ Image optimization and resizing
 - ✅ Concurrent request limiting
 - ✅ Gzip compression
@@ -165,11 +165,11 @@ Rate limiting is handled by the application middleware.
 
 ### 1. Caching Strategy
 
-Redis caching is configured for:
+Application uses in-memory caching for:
 
-- API responses (5 min TTL)
-- Processed documents (1 hour TTL)
-- Schema definitions (24 hour TTL)
+- Schema definitions (stored in memory during runtime)
+- AI model configurations
+- Request processing state
 
 ### 2. Image Processing
 
@@ -213,13 +213,6 @@ backend:
     replicas: 3
 ```
 
-### Database Integration
-
-For production scale, integrate PostgreSQL:
-
-```python
-DATABASE_URL=postgresql://user:pass@db:5432/aiextractor
-```
 
 ## Troubleshooting
 

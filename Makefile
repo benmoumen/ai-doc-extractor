@@ -60,18 +60,6 @@ shell-backend: ## Access backend container shell
 shell-frontend: ## Access frontend container shell
 	$(DOCKER_COMPOSE) exec frontend /bin/sh
 
-shell-db: ## Access database shell
-	$(DOCKER_COMPOSE) exec db psql -U aidoc -d aidoc_db
-
-# Database commands
-db-backup: ## Backup database to ./backups/
-	@mkdir -p ./backups
-	$(DOCKER_COMPOSE) exec -T db pg_dump -U aidoc aidoc_db > ./backups/db_backup_$$(date +%Y%m%d_%H%M%S).sql
-	@echo "Database backed up to ./backups/"
-
-db-restore: ## Restore database from backup (usage: make db-restore FILE=./backups/db_backup_*.sql)
-	$(DOCKER_COMPOSE) exec -T db psql -U aidoc aidoc_db < $(FILE)
-	@echo "Database restored from $(FILE)"
 
 # Maintenance commands
 clean: ## Remove all containers, networks, and volumes
@@ -99,10 +87,6 @@ health: ## Check health of all services
 	@curl -s http://localhost:8000/health || echo "Backend not healthy"
 	@echo "\nFrontend health:"
 	@curl -s http://localhost:3000/api/health || echo "Frontend not healthy"
-	@echo "\nDatabase health:"
-	@$(DOCKER_COMPOSE) exec db pg_isready -U aidoc || echo "Database not healthy"
-	@echo "\nRedis health:"
-	@$(DOCKER_COMPOSE) exec redis redis-cli ping || echo "Redis not healthy"
 
 # Environment setup
 env-setup: ## Copy .env.example to .env
