@@ -1,159 +1,33 @@
 """
-Production-ready FastAPI backend for AI Document Data Extractor
-With comprehensive security, validation, monitoring, and performance optimizations
+Clean MVP FastAPI backend for AI Document Data Extractor
+Focuses on core functionality: data extraction and schema generation
 """
 
 import os
 import time
 import base64
 import json
-import logging
-import asyncio
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from io import BytesIO
-from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request, Depends, status
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse
 from PIL import Image
 import fitz  # PyMuPDF
-import uvicorn
-
-# Import configuration and utilities
-from config import settings
-from validators import FileValidator, InputSanitizer
-from middleware import (
-    RateLimitMiddleware,
-    SecurityHeadersMiddleware,
-    RequestLoggingMiddleware,
-    CacheMiddleware,
-    ErrorHandlingMiddleware,
-    APIKeyMiddleware
-)
 
 # Import LiteLLM for AI model calls
 try:
     import litellm
     from litellm import completion
+
+    # Enable JSON schema validation for structured outputs
     litellm.enable_json_schema_validation = True
 except ImportError:
     raise ImportError("LiteLLM is required. Install with: pip install litellm")
 
-# Configure logging
-logging.basicConfig(
-    level=getattr(logging, settings.logging.log_level),
-    format=settings.logging.log_format,
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(settings.logging.log_file) if settings.logging.log_file else logging.NullHandler()
-    ]
-)
-
-logger = logging.getLogger(__name__)
-
-# Initialize validators
-file_validator = FileValidator(
-    max_file_size_mb=settings.security.max_file_size_mb,
-    max_image_dimension=settings.performance.max_image_dimension
-)
-
-input_sanitizer = InputSanitizer()
-
-# Document schemas storage (would be database in production)
-SCHEMAS = {}
-
-# Request tracking for concurrent limits
-active_ai_requests = 0
-ai_request_lock = asyncio.Lock()
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Manage application lifecycle"""
-    # Startup
-    logger.info(f"Starting {settings.app_name} v{settings.app_version}")
-    logger.info(f"Environment: {settings.environment}")
-    logger.info(f"Debug mode: {settings.debug}")
-
-    # Verify API keys are configured
-    if not os.getenv("GROQ_API_KEY"):
-        logger.warning("GROQ_API_KEY not configured")
-    if not os.getenv("MISTRAL_API_KEY"):
-        logger.warning("MISTRAL_API_KEY not configured")
-
-    # Load default schemas
-    load_default_schemas()
-
-    yield
-
-    # Shutdown
-    logger.info("Shutting down application")
-
-
-def load_default_schemas():
-    """Load default document schemas"""
-    # This would load from database in production
-    pass
-
-
-# Initialize FastAPI app with lifespan
-app = FastAPI(
-    title=settings.app_name,
-    description="Production-ready AI Document Data Extractor with comprehensive security and monitoring",
-    version=settings.app_version,
-    debug=settings.debug,
-    lifespan=lifespan,
-    docs_url="/docs" if settings.debug else None,  # Disable docs in production
-    redoc_url="/redoc" if settings.debug else None
-)
-
-# Add middleware in correct order (executed in reverse order)
-app.add_middleware(ErrorHandlingMiddleware)
-app.add_middleware(GZipMiddleware, minimum_size=1000)
-
-if settings.performance.enable_response_caching:
-    app.add_middleware(CacheMiddleware, ttl_seconds=settings.performance.cache_ttl_seconds)
-
-if settings.security.enable_api_key_auth:
-    api_keys = os.getenv("API_KEYS", "").split(",") if os.getenv("API_KEYS") else []
-    app.add_middleware(APIKeyMiddleware, api_keys=api_keys)
-
-app.add_middleware(SecurityHeadersMiddleware)
-
-if settings.logging.enable_request_logging:
-    app.add_middleware(RequestLoggingMiddleware)
-
-app.add_middleware(
-    RateLimitMiddleware,
-    requests_per_minute=settings.security.rate_limit_requests,
-    burst=settings.security.rate_limit_burst
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.security.cors_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST"],
-    allow_headers=["*"],
-    max_age=3600
-)
-
-
-# Dependency for AI request limiting
-async def check_ai_request_limit():
-    """Check if AI request limit is reached"""
-    global active_ai_requests
-    if active_ai_requests >= settings.performance.max_concurrent_requests:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Too many concurrent AI requests. Please try again later."
-        )
-
-
-# Provider and model configuration
+# Simple configuration
 PROVIDER_OPTIONS = {
     "Groq": "groq",
     "Mistral": "mistral"
@@ -168,7 +42,6 @@ MODEL_OPTIONS = {
     }
 }
 
-
 def get_model_param(provider: str, model: str) -> str:
     """Get the model parameter for LiteLLM"""
     if provider == "groq":
@@ -178,6 +51,54 @@ def get_model_param(provider: str, model: str) -> str:
     else:
         return model
 
+def setup_api_keys():
+    """Set up API keys from environment variables"""
+    if not os.getenv("GROQ_API_KEY"):
+        print("⚠️  Warning: GROQ_API_KEY not found. Set GROQ_API_KEY environment variable.")
+    if not os.getenv("MISTRAL_API_KEY"):
+        print("⚠️  Warning: MISTRAL_API_KEY not found. Set MISTRAL_API_KEY environment variable.")
+
+setup_api_keys()
+
+# Initialize FastAPI app
+app = FastAPI(
+    title="AI Document Data Extractor - MVP",
+    description="Clean MVP for document data extraction and schema generation",
+    version="2.0.0"
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Document schemas - initially empty, populated by schema generation
+SCHEMAS = {}
+
+def image_to_base64(image: Image.Image) -> str:
+    """Convert PIL image to base64 string"""
+    buffer = BytesIO()
+    if image.mode == 'RGBA':
+        image = image.convert('RGB')
+    image.save(buffer, format="JPEG", quality=95)
+    img_bytes = buffer.getvalue()
+    return base64.b64encode(img_bytes).decode('utf-8')
+
+def pdf_to_images(pdf_bytes: bytes, page_num: int = 1) -> Image.Image:
+    """Convert PDF page to PIL Image"""
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    if page_num > len(doc):
+        page_num = 1
+    page = doc.load_page(page_num - 1)  # 0-indexed
+    pix = page.get_pixmap()
+    img_data = pix.tobytes("ppm")
+    image = Image.open(BytesIO(img_data))
+    doc.close()
+    return image
 
 def determine_file_type(filename: str) -> str:
     """Determine file type from filename"""
@@ -189,212 +110,11 @@ def determine_file_type(filename: str) -> str:
     else:
         raise ValueError(f"Unsupported file type: {extension}")
 
-
-def image_to_base64(image: Image.Image) -> str:
-    """Convert PIL image to base64 string with optimization"""
-    buffer = BytesIO()
-
-    # Convert RGBA to RGB if needed
-    if image.mode == 'RGBA':
-        image = image.convert('RGB')
-
-    # Resize if too large
-    max_dim = settings.performance.max_image_dimension
-    if image.width > max_dim or image.height > max_dim:
-        image.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
-        logger.info(f"Resized image from {image.width}x{image.height} to fit within {max_dim}x{max_dim}")
-
-    # Save with compression
-    image.save(buffer, format="JPEG", quality=settings.performance.image_compression_quality, optimize=True)
-    img_bytes = buffer.getvalue()
-
-    return base64.b64encode(img_bytes).decode('utf-8')
-
-
-def pdf_to_images(pdf_bytes: bytes, page_num: int = 1) -> Image.Image:
-    """Convert PDF page to PIL Image with DPI control"""
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    if page_num > len(doc):
-        page_num = 1
-
-    page = doc.load_page(page_num - 1)
-
-    # Use configured DPI for better quality/performance balance
-    mat = fitz.Matrix(settings.performance.pdf_dpi / 72.0, settings.performance.pdf_dpi / 72.0)
-    pix = page.get_pixmap(matrix=mat)
-
-    img_data = pix.tobytes("ppm")
-    image = Image.open(BytesIO(img_data))
-    doc.close()
-
-    return image
-
-
-async def process_uploaded_document(
-    file: UploadFile,
-    request_id: str
-) -> tuple[bytes, dict]:
-    """
-    Reusable function to process uploaded documents with validation
-    Returns: (file_data, metadata)
-    """
-    logger.info(f"[{request_id}] Processing uploaded document: {file.filename}")
-
-    # Read file data
-    file_data = await file.read()
-
-    # Comprehensive file validation
-    is_valid, error_message, metadata = file_validator.validate_file(file_data, file.filename)
-
-    if not is_valid:
-        logger.warning(f"[{request_id}] File validation failed: {error_message}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_message
-        )
-
-    logger.info(f"[{request_id}] File validated successfully: {metadata}")
-    return file_data, metadata
-
-
-async def prepare_document_for_ai(
-    file_data: bytes,
-    metadata: dict,
-    request_id: str
-) -> tuple[Image.Image, str]:
-    """
-    Convert document to image and base64 for AI processing
-    Returns: (image, image_base64)
-    """
-    logger.info(f"[{request_id}] Converting document to image for AI processing")
-
-    # Convert document to image
-    if metadata["file_type"] == "pdf":
-        image = pdf_to_images(file_data, page_num=1)
-    else:
-        image = Image.open(BytesIO(file_data))
-
-    # Convert image to base64 with optimization
-    image_base64 = image_to_base64(image)
-
-    return image, image_base64
-
-
-def determine_ai_model(model: Optional[str]) -> tuple[str, str, str]:
-    """
-    Determine AI model parameters from request
-    Returns: (provider_id, model_id, model_param)
-    """
-    if model and '_' in model:
-        provider_id, model_id = model.split('_', 1)
-    else:
-        provider_id = settings.ai.default_provider
-        model_id = settings.ai.default_model
-
-    model_param = get_model_param(provider_id, model_id)
-    return provider_id, model_id, model_param
-
-
-def create_document_metadata(metadata: dict, request_id: str) -> dict:
-    """
-    Create standardized document metadata for API responses
-    """
-    import uuid
-    doc_id = str(uuid.uuid4())
-
-    document_metadata = {
-        "id": doc_id,
-        "filename": metadata["sanitized_filename"],
-        "original_filename": metadata["original_filename"],
-        "file_type": metadata["file_type"],
-        "file_size": metadata["file_size"],
-        "file_hash": metadata["file_hash"],
-        "mime_type": metadata["mime_type"],
-        "upload_time": datetime.utcnow().isoformat(),
-        "request_id": request_id
-    }
-
-    # Add image metadata if available
-    if metadata.get("image_width"):
-        document_metadata["image_dimensions"] = f"{metadata['image_width']}x{metadata['image_height']}"
-        document_metadata["image_format"] = metadata.get("image_format")
-
-    return document_metadata
-
-
-async def make_ai_request_with_retry(
-    prompt: str,
-    image_base64: str,
-    model_param: str,
-    max_retries: int = 3
-) -> Dict[str, Any]:
-    """Make AI request with retry logic and error handling"""
-    global active_ai_requests
-
-    for attempt in range(max_retries):
-        try:
-            async with ai_request_lock:
-                active_ai_requests += 1
-                logger.info(f"Active AI requests: {active_ai_requests}")
-
-            try:
-                # Add timeout to AI request
-                response = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        completion,
-                        model=model_param,
-                        messages=[{
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": prompt},
-                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
-                            ]
-                        }],
-                        temperature=settings.ai.temperature,
-                        response_format={"type": "json_object"}
-                    ),
-                    timeout=settings.ai.request_timeout
-                )
-
-                return {
-                    "content": response.choices[0].message.content,
-                    "usage": getattr(response, 'usage', {}).dict() if hasattr(response, 'usage') and response.usage else {},
-                    "model": getattr(response, 'model', model_param)
-                }
-
-            finally:
-                async with ai_request_lock:
-                    active_ai_requests = max(0, active_ai_requests - 1)
-                    logger.info(f"Active AI requests: {active_ai_requests}")
-
-        except asyncio.TimeoutError:
-            logger.warning(f"AI request timeout (attempt {attempt + 1}/{max_retries})")
-            if attempt < max_retries - 1:
-                await asyncio.sleep(settings.ai.retry_delay * (attempt + 1))
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-                    detail="AI request timed out"
-                )
-
-        except Exception as e:
-            logger.error(f"AI request failed (attempt {attempt + 1}/{max_retries}): {str(e)}")
-            if attempt < max_retries - 1:
-                await asyncio.sleep(settings.ai.retry_delay * (attempt + 1))
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail=f"AI service error: {str(e)}"
-                )
-
-
 def extract_json_from_text(text: str) -> tuple[bool, Optional[Dict], str]:
-    """Extract JSON from AI response text with validation"""
+    """Extract JSON from AI response text, handling multiple JSON blocks"""
     try:
-        # Try direct JSON parse
+        # Try to parse as direct JSON
         data = json.loads(text)
-        # Sanitize the extracted data
-        data = input_sanitizer.sanitize_json_field(data)
         return True, data, json.dumps(data, indent=2)
     except:
         pass
@@ -408,14 +128,35 @@ def extract_json_from_text(text: str) -> tuple[bool, Optional[Dict], str]:
         for block in json_blocks:
             try:
                 data = json.loads(block)
-                data = input_sanitizer.sanitize_json_field(data)
-                if isinstance(data, dict):
+                # For schema generation, prioritize objects with "id" and "fields" keys
+                if isinstance(data, dict) and "id" in data and "fields" in data:
                     return True, data, json.dumps(data, indent=2)
             except:
                 continue
 
-    return False, None, text
+    # Look for JSON blocks without markdown
+    json_blocks = re.findall(r'(\{[^}]*"fields"[^}]*\{.*?\}[^}]*\})', text, re.DOTALL)
+    if json_blocks:
+        for block in json_blocks:
+            try:
+                data = json.loads(block)
+                if isinstance(data, dict) and "fields" in data:
+                    return True, data, json.dumps(data, indent=2)
+            except:
+                continue
 
+    # Fallback: try to find any JSON in text
+    start = text.find('{')
+    end = text.rfind('}') + 1
+    if start != -1 and end > start:
+        try:
+            json_str = text[start:end]
+            data = json.loads(json_str)
+            return True, data, json.dumps(data, indent=2)
+        except:
+            pass
+
+    return False, None, text
 
 def create_extraction_prompt(schema_id: Optional[str] = None) -> str:
     """Create extraction prompt based on schema, with enhanced support for AI-generated schemas and document verification"""
@@ -604,7 +345,6 @@ For document_verification:
 - authenticity_score: Overall assessment of document authenticity (0-100)
 - risk_level: "low", "medium", or "high" based on authenticity concerns"""
 
-
 def create_initial_detection_prompt() -> str:
     """Step 1: Initial Schema Detection"""
     return """STEP 1: INITIAL DOCUMENT ANALYSIS
@@ -630,7 +370,6 @@ Return ONLY a JSON object with this structure:
 }
 
 Focus on completeness - capture EVERY visible field, even small ones."""
-
 
 def create_review_prompt(initial_schema: dict) -> str:
     """Step 2: Schema Review & Refinement"""
@@ -662,7 +401,6 @@ Return ONLY a JSON object with this structure:
   }},
   "changes_made": ["list of changes from initial schema"]
 }}"""
-
 
 def create_confidence_analysis_prompt(refined_schema: dict) -> str:
     """Step 3: Field Confidence Analysis"""
@@ -697,7 +435,6 @@ Return ONLY a JSON object with this structure:
   }}
 }}"""
 
-
 def create_hints_generation_prompt(schema_with_confidence: dict, confidence_analysis: dict) -> str:
     """Step 4: Extraction Hints Generation"""
     return f"""STEP 4: EXTRACTION HINTS GENERATION
@@ -731,35 +468,15 @@ Return ONLY a JSON object with this structure:
   "quality_recommendations": ["suggestions for improving extraction accuracy"]
 }}"""
 
-
 @app.get("/health")
 async def health_check():
-    """Health check endpoint with detailed status"""
-    health_status = {
+    """Health check endpoint"""
+    return {
         "status": "healthy",
         "backend_available": True,
-        "timestamp": datetime.utcnow().isoformat(),
-        "version": settings.app_version,
-        "environment": settings.environment
+        "timestamp": datetime.now().isoformat(),
+        "version": "2.0.0"
     }
-
-    # Check AI service availability
-    if active_ai_requests >= settings.performance.max_concurrent_requests:
-        health_status["ai_service"] = "overloaded"
-        health_status["status"] = "degraded"
-    else:
-        health_status["ai_service"] = "available"
-
-    # Add metrics if enabled
-    if settings.monitoring.enable_metrics:
-        health_status["metrics"] = {
-            "active_ai_requests": active_ai_requests,
-            "max_concurrent_requests": settings.performance.max_concurrent_requests,
-            "schemas_loaded": len(SCHEMAS)
-        }
-
-    return health_status
-
 
 @app.get("/api/models")
 async def get_supported_models():
@@ -779,10 +496,8 @@ async def get_supported_models():
 
     return {
         "success": True,
-        "models": models,
-        "default_model": f"{settings.ai.default_provider}_{settings.ai.default_model}"
+        "models": models
     }
-
 
 @app.get("/api/schemas")
 async def get_available_schemas():
@@ -791,10 +506,10 @@ async def get_available_schemas():
     for schema_id, schema in SCHEMAS.items():
         formatted_schemas[schema_id] = {
             "id": schema_id,
-            "name": schema.get("name", "Unknown Schema"),
-            "description": schema.get("description", ""),
-            "category": schema.get("category", "Other"),
-            "field_count": len(schema.get("fields", {}))
+            "name": schema["name"],
+            "description": schema["description"],
+            "category": schema["category"],
+            "field_count": len(schema["fields"])
         }
 
     return {
@@ -802,225 +517,326 @@ async def get_available_schemas():
         "schemas": formatted_schemas
     }
 
-
 @app.get("/api/schemas/{schema_id}")
 async def get_schema_details(schema_id: str):
     """Get detailed schema information"""
-    # Sanitize schema_id
-    safe_schema_id = input_sanitizer.sanitize_string(schema_id, max_length=100)
-
-    if safe_schema_id not in SCHEMAS:
+    if schema_id not in SCHEMAS:
         raise HTTPException(status_code=404, detail="Schema not found")
 
     return {
         "success": True,
-        "schema": SCHEMAS[safe_schema_id]
+        "schema": SCHEMAS[schema_id]
     }
-
 
 @app.post("/api/documents")
 async def upload_document(
-    request: Request,
     file: UploadFile = File(...)
 ):
-    """Upload document with comprehensive validation"""
-    request_id = getattr(request.state, "request_id", "unknown")
-
+    """Upload document and return basic metadata - no AI analysis at this stage"""
     try:
-        # Use shared document processing function
-        file_data, metadata = await process_uploaded_document(file, request_id)
+        # Read file data
+        file_data = await file.read()
+        file_type = determine_file_type(file.filename)
 
-        # Generate document metadata using shared function
-        document_metadata = create_document_metadata(metadata, request_id)
+        # Basic file validation only - no AI processing
+        if file_type == 'pdf':
+            # Just validate PDF can be opened
+            pdf_to_images(file_data, page_num=1)
+        else:
+            # Just validate image can be opened
+            Image.open(BytesIO(file_data))
 
-        # Generate analysis ID
+        # Generate document ID
         import uuid
+        doc_id = str(uuid.uuid4())
         analysis_id = str(uuid.uuid4())
 
+        # Return basic document info - no AI detection
         return {
             "success": True,
-            "document": document_metadata,
+            "processing_stages": {
+                "upload": {"success": True, "duration": 0.1},
+                "validation": {"success": True, "duration": 0.1}
+            },
+            "document": {
+                "id": doc_id,
+                "filename": file.filename,
+                "file_type": file_type,
+                "file_size": len(file_data),
+                "processing_status": "uploaded"
+            },
             "analysis": {
                 "id": analysis_id,
-                "status": "pending"
+                "detected_document_type": "unknown",
+                "document_type_confidence": 0.0,
+                "total_fields_detected": 0,
+                "high_confidence_fields": 0,
+                "overall_quality_score": 0.0,
+                "model_used": "none"
+            },
+            "schema": {
+                "id": "generic",
+                "name": "Generic Document",
+                "description": "Generic document - schema will be determined during extraction",
+                "total_fields": 0,
+                "high_confidence_fields": 0,
+                "generation_confidence": 0.0,
+                "production_ready": False
+            },
+            "confidence": {
+                "overall_confidence": 0.0,
+                "field_confidence": {}
             },
             "metadata": {
-                "processing_time": 0.1,
-                "validation_passed": True
+                "processing_time": 0.2,
+                "file_type": file_type,
+                "analysis_version": "2.0.0",
+                "note": "Upload only - AI analysis will occur during extraction"
             }
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"[{request_id}] Document upload error: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process document upload"
-        )
-
+        print(f"Document upload error: {e}")
+        raise HTTPException(status_code=500, detail=f"Document upload failed: {str(e)}")
 
 @app.post("/api/extract")
 async def extract_data(
-    request: Request,
     file: UploadFile = File(...),
     model: Optional[str] = Form(None),
-    schema_id: Optional[str] = Form(None),
-    _: None = Depends(check_ai_request_limit)
+    schema_id: Optional[str] = Form(None)
 ):
-    """Extract data with production-grade error handling and validation"""
-    request_id = getattr(request.state, "request_id", "unknown")
-    start_time = time.time()
-
-    logger.info(f"[{request_id}] Starting data extraction for {file.filename}")
-
+    """Extract structured data from document"""
     try:
-        # Use shared document processing functions
-        file_data, metadata = await process_uploaded_document(file, request_id)
-        image, image_base64 = await prepare_document_for_ai(file_data, metadata, request_id)
+        # Read file data
+        file_data = await file.read()
+        file_type = determine_file_type(file.filename)
 
-        # Determine model using shared function
-        provider_id, model_id, model_param = determine_ai_model(model)
+        # Convert document to image
+        if file_type == 'pdf':
+            image = pdf_to_images(file_data, page_num=1)
+        else:
+            image = Image.open(BytesIO(file_data))
 
-        # Sanitize schema_id
-        if schema_id:
-            schema_id = input_sanitizer.sanitize_string(schema_id, max_length=100)
-            if schema_id not in SCHEMAS:
-                logger.warning(f"[{request_id}] Invalid schema_id: {schema_id}")
-                schema_id = None
+        # Convert image to base64
+        image_base64 = image_to_base64(image)
+
+        # Determine model
+        if model and '_' in model:
+            provider_id, model_id = model.split('_', 1)
+        else:
+            provider_id = "groq"
+            model_id = "meta-llama/llama-4-scout-17b-16e-instruct"
+
+        model_param = get_model_param(provider_id, model_id)
 
         # Create extraction prompt
         prompt = create_extraction_prompt(schema_id)
 
-        # Make AI request with retry and timeout
-        logger.info(f"[{request_id}] Making AI request with model {model_param}")
-        ai_response = await make_ai_request_with_retry(prompt, image_base64, model_param)
+        # Prepare completion parameters for debugging
+        completion_params = {
+            "model": model_param,
+            "messages": [{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64[:50]}..."}}  # Truncate for readability
+                ]
+            }],
+            "temperature": 0.1
+        }
+
+        # Make API call with JSON mode for structured output
+        start_time = time.time()
+        response = completion(
+            model=model_param,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                ]
+            }],
+            temperature=0.1,
+            response_format={"type": "json_object"}
+        )
+        end_time = time.time()
 
         # Process response
-        raw_content = ai_response["content"]
+        raw_content = response.choices[0].message.content
+        raw_response = {
+            "id": getattr(response, 'id', None),
+            "choices": [{
+                "message": {
+                    "role": response.choices[0].message.role,
+                    "content": response.choices[0].message.content
+                },
+                "finish_reason": getattr(response.choices[0], 'finish_reason', None)
+            }],
+            "usage": getattr(response, 'usage', {}).dict() if hasattr(response, 'usage') and response.usage else {},
+            "model": getattr(response, 'model', model_param)
+        }
         is_json, parsed_data, formatted_text = extract_json_from_text(raw_content)
 
-        # Build response
-        extraction_result = {
+        # Process the new confidence-aware response structure with document verification
+        structured_data = {}
+        field_confidence = {}
+        overall_confidence = 75  # Default fallback
+        document_quality = "medium"  # Default fallback
+        extraction_issues = []
+        document_verification = {}  # New verification data
+
+        if is_json and parsed_data:
+            # Parse document verification if present
+            if "document_verification" in parsed_data:
+                document_verification = parsed_data.get("document_verification", {})
+
+            # Check if response has the new confidence structure
+            if "extracted_fields" in parsed_data:
+                # New structure with confidence scores
+                extracted_fields = parsed_data.get("extracted_fields", {})
+                for field_name, field_data in extracted_fields.items():
+                    if isinstance(field_data, dict):
+                        structured_data[field_name] = field_data.get("value", "")
+                        field_confidence[field_name] = field_data.get("confidence", 75)
+                    else:
+                        # Fallback for simple values
+                        structured_data[field_name] = field_data
+                        field_confidence[field_name] = 75
+
+                overall_confidence = parsed_data.get("overall_confidence", 75)
+                document_quality = parsed_data.get("document_quality", "medium")
+                extraction_issues = parsed_data.get("extraction_issues", [])
+            else:
+                # Legacy structure without confidence - use parsed data as is
+                structured_data = parsed_data
+                # Estimate confidence based on validation
+                for field_name in parsed_data.keys():
+                    field_confidence[field_name] = 75  # Default confidence for legacy
+
+        # Validate against schema if provided
+        validation_results = {"passed": True, "errors": []}
+        if schema_id and schema_id in SCHEMAS and structured_data:
+            schema = SCHEMAS[schema_id]
+            for field_name, field_info in schema["fields"].items():
+                if field_info.get("required") and field_name not in structured_data:
+                    validation_results["errors"].append(f"Required field '{field_name}' is missing")
+                    validation_results["passed"] = False
+
+                # Validate field value is not an object (should be simple values)
+                if field_name in structured_data:
+                    field_value = structured_data[field_name]
+                    if isinstance(field_value, (dict, list)):
+                        validation_results["errors"].append(f"Field '{field_name}' should be a simple value, not an object/array")
+                        validation_results["passed"] = False
+                        # Convert object to string representation for debugging
+                        structured_data[field_name] = str(field_value) if field_value else ""
+
+        # Add extraction issues to validation errors
+        if extraction_issues:
+            validation_results["errors"].extend(extraction_issues)
+
+        return {
             "success": True,
             "extracted_data": {
-                "structured_data": parsed_data if is_json else None,
+                "raw_content": raw_content,
+                "formatted_text": formatted_text,
+                "structured_data": structured_data if is_json else None,
                 "is_structured": is_json,
-                "raw_content": raw_content[:5000] if settings.debug else None  # Limit in production
+                "field_confidence": field_confidence,
+                "overall_confidence": overall_confidence,
+                "document_quality": document_quality
             },
+            "document_verification": document_verification,
+            "validation": validation_results,
             "metadata": {
-                "processing_time": time.time() - start_time,
-                "file_type": metadata["file_type"],
-                "file_size": metadata["file_size"],
+                "processing_time": end_time - start_time,
+                "file_type": file_type,
                 "model_used": f"{provider_id} - {model_id}",
                 "extraction_mode": "schema_guided" if schema_id else "freeform",
                 "schema_used": schema_id,
-                "request_id": request_id
+                "overall_confidence": overall_confidence,
+                "document_quality": document_quality,
+                "verification_risk_level": document_verification.get("risk_level", "unknown") if document_verification else "unknown",
+                "authenticity_score": document_verification.get("authenticity_score", None) if document_verification else None
+            },
+            "debug": {
+                "completion_params": completion_params,
+                "raw_response": raw_response
             }
         }
 
-        # Add document verification if present
-        if is_json and parsed_data and "document_verification" in parsed_data:
-            extraction_result["document_verification"] = parsed_data["document_verification"]
-
-        # Add validation results if schema was used
-        if schema_id and schema_id in SCHEMAS and is_json and parsed_data:
-            validation_results = validate_against_schema(parsed_data, SCHEMAS[schema_id])
-            extraction_result["validation"] = validation_results
-
-        logger.info(f"[{request_id}] Extraction completed in {time.time() - start_time:.2f}s")
-
-        return extraction_result
-
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"[{request_id}] Extraction error: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to extract data from document"
-        )
-
-
-def validate_against_schema(data: Dict, schema: Dict) -> Dict:
-    """Validate extracted data against schema"""
-    validation_results = {"passed": True, "errors": [], "warnings": []}
-
-    if "extracted_fields" in data:
-        fields = data["extracted_fields"]
-    else:
-        fields = data
-
-    for field_name, field_info in schema.get("fields", {}).items():
-        if field_info.get("required") and field_name not in fields:
-            validation_results["errors"].append(f"Required field '{field_name}' is missing")
-            validation_results["passed"] = False
-
-        if field_name in fields:
-            field_value = fields[field_name]
-            if isinstance(field_value, dict) and "value" in field_value:
-                field_value = field_value["value"]
-
-            # Type validation
-            expected_type = field_info.get("type", "text")
-            if expected_type == "number" and field_value:
-                try:
-                    float(field_value)
-                except (ValueError, TypeError):
-                    validation_results["warnings"].append(
-                        f"Field '{field_name}' expected to be number but got '{field_value}'"
-                    )
-
-    return validation_results
-
+        print(f"Extraction error: {e}")
+        raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}")
 
 @app.post("/api/generate-schema")
 async def generate_schema(
-    request: Request,
     file: UploadFile = File(...),
-    model: Optional[str] = Form(None),
-    _: None = Depends(check_ai_request_limit)
+    model: Optional[str] = Form(None)
 ):
-    """Generate schema with production validation and error handling"""
-    request_id = getattr(request.state, "request_id", "unknown")
-    start_time = time.time()
-
-    logger.info(f"[{request_id}] Starting schema generation for {file.filename}")
-
+    """Generate a schema definition using multi-step AI analysis"""
     try:
-        # Use shared document processing functions
-        file_data, metadata = await process_uploaded_document(file, request_id)
-        image, image_base64 = await prepare_document_for_ai(file_data, metadata, request_id)
+        start_time = time.time()
 
-        # Determine model using shared function
-        provider_id, model_id, model_param = determine_ai_model(model)
+        # Read file data
+        file_data = await file.read()
+        file_type = determine_file_type(file.filename)
+
+        # Convert document to image
+        if file_type == 'pdf':
+            image = pdf_to_images(file_data, page_num=1)
+        else:
+            image = Image.open(BytesIO(file_data))
+
+        # Convert image to base64
+        image_base64 = image_to_base64(image)
+
+        # Determine model
+        if model and '_' in model:
+            provider_id, model_id = model.split('_', 1)
+        else:
+            provider_id = "groq"
+            model_id = "meta-llama/llama-4-scout-17b-16e-instruct"
+
+        model_param = get_model_param(provider_id, model_id)
 
         # Multi-step AI processing
         ai_debug_info = {"steps": []}
-        logger.info(f"[{request_id}] Starting multi-step schema generation with model {model_param}")
 
         # Step 1: Initial Detection
         step1_prompt = create_initial_detection_prompt()
         step1_start = time.time()
 
-        step1_response_data = await make_ai_request_with_retry(
-            step1_prompt, image_base64, model_param, max_retries=settings.ai.max_retries
+        step1_response = completion(
+            model=model_param,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": step1_prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                ]
+            }],
+            temperature=0.1,
+            response_format={"type": "json_object"}
         )
         step1_end = time.time()
 
-        step1_raw = step1_response_data["content"]
+        step1_raw = step1_response.choices[0].message.content
         step1_valid, step1_data, step1_formatted = extract_json_from_text(step1_raw)
 
         ai_debug_info["steps"].append({
             "step": 1,
             "name": "Initial Detection",
             "duration": step1_end - step1_start,
-            "success": step1_valid,
-            "tokens_used": step1_response_data.get("usage", {})
+            "prompt": step1_prompt,
+            "raw_response": step1_raw,
+            "parsed_data": step1_data,
+            "success": step1_valid
         })
 
         if not step1_valid or not step1_data:
-            logger.warning(f"[{request_id}] Step 1 failed, using fallback schema")
+            # Step 1 failed - create generic fallback schema
+            print(f"Step 1 failed, using fallback schema. Raw response: {step1_raw[:200]}...")
             step1_data = {
                 "document_type": "Unknown Document",
                 "layout_analysis": "Unable to analyze document layout due to AI processing error",
@@ -1042,26 +858,37 @@ async def generate_schema(
         step2_prompt = create_review_prompt(step1_data)
         step2_start = time.time()
 
-        step2_response_data = await make_ai_request_with_retry(
-            step2_prompt, image_base64, model_param, max_retries=settings.ai.max_retries
+        step2_response = completion(
+            model=model_param,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": step2_prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                ]
+            }],
+            temperature=0.1,
+            response_format={"type": "json_object"}
         )
         step2_end = time.time()
 
-        step2_raw = step2_response_data["content"]
+        step2_raw = step2_response.choices[0].message.content
         step2_valid, step2_data, step2_formatted = extract_json_from_text(step2_raw)
 
         ai_debug_info["steps"].append({
             "step": 2,
             "name": "Schema Review & Refinement",
             "duration": step2_end - step2_start,
-            "success": step2_valid,
-            "tokens_used": step2_response_data.get("usage", {})
+            "prompt": step2_prompt,
+            "raw_response": step2_raw,
+            "parsed_data": step2_data,
+            "success": step2_valid
         })
 
         if not step2_valid or not step2_data:
-            logger.warning(f"[{request_id}] Step 2 failed, using Step 1 results with fallbacks")
+            # Step 2 failed - create fallback schema from Step 1 results
+            print(f"Step 2 failed, using Step 1 results with fallbacks. Raw response: {step2_raw[:200]}...")
             step2_data = {
-                "id": f"generated_schema_{int(time.time())}",
                 "name": f"{step1_data.get('document_type', 'Unknown')} Schema",
                 "description": f"Auto-generated schema for {step1_data.get('document_type', 'unknown document type')}",
                 "category": "Generated",
@@ -1080,46 +907,68 @@ async def generate_schema(
         step3_prompt = create_confidence_analysis_prompt(step2_data)
         step3_start = time.time()
 
-        step3_response_data = await make_ai_request_with_retry(
-            step3_prompt, image_base64, model_param, max_retries=settings.ai.max_retries
+        step3_response = completion(
+            model=model_param,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": step3_prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                ]
+            }],
+            temperature=0.1,
+            response_format={"type": "json_object"}
         )
         step3_end = time.time()
 
-        step3_raw = step3_response_data["content"]
+        step3_raw = step3_response.choices[0].message.content
         step3_valid, step3_data, step3_formatted = extract_json_from_text(step3_raw)
 
         ai_debug_info["steps"].append({
             "step": 3,
             "name": "Confidence Analysis",
             "duration": step3_end - step3_start,
-            "success": step3_valid,
-            "tokens_used": step3_response_data.get("usage", {})
+            "prompt": step3_prompt,
+            "raw_response": step3_raw,
+            "parsed_data": step3_data,
+            "success": step3_valid
         })
 
         # Step 4: Hints Generation
         step4_prompt = create_hints_generation_prompt(step2_data, step3_data or {})
         step4_start = time.time()
 
-        step4_response_data = await make_ai_request_with_retry(
-            step4_prompt, image_base64, model_param, max_retries=settings.ai.max_retries
+        step4_response = completion(
+            model=model_param,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": step4_prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                ]
+            }],
+            temperature=0.1,
+            response_format={"type": "json_object"}
         )
         step4_end = time.time()
 
-        step4_raw = step4_response_data["content"]
+        step4_raw = step4_response.choices[0].message.content
         step4_valid, step4_data, step4_formatted = extract_json_from_text(step4_raw)
 
         ai_debug_info["steps"].append({
             "step": 4,
             "name": "Extraction Hints Generation",
             "duration": step4_end - step4_start,
-            "success": step4_valid,
-            "tokens_used": step4_response_data.get("usage", {})
+            "prompt": step4_prompt,
+            "raw_response": step4_raw,
+            "parsed_data": step4_data,
+            "success": step4_valid
         })
 
         end_time = time.time()
 
         # Build final schema with enhanced data
-        schema_id = step2_data.get("id", f"generated_schema_{int(time.time())}")
+        schema_id = step2_data.get("id", "generated_schema")
 
         # Enhanced schema with confidence and hints
         enhanced_schema = {
@@ -1164,173 +1013,106 @@ async def generate_schema(
             enhanced_schema["document_specific_notes"] = step4_data.get("document_specific_notes", [])
             enhanced_schema["quality_recommendations"] = step4_data.get("quality_recommendations", [])
 
-        # Add to schemas for immediate use (sanitize schema_id)
-        safe_schema_id = input_sanitizer.sanitize_string(schema_id, max_length=100)
-        SCHEMAS[safe_schema_id] = enhanced_schema
-
-        logger.info(f"[{request_id}] Schema generation completed in {end_time - start_time:.2f}s")
+        # Add to schemas for immediate use
+        SCHEMAS[schema_id] = enhanced_schema
 
         return {
             "success": True,
             "generated_schema": {
-                "schema_id": safe_schema_id,
+                "schema_id": schema_id,
                 "schema_data": enhanced_schema,
                 "is_valid": True,
                 "ready_for_extraction": True,
                 "raw_response": f"Multi-step generation completed with {len(ai_debug_info['steps'])} steps",
-                "formatted_text": json.dumps(enhanced_schema, indent=2) if settings.debug else None
+                "formatted_text": json.dumps(enhanced_schema, indent=2)
             },
             "next_steps": {
                 "available_in_schemas": True,
                 "can_use_for_extraction": True,
-                "schema_endpoint": f"/api/schemas/{safe_schema_id}"
+                "schema_endpoint": f"/api/schemas/{schema_id}"
             },
             "metadata": {
                 "processing_time": end_time - start_time,
-                "file_type": metadata["file_type"],
-                "file_size": metadata["file_size"],
+                "file_type": file_type,
                 "model_used": f"{provider_id} - {model_id}",
                 "fields_generated": len(enhanced_schema.get("fields", {})),
                 "steps_completed": len(ai_debug_info["steps"]),
                 "overall_confidence": enhanced_schema.get("overall_confidence", 75),
-                "document_quality": enhanced_schema.get("document_quality", "medium"),
-                "request_id": request_id
+                "document_quality": enhanced_schema.get("document_quality", "medium")
             },
-            "ai_debug": ai_debug_info if settings.debug else None
+            "ai_debug": ai_debug_info
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"[{request_id}] Schema generation error: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate schema from document"
-        )
-
+        print(f"Multi-step schema generation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Multi-step schema generation failed: {str(e)}")
 
 @app.post("/api/schemas")
-async def save_schema(request: Request, schema_data: Dict[str, Any]):
+async def save_schema(schema_data: Dict[str, Any]):
     """Save a generated schema to make it available for data extraction"""
-    request_id = getattr(request.state, "request_id", "unknown")
-    logger.info(f"[{request_id}] Saving schema: {schema_data.get('name', 'Unknown')}")
-
     try:
         # Validate required fields
         required_fields = ["id", "name", "description", "category", "fields"]
         for field in required_fields:
             if field not in schema_data:
-                logger.warning(f"[{request_id}] Missing required field: {field}")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Missing required field: {field}"
-                )
+                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
 
-        # Sanitize schema data
-        schema_data = input_sanitizer.sanitize_json_field(schema_data)
         schema_id = schema_data["id"]
 
-        # Ensure schema ID is valid and safe
-        safe_schema_id = input_sanitizer.sanitize_string(schema_id, max_length=100)
-        if not safe_schema_id.replace("_", "").replace("-", "").isalnum():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Schema ID must be alphanumeric with underscores or dashes"
-            )
+        # Ensure schema ID is valid (snake_case)
+        if not schema_id.replace("_", "").replace("-", "").isalnum():
+            raise HTTPException(status_code=400, detail="Schema ID must be alphanumeric with underscores or dashes")
 
         # Check if schema ID already exists - if so, update it instead of rejecting
-        is_update = safe_schema_id in SCHEMAS
+        is_update = schema_id in SCHEMAS
 
         # Validate fields structure
         if not isinstance(schema_data["fields"], dict):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Fields must be a dictionary"
-            )
+            raise HTTPException(status_code=400, detail="Fields must be a dictionary")
 
         for field_name, field_config in schema_data["fields"].items():
             if not isinstance(field_config, dict):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Field '{field_name}' configuration must be a dictionary"
-                )
+                raise HTTPException(status_code=400, detail=f"Field '{field_name}' configuration must be a dictionary")
             if "type" not in field_config or "required" not in field_config:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Field '{field_name}' must have 'type' and 'required' properties"
-                )
+                raise HTTPException(status_code=400, detail=f"Field '{field_name}' must have 'type' and 'required' properties")
 
-        # Save schema to the in-memory store with additional metadata
-        SCHEMAS[safe_schema_id] = {
-            "id": safe_schema_id,
-            "name": input_sanitizer.sanitize_string(schema_data["name"], max_length=200),
-            "description": input_sanitizer.sanitize_string(schema_data["description"], max_length=500),
-            "category": input_sanitizer.sanitize_string(schema_data["category"], max_length=100),
+        # Save schema to the in-memory store
+        SCHEMAS[schema_id] = {
+            "id": schema_id,
+            "name": schema_data["name"],
+            "description": schema_data["description"],
+            "category": schema_data["category"],
             "fields": schema_data["fields"],
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
-            "generated": True,  # Flag to distinguish from predefined schemas
-            "request_id": request_id
+            "created_at": datetime.now().isoformat(),
+            "generated": True  # Flag to distinguish from predefined schemas
         }
 
         action = "updated" if is_update else "created"
-        logger.info(f"[{request_id}] Schema '{safe_schema_id}' {action} successfully")
-
         return {
             "success": True,
             "message": f"Schema '{schema_data['name']}' {action} successfully and is now available for data extraction",
-            "schema_id": safe_schema_id,
+            "schema_id": schema_id,
             "available_for_extraction": True,
-            "is_update": is_update,
-            "metadata": {
-                "fields_count": len(schema_data.get("fields", {})),
-                "request_id": request_id
-            }
+            "is_update": is_update
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[{request_id}] Schema save error: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to save schema"
-        )
-
-
-@app.get("/metrics")
-async def metrics():
-    """Prometheus-compatible metrics endpoint"""
-    if not settings.monitoring.enable_metrics:
-        raise HTTPException(status_code=404, detail="Metrics not enabled")
-
-    metrics_text = f"""
-# HELP ai_requests_active Number of active AI requests
-# TYPE ai_requests_active gauge
-ai_requests_active {active_ai_requests}
-
-# HELP schemas_total Total number of loaded schemas
-# TYPE schemas_total gauge
-schemas_total {len(SCHEMAS)}
-
-# HELP app_info Application information
-# TYPE app_info gauge
-app_info{{version="{settings.app_version}",environment="{settings.environment}"}} 1
-"""
-    return Response(content=metrics_text, media_type="text/plain")
-
+        print(f"Schema save error: {e}")
+        raise HTTPException(status_code=500, detail=f"Schema save failed: {str(e)}")
 
 if __name__ == "__main__":
-    # Production server configuration
+    import uvicorn
+
+    print("🚀 Starting AI Document Data Extractor MVP...")
+    print("📡 Clean backend with data extraction & schema generation")
+    print("🔗 Frontend can connect to: http://localhost:8000")
+
     uvicorn.run(
-        "main:app",
+        app,
         host="0.0.0.0",
         port=8000,
-        reload=settings.debug,
-        log_level=settings.logging.log_level.lower(),
-        access_log=settings.logging.enable_request_logging,
-        workers=1 if settings.debug else 4,
-        loop="uvloop" if not settings.debug else "auto",
-        server_header=False,  # Don't expose server info
-        date_header=True
+        reload=True,
+        log_level="info"
     )
