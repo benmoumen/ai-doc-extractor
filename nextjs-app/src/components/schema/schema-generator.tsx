@@ -68,6 +68,7 @@ export function SchemaGenerator({
   onSchemaGenerated,
   className,
 }: SchemaGenerationProps) {
+  const progressSectionRef = useRef<HTMLDivElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>("");
   type MinimalModel = { id: string; name: string };
@@ -261,6 +262,14 @@ export function SchemaGenerator({
     resetGeneration();
     setIsGenerating(true);
     setCurrentStep("Uploading document...");
+
+    // Scroll to progress section
+    setTimeout(() => {
+      progressSectionRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }, 100);
 
     try {
       setGenerationProgress(5);
@@ -695,7 +704,7 @@ export function SchemaGenerator({
 
       {/* Progress Display */}
       {isGenerating && (
-        <Card>
+        <Card ref={progressSectionRef}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -706,7 +715,7 @@ export function SchemaGenerator({
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>{currentStep}</span>
-                <span>{generationProgress}%</span>
+                <span>{Math.round(generationProgress)}%</span>
               </div>
               <Progress value={generationProgress} />
             </div>
@@ -945,7 +954,7 @@ export function SchemaGenerator({
                                       variant={fieldConfig.confidence_score >= 90 ? "default" : fieldConfig.confidence_score >= 70 ? "secondary" : "outline"}
                                       className="text-xs"
                                     >
-                                      {fieldConfig.confidence_score}% confidence
+                                      {Math.round(fieldConfig.confidence_score || 0)}% confidence
                                     </Badge>
                                   )}
                                 </div>
@@ -1249,7 +1258,7 @@ export function SchemaGenerator({
                                 value={fieldConfig.confidence_score}
                                 className="flex-1 h-2"
                               />
-                              <span className="text-xs w-12 text-right">{fieldConfig.confidence_score}%</span>
+                              <span className="text-xs w-12 text-right">{Math.round(fieldConfig.confidence_score || 0)}%</span>
                             </div>
                           )
                         ))}
