@@ -21,7 +21,8 @@
       "Bash(pnpm build:*)",
       "Bash(find:*)",
       "Bash(chmod:*)",
-      "Bash(sudo rm:*)"
+      "Bash(sudo rm:*)",
+      "Bash(pnpm install:*)"
     ],
     "deny": [],
     "ask": []

@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-import { DocumentUpload } from "@/components/document-upload/document-upload";
+import { DocumentUploader } from "@/components/document-upload/document-uploader";
 import { SchemaSelector } from "./schema-selector";
 import { ExtractionResults, type ExtractionResult } from "./extraction-results";
 import { apiClient } from "@/lib/api";
@@ -966,7 +966,7 @@ export function ExtractionWorkflow() {
         <div className="lg:col-span-2 space-y-6">
           {/* Upload Step */}
           {currentStep === "upload" && (
-            <DocumentUpload
+            <DocumentUploader
               onUploadComplete={handleUploadComplete}
               onUploadStart={handleUploadStart}
             />
