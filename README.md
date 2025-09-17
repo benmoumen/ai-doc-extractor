@@ -16,7 +16,7 @@ A modern web application for extracting structured data from documents using AI.
 
 - **Frontend**: Next.js 15 with TypeScript, Tailwind CSS, shadcn/ui
 - **Backend**: FastAPI with Python 3.11+
-- **AI Integration**: LiteLLM supporting multiple providers (OpenAI, Anthropic, Groq, Mistral)
+- **AI Integration**: LiteLLM supporting multiple providers (Groq, Mistral)
 - **Database**: PostgreSQL with Redis caching
 - **Deployment**: Docker & Docker Compose
 
@@ -41,8 +41,6 @@ Edit `.env` file with your API keys:
 
 ```bash
 # Required: At least one AI provider
-OPENAI_API_KEY=your_openai_key
-ANTHROPIC_API_KEY=your_anthropic_key
 GROQ_API_KEY=your_groq_key
 MISTRAL_API_KEY=your_mistral_key
 
