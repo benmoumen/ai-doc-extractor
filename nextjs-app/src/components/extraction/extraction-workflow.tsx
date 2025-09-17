@@ -1169,32 +1169,101 @@ export function ExtractionWorkflow() {
             </Card>
           )}
 
-          {/* Tips */}
-          <Card>
+          {/* Extraction Guide */}
+          <Card className="h-full">
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-purple-500" />
-                Pro Tips
-              </CardTitle>
+              <CardTitle className="text-base">Quick Start Guide</CardTitle>
+              <CardDescription className="text-xs">
+                Follow these steps to extract data from your documents
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-500">•</span>
-                  <span>AI mode works best for common document types</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-500">•</span>
-                  <span>
-                    Use schemas for consistent extraction across similar
-                    documents
-                  </span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-500">•</span>
-                  <span>Review medium confidence fields before exporting</span>
-                </li>
-              </ul>
+              <div className="space-y-4">
+                {/* Step 1 */}
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950 flex items-center justify-center">
+                    <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                      1
+                    </span>
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-medium">Upload Document</p>
+                    <p className="text-xs text-muted-foreground">
+                      Drag & drop or browse for PDF, JPEG, or PNG files
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step 2 */}
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-950 flex items-center justify-center">
+                    <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+                      2
+                    </span>
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-medium">Extraction Mode</p>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-medium">• Schema Mode:</span> AI
+                        with predefined fields & rules
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-medium">• Free Mode:</span> AI
+                        auto-discovers all data
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 3 */}
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 dark:bg-green-950 flex items-center justify-center">
+                    <span className="text-sm font-semibold text-green-600 dark:text-green-400">
+                      3
+                    </span>
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-medium">Process & Review</p>
+                    <p className="text-xs text-muted-foreground">
+                      AI extracts data, then review and edit as needed
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step 4 */}
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-950 flex items-center justify-center">
+                    <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">
+                      4
+                    </span>
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-medium">Export Data</p>
+                    <p className="text-xs text-muted-foreground">
+                      Download results as JSON, CSV, or Excel format
+                    </p>
+                  </div>
+                </div>
+
+                <Separator className="my-3" />
+
+                {/* Tips Section */}
+                <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <Sparkles className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-blue-900 dark:text-blue-100">
+                        Best Practices
+                      </p>
+                      <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-0.5">
+                        <li>• Use high-quality scans for better accuracy</li>
+                        <li>• Schema mode works best for structured forms</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
