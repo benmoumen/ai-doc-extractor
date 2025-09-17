@@ -497,13 +497,11 @@ export function SchemaGenerator({
     // Preserve field order by recreating object in same order
     if (!editingSchema) return;
     const updatedFields: Record<string, FieldConfig> = {};
-    Object.entries(editingSchema.fields).forEach(([key, value]) => {
-      if (key === oldName) {
-        updatedFields[newName] = value;
-      } else {
-        updatedFields[key] = value;
-      }
-    });
+    for (const key of Object.keys(editingSchema.fields)) {
+      const value: FieldConfig = editingSchema.fields[key];
+      const targetKey = key === oldName ? newName : key;
+      updatedFields[targetKey] = value;
+    }
 
     setEditingSchema({
       ...editingSchema,
