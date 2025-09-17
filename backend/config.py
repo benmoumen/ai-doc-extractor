@@ -23,8 +23,7 @@ class SecurityConfig(BaseModel):
         default=["http://localhost:3000", "http://127.0.0.1:3000"],
         description="Allowed CORS origins"
     )
-    api_key_header: str = Field(default="X-API-Key", description="Header for API key")
-    enable_api_key_auth: bool = Field(default=False, description="Enable API key authentication")
+    # API key authentication not implemented
 
 class PerformanceConfig(BaseModel):
     """Performance optimization settings"""
@@ -45,12 +44,9 @@ class LoggingConfig(BaseModel):
     )
     log_file: Optional[str] = Field(default=None, description="Log file path")
     enable_request_logging: bool = Field(default=True, description="Enable request/response logging")
-    enable_performance_logging: bool = Field(default=True, description="Enable performance metrics logging")
 
 class MonitoringConfig(BaseModel):
     """Monitoring and observability settings"""
-    enable_metrics: bool = Field(default=True, description="Enable metrics collection")
-    metrics_port: int = Field(default=9090, description="Port for metrics endpoint")
     enable_health_checks: bool = Field(default=True, description="Enable health check endpoints")
     enable_tracing: bool = Field(default=False, description="Enable distributed tracing")
     tracing_sample_rate: float = Field(default=0.1, description="Tracing sample rate (0.0-1.0)")
@@ -98,8 +94,7 @@ class Settings(BaseModel):
             settings.security.max_file_size_mb = int(os.getenv("MAX_FILE_SIZE_MB"))
         if os.getenv("RATE_LIMIT_REQUESTS"):
             settings.security.rate_limit_requests = int(os.getenv("RATE_LIMIT_REQUESTS"))
-        if os.getenv("ENABLE_API_KEY_AUTH"):
-            settings.security.enable_api_key_auth = os.getenv("ENABLE_API_KEY_AUTH").lower() == "true"
+        # API key auth not implemented
         if os.getenv("CORS_ORIGINS"):
             settings.security.cors_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS").split(",")]
 
@@ -142,10 +137,6 @@ class Settings(BaseModel):
             settings.ai.request_timeout = int(os.getenv("AI_REQUEST_TIMEOUT"))
 
         # Monitoring settings
-        if os.getenv("ENABLE_METRICS"):
-            settings.monitoring.enable_metrics = os.getenv("ENABLE_METRICS").lower() == "true"
-        if os.getenv("METRICS_PORT"):
-            settings.monitoring.metrics_port = int(os.getenv("METRICS_PORT"))
         if os.getenv("ENABLE_HEALTH_CHECKS"):
             settings.monitoring.enable_health_checks = os.getenv("ENABLE_HEALTH_CHECKS").lower() == "true"
         if os.getenv("ENABLE_TRACING"):
@@ -157,8 +148,6 @@ class Settings(BaseModel):
         if environment == "production":
             settings.debug = False
             settings.logging.log_level = os.getenv("LOG_LEVEL", "WARNING")
-            settings.security.enable_api_key_auth = True
-            settings.monitoring.enable_metrics = True
             settings.performance.enable_response_caching = True
 
         return settings

@@ -205,7 +205,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Skip cache for certain paths
-        skip_paths = ["/health", "/api/status", "/metrics"]
+        skip_paths = ["/health", "/api/status"]
         if any(request.url.path.startswith(path) for path in skip_paths):
             return await call_next(request)
 
