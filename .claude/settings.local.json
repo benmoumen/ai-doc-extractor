@@ -18,7 +18,10 @@
       "WebFetch(domain:docs.litellm.ai)",
       "Bash(pnpm run:*)",
       "Bash(cat:*)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "Bash(find:*)",
+      "Bash(chmod:*)",
+      "Bash(sudo rm:*)"
     ],
     "deny": [],
     "ask": []

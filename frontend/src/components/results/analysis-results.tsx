@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import React, { useState } from 'react'
+import React, { useState } from "react";
 import {
   FileText,
   Brain,
@@ -10,32 +10,38 @@ import {
   Edit3,
   AlertCircle,
   CheckCircle2,
-  TrendingUp
-} from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+  TrendingUp,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // Table components removed as they are not used in this view
 
-import { DocumentAnalysisResponse } from '@/types'
+import { DocumentAnalysisResponse } from "@/types";
 
 interface AnalysisResultsProps {
-  result: DocumentAnalysisResponse
-  onExport?: (format: string) => void
-  onEditField?: (fieldId: string, newValue: unknown) => void
-  onRetryAnalysis?: () => void
-  className?: string
+  result: DocumentAnalysisResponse;
+  onExport?: (format: string) => void;
+  onEditField?: (fieldId: string, newValue: unknown) => void;
+  onRetryAnalysis?: () => void;
+  className?: string;
 }
 
 export function AnalysisResults({
   result,
   onExport,
   onRetryAnalysis,
-  className
+  className,
 }: AnalysisResultsProps) {
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState("overview");
 
   if (!result.success) {
     return (
@@ -43,29 +49,35 @@ export function AnalysisResults({
         <CardContent className="pt-6">
           <div className="flex items-center space-x-3 text-red-600">
             <AlertCircle className="h-5 w-5" />
-            <span>Analysis failed: {result.errors?.[0] || 'Unknown error'}</span>
+            <span>
+              Analysis failed: {result.errors?.[0] || "Unknown error"}
+            </span>
           </div>
           {onRetryAnalysis && (
-            <Button onClick={onRetryAnalysis} variant="outline" className="mt-4">
+            <Button
+              onClick={onRetryAnalysis}
+              variant="outline"
+              className="mt-4"
+            >
               Retry Analysis
             </Button>
           )}
         </CardContent>
       </Card>
-    )
+    );
   }
 
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.8) return 'text-green-600'
-    if (confidence >= 0.6) return 'text-yellow-600'
-    return 'text-red-600'
-  }
+    if (confidence >= 0.8) return "text-green-600";
+    if (confidence >= 0.6) return "text-yellow-600";
+    return "text-red-600";
+  };
 
   const getConfidenceBadge = (confidence: number) => {
-    if (confidence >= 0.8) return 'default'
-    if (confidence >= 0.6) return 'secondary'
-    return 'destructive'
-  }
+    if (confidence >= 0.8) return "default";
+    if (confidence >= 0.6) return "secondary";
+    return "destructive";
+  };
 
   return (
     <Card className={className}>
@@ -81,8 +93,11 @@ export function AnalysisResults({
             </CardDescription>
           </div>
           <div className="flex items-center space-x-2">
-            <Badge variant={getConfidenceBadge(result.confidence.overall_confidence)}>
-              {Math.round(result.confidence.overall_confidence * 100)}% Confidence
+            <Badge
+              variant={getConfidenceBadge(result.confidence.overall_confidence)}
+            >
+              {Math.round(result.confidence.overall_confidence * 100)}%
+              Confidence
             </Badge>
             <Badge variant="outline">
               {result.confidence.confidence_level}
@@ -112,7 +127,8 @@ export function AnalysisResults({
                   {result.analysis.detected_document_type}
                 </div>
                 <div className="text-xs text-gray-500">
-                  {Math.round(result.analysis.document_type_confidence * 100)}% confidence
+                  {Math.round(result.analysis.document_type_confidence * 100)}%
+                  confidence
                 </div>
               </div>
 
@@ -138,7 +154,9 @@ export function AnalysisResults({
                   {result.schema.total_fields} fields
                 </div>
                 <div className="text-xs text-gray-500">
-                  {result.schema.production_ready ? 'Production Ready' : 'Needs Review'}
+                  {result.schema.production_ready
+                    ? "Production Ready"
+                    : "Needs Review"}
                 </div>
               </div>
 
@@ -150,9 +168,7 @@ export function AnalysisResults({
                 <div className="text-lg font-semibold">
                   {Math.round(result.analysis.overall_quality_score * 100)}%
                 </div>
-                <div className="text-xs text-gray-500">
-                  Overall quality
-                </div>
+                <div className="text-xs text-gray-500">Overall quality</div>
               </div>
             </div>
 
@@ -163,7 +179,9 @@ export function AnalysisResults({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span>Processing Time</span>
-                    <span className="font-medium">{result.total_processing_time.toFixed(1)}s</span>
+                    <span className="font-medium">
+                      {result.total_processing_time.toFixed(1)}s
+                    </span>
                   </div>
                   <Progress value={100} className="h-2" />
                 </div>
@@ -171,7 +189,11 @@ export function AnalysisResults({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span>Overall Confidence</span>
-                    <span className={`font-medium ${getConfidenceColor(result.confidence.overall_confidence)}`}>
+                    <span
+                      className={`font-medium ${getConfidenceColor(
+                        result.confidence.overall_confidence
+                      )}`}
+                    >
                       {Math.round(result.confidence.overall_confidence * 100)}%
                     </span>
                   </div>
@@ -189,7 +211,10 @@ export function AnalysisResults({
                 <h3 className="text-sm font-medium">Recommendations</h3>
                 <ul className="space-y-1">
                   {result.recommendations.map((rec, index) => (
-                    <li key={index} className="text-sm text-gray-600 flex items-start space-x-2">
+                    <li
+                      key={index}
+                      className="text-sm text-gray-600 flex items-start space-x-2"
+                    >
                       <CheckCircle2 className="h-3 w-3 text-blue-500 mt-0.5 flex-shrink-0" />
                       <span>{rec}</span>
                     </li>
@@ -210,8 +235,9 @@ export function AnalysisResults({
 
             {/* This would be populated with actual field data from the analysis */}
             <div className="text-sm text-gray-500">
-              Field data would be displayed here when available from the analysis results.
-              The backend provides detailed field information in get_analysis_results().
+              Field data would be displayed here when available from the
+              analysis results. The backend provides detailed field information
+              in get_analysis_results().
             </div>
           </TabsContent>
 
@@ -239,15 +265,27 @@ export function AnalysisResults({
                     </div>
                     <div>
                       <span className="font-medium">Total Fields:</span>
-                      <div className="text-gray-600">{result.schema.total_fields}</div>
+                      <div className="text-gray-600">
+                        {result.schema.total_fields}
+                      </div>
                     </div>
                     <div>
-                      <span className="font-medium">High Confidence Fields:</span>
-                      <div className="text-gray-600">{result.schema.high_confidence_fields}</div>
+                      <span className="font-medium">
+                        High Confidence Fields:
+                      </span>
+                      <div className="text-gray-600">
+                        {result.schema.high_confidence_fields}
+                      </div>
                     </div>
                     <div>
-                      <span className="font-medium">Generation Confidence:</span>
-                      <div className={`${getConfidenceColor(result.schema.generation_confidence)}`}>
+                      <span className="font-medium">
+                        Generation Confidence:
+                      </span>
+                      <div
+                        className={`${getConfidenceColor(
+                          result.schema.generation_confidence
+                        )}`}
+                      >
                         {Math.round(result.schema.generation_confidence * 100)}%
                       </div>
                     </div>
@@ -256,12 +294,14 @@ export function AnalysisResults({
                   <div>
                     <span className="font-medium text-sm">Description:</span>
                     <div className="text-sm text-gray-600 mt-1">
-                      {result.schema.description || 'No description available'}
+                      {result.schema.description || "No description available"}
                     </div>
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium">Production Ready:</span>
+                    <span className="text-sm font-medium">
+                      Production Ready:
+                    </span>
                     {result.schema.production_ready ? (
                       <Badge variant="default">
                         <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -303,7 +343,9 @@ export function AnalysisResults({
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">Model Used</span>
-                        <Badge variant="outline">{result.analysis.model_used}</Badge>
+                        <Badge variant="outline">
+                          {result.analysis.model_used}
+                        </Badge>
                       </div>
                       <div className="text-xs text-gray-500">
                         AI processing model
@@ -318,7 +360,8 @@ export function AnalysisResults({
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">File Size</span>
                         <span className="text-sm font-medium">
-                          {(result.document.file_size / 1024 / 1024).toFixed(1)}MB
+                          {(result.document.file_size / 1024 / 1024).toFixed(1)}
+                          MB
                         </span>
                       </div>
                       <div className="text-xs text-gray-500">
@@ -331,7 +374,8 @@ export function AnalysisResults({
 
               {/* Stage breakdown would go here */}
               <div className="text-sm text-gray-500">
-                Detailed stage performance metrics available in processing_stages data.
+                Detailed stage performance metrics available in
+                processing_stages data.
               </div>
             </div>
           </TabsContent>
@@ -350,15 +394,27 @@ export function AnalysisResults({
           <div className="flex space-x-2">
             {onExport && (
               <>
-                <Button variant="outline" size="sm" onClick={() => onExport('json')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onExport("json")}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   JSON
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => onExport('csv')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onExport("csv")}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   CSV
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => onExport('pdf')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onExport("pdf")}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   PDF
                 </Button>
@@ -368,5 +424,5 @@ export function AnalysisResults({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

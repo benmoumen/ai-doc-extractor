@@ -48,44 +48,8 @@ export function SchemaSelector({
   const [extractionMode, setExtractionMode] = useState<"schema" | "ai">("schema");
   const [searchValue, setSearchValue] = useState("");
 
-  // Mock schemas for demonstration (replace with actual API call)
-  const defaultSchemas: Schema[] =
-    schemas.length > 0
-      ? schemas
-      : [
-          {
-            id: "invoice",
-            name: "Invoice",
-            description: "Standard invoice extraction",
-            category: "Financial",
-            fields_count: 15,
-            last_used: "2 hours ago",
-          },
-          {
-            id: "passport",
-            name: "Passport",
-            description: "International passport data",
-            category: "Identity",
-            fields_count: 12,
-            last_used: "1 day ago",
-          },
-          {
-            id: "receipt",
-            name: "Receipt",
-            description: "Retail receipt extraction",
-            category: "Financial",
-            fields_count: 8,
-            last_used: "3 days ago",
-          },
-          {
-            id: "contract",
-            name: "Contract",
-            description: "Legal contract analysis",
-            category: "Legal",
-            fields_count: 20,
-            last_used: "1 week ago",
-          },
-        ];
+  // Use only provided schemas - no fallback defaults
+  const availableSchemas: Schema[] = schemas;
 
   const handleModeChange = (mode: string) => {
     setExtractionMode(mode as "schema" | "ai");
@@ -107,12 +71,12 @@ export function SchemaSelector({
     }
   };
 
-  const selectedSchemaData = defaultSchemas.find(
+  const selectedSchemaData = availableSchemas.find(
     (s) => s.id === selectedSchema
   );
 
   // Group schemas by category
-  const groupedSchemas = defaultSchemas.reduce((acc, schema) => {
+  const groupedSchemas = availableSchemas.reduce((acc, schema) => {
     const category = schema.category || "Other";
     if (!acc[category]) acc[category] = [];
     acc[category].push(schema);

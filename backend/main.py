@@ -530,9 +530,7 @@ async def get_schema_details(schema_id: str):
 
 @app.post("/api/documents")
 async def upload_document(
-    file: UploadFile = File(...),
-    model: Optional[str] = Form(None),
-    document_type_hint: Optional[str] = Form(None)
+    file: UploadFile = File(...)
 ):
     """Upload document and return basic metadata - no AI analysis at this stage"""
     try:

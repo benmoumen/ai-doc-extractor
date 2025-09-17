@@ -724,7 +724,8 @@ export function SchemaGenerator({
 
       {/* Progress Display */}
       {isGenerating && (
-        <Card ref={progressSectionRef}>
+        <div ref={progressSectionRef}>
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -769,6 +770,7 @@ export function SchemaGenerator({
             </div>
           </CardContent>
         </Card>
+        </div>
       )}
 
       {/* Results */}

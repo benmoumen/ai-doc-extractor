@@ -65,11 +65,7 @@ export class APIClient {
         errorMessage = `HTTP ${response.status} error`;
       }
 
-      throw new APIError(
-        errorMessage,
-        response.status,
-        response
-      );
+      throw new APIError(errorMessage, response.status, response);
     }
 
     const contentType = response.headers.get("content-type");
@@ -78,33 +74,6 @@ export class APIClient {
     } else {
       throw new APIError("Expected JSON response from API");
     }
-  }
-
-  /**
-   * Upload and analyze document using existing AISchemaGenerationAPI
-   * Calls POST /api/documents endpoint which uses AISchemaGenerationAPI.analyze_document()
-   */
-  async uploadDocument(
-    request: DocumentUploadRequest
-  ): Promise<DocumentAnalysisResponse> {
-    const formData = new FormData();
-    formData.append("file", request.file);
-
-    if (request.model) {
-      formData.append("model", request.model);
-    }
-
-    if (request.document_type_hint) {
-      formData.append("document_type_hint", request.document_type_hint);
-    }
-
-    const response = await fetch(`${this.baseURL}/api/documents`, {
-      method: "POST",
-      body: formData,
-      // Don't set Content-Type header - let browser set it for multipart/form-data
-    });
-
-    return this.handleResponse<DocumentAnalysisResponse>(response);
   }
 
   /**
@@ -324,14 +293,6 @@ export async function uploadDocumentWithProgress(
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append("file", request.file);
-
-    if (request.model) {
-      formData.append("model", request.model);
-    }
-
-    if (request.document_type_hint) {
-      formData.append("document_type_hint", request.document_type_hint);
-    }
 
     const xhr = new XMLHttpRequest();
 
