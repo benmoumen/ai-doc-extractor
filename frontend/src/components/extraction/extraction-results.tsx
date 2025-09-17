@@ -50,6 +50,7 @@ export interface ExtractedField {
     isValid: boolean;
     errors?: string[];
   };
+  notes?: string;
   metadata?: {
     originalValue?: unknown;
     pageNumber?: number;

@@ -663,41 +663,31 @@ export function ExtractionWorkflow() {
           processingTime:
             result.metadata?.processing_time || clientSideProcessingTime,
           confidence: overallConfidence, // Keep original scale (0-100)
-          extractedFields: result.extracted_data?.structured_data
-            ? Object.entries(result.extracted_data.structured_data).map(
-                ([key, value]) => ({
+          extractedFields: result.extracted_data?.structured_data?.extracted_fields
+            ? Object.entries(result.extracted_data.structured_data.extracted_fields).map(
+                ([key, fieldData]) => ({
                   id: key,
                   name: key,
                   displayName: key
                     .replace(/_/g, " ")
                     .replace(/\b\w/g, (l) => l.toUpperCase()),
-                  // Preserve structured values for arrays/objects; stringify primitives safely
-                  value:
-                    Array.isArray(value) ||
-                    (value !== null && typeof value === "object")
-                      ? value
-                      : value != null
-                      ? String(value)
-                      : "",
-                  // Infer accurate type including objects
-                  type: Array.isArray(value)
-                    ? "array"
-                    : value !== null && typeof value === "object"
-                    ? "object"
-                    : typeof value === "number"
-                    ? "number"
-                    : typeof value === "boolean"
-                    ? "boolean"
-                    : "string",
-                  // Use actual field confidence if available, otherwise use overall confidence
-                  confidence:
-                    fieldConfidence[key] !== undefined
-                      ? fieldConfidence[key] // Keep original scale (0-100), including 0
-                      : overallConfidence,
+                  // Extract value from nested field structure
+                  value: fieldData && typeof fieldData === "object" && "value" in fieldData
+                    ? String(fieldData.value || "")
+                    : String(fieldData || ""),
+                  type: "string", // Individual fields are typically strings
+                  // Use field-specific confidence if available
+                  confidence: fieldData && typeof fieldData === "object" && "confidence" in fieldData
+                    ? fieldData.confidence
+                    : overallConfidence,
                   validation: {
                     isValid: result.validation?.passed ?? true,
                     errors: result.validation?.errors || [],
                   },
+                  // Add extraction notes if available
+                  notes: fieldData && typeof fieldData === "object" && "extraction_notes" in fieldData
+                    ? fieldData.extraction_notes
+                    : undefined,
                 })
               )
             : [

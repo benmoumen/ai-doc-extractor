@@ -6,12 +6,8 @@
 import {
   DocumentUploadRequest,
   DocumentAnalysisResponse,
-  AnalysisResultsResponse,
   SchemaDetailsResponse,
-  ServiceStatusResponse,
   SupportedModelsResponse,
-  RetryAnalysisResponse,
-  RetryAnalysisRequest,
   AvailableSchemasResponse,
   ExtractDataResponse,
   SchemaGenerationResponse,
@@ -76,22 +72,7 @@ export class APIClient {
     }
   }
 
-  /**
-   * Get complete analysis results by ID
-   * Calls GET /api/analysis/{id} endpoint which uses AISchemaGenerationAPI.get_analysis_results()
-   */
-  async getAnalysisResults(
-    analysisId: string
-  ): Promise<AnalysisResultsResponse> {
-    const response = await fetch(`${this.baseURL}/api/analysis/${analysisId}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    return this.handleResponse<AnalysisResultsResponse>(response);
-  }
+  // Analysis results tracking removed - not implemented in backend
 
   /**
    * Get complete schema details
@@ -108,31 +89,7 @@ export class APIClient {
     return this.handleResponse<SchemaDetailsResponse>(response);
   }
 
-  /**
-   * Retry analysis with different model or parameters
-   * Calls POST /api/analysis/{id}/retry endpoint which uses AISchemaGenerationAPI.retry_analysis()
-   */
-  async retryAnalysis(
-    request: RetryAnalysisRequest
-  ): Promise<RetryAnalysisResponse> {
-    const body = {
-      document_id: request.document_id,
-      ...(request.model && { model: request.model }),
-    };
-
-    const response = await fetch(
-      `${this.baseURL}/api/analysis/${request.analysis_id}/retry`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      }
-    );
-
-    return this.handleResponse<RetryAnalysisResponse>(response);
-  }
+  // Analysis retry functionality removed - not implemented in backend
 
   /**
    * Get list of supported AI models
@@ -164,20 +121,8 @@ export class APIClient {
     return this.handleResponse<AvailableSchemasResponse>(response);
   }
 
-  /**
-   * Get status of all backend services
-   * Calls GET /api/status endpoint which uses AISchemaGenerationAPI.get_service_status()
-   */
-  async getServiceStatus(): Promise<ServiceStatusResponse> {
-    const response = await fetch(`${this.baseURL}/api/status`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    return this.handleResponse<ServiceStatusResponse>(response);
-  }
+  // Service status endpoint removed - not implemented in backend
+  // Use healthCheck() instead for basic health monitoring
 
   /**
    * Extract data from document using focused extraction endpoint
@@ -333,45 +278,5 @@ export async function uploadDocumentWithProgress(
   });
 }
 
-/**
- * Poll for analysis progress (for real-time updates)
- */
-export async function pollAnalysisProgress(
-  analysisId: string,
-  onProgress: (progress: AnalysisResultsResponse) => void,
-  intervalMs: number = 2000
-): Promise<() => void> {
-  let isPolling = true;
-
-  const poll = async () => {
-    while (isPolling) {
-      try {
-        const result = await apiClient.getAnalysisResults(analysisId);
-        onProgress(result);
-
-        // Stop polling if analysis is completed or failed
-        if (
-          result.success === false ||
-          (result.analysis &&
-            ["completed", "failed"].includes(result.analysis.id))
-        ) {
-          break;
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, intervalMs));
-      } catch (error) {
-        console.error("Error polling analysis progress:", error);
-        // Continue polling on error, but with longer interval
-        await new Promise((resolve) => setTimeout(resolve, intervalMs * 2));
-      }
-    }
-  };
-
-  // Start polling
-  poll();
-
-  // Return stop function
-  return () => {
-    isPolling = false;
-  };
-}
+// Analysis progress polling removed - not implemented in backend
+// Current backend uses synchronous processing without polling
