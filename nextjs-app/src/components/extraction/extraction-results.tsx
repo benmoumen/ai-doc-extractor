@@ -9,8 +9,6 @@ import {
   Save,
   X,
   AlertCircle,
-  Eye,
-  EyeOff,
   Sparkles,
   Shield,
   ShieldAlert,
@@ -30,12 +28,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   Card,
   CardContent,
