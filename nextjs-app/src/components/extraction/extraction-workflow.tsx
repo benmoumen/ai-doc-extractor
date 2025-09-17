@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   FileText,
-  Upload,
+  // Upload,
   Loader2,
   CheckCircle,
   AlertCircle,
-  ArrowRight,
+  // ArrowRight,
   RefreshCw,
   Download,
   Sparkles,
@@ -15,7 +16,7 @@ import {
   Eye,
   Code,
   Settings,
-  X,
+  // X,
   ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -296,6 +297,11 @@ export function ExtractionWorkflow() {
             ? "schema"
             : "ai";
 
+        // Get confidence scores from the response
+        const fieldConfidence = result.extracted_data?.field_confidence || {};
+        const overallConfidence = result.extracted_data?.overall_confidence ||
+                                  result.metadata?.overall_confidence || 75;
+
         const extractionResult: ExtractionResult = {
           id: `extraction_${Date.now()}`,
           documentType: result.metadata?.file_type || "document",
@@ -303,7 +309,7 @@ export function ExtractionWorkflow() {
           schemaUsed: result.metadata?.schema_id || selectedSchema,
           processingTime:
             result.metadata?.processing_time || clientSideProcessingTime,
-          confidence: result.validation?.passed ? 0.9 : 0.7,
+          confidence: overallConfidence / 100, // Convert to 0-1 scale
           extractedFields: result.extracted_data?.structured_data
             ? Object.entries(result.extracted_data.structured_data).map(
                 ([key, value], index) => ({
@@ -329,7 +335,10 @@ export function ExtractionWorkflow() {
                     : typeof value === "boolean"
                     ? "boolean"
                     : "string",
-                  confidence: result.validation?.passed ? 0.9 : 0.7,
+                  // Use actual field confidence if available, otherwise use overall confidence
+                  confidence: fieldConfidence[key]
+                    ? fieldConfidence[key] / 100  // Convert from 0-100 to 0-1 scale
+                    : overallConfidence / 100,
                   source: "ai",
                   validation: {
                     isValid: result.validation?.passed ?? true,
@@ -347,7 +356,7 @@ export function ExtractionWorkflow() {
                     result.extracted_data?.raw_content ||
                     "No content extracted",
                   type: "string",
-                  confidence: result.validation?.passed ? 0.9 : 0.7,
+                  confidence: overallConfidence / 100, // Use overall confidence for raw content
                   source: "ai",
                   validation: {
                     isValid: result.validation?.passed ?? true,
@@ -359,7 +368,34 @@ export function ExtractionWorkflow() {
             result.validation?.errors?.map(
               (error: string) => `Validation warning: ${error}`
             ) || [],
-          suggestions: [],
+          suggestions: (() => {
+            const suggestions = [];
+            const docQuality = result.extracted_data?.document_quality ||
+                              result.metadata?.document_quality;
+
+            // Add suggestions based on document quality
+            if (docQuality === "low") {
+              suggestions.push("Document quality is low. Consider uploading a higher resolution image for better extraction accuracy.");
+            }
+
+            // Add suggestions based on confidence levels
+            if (overallConfidence < 50) {
+              suggestions.push("Overall extraction confidence is low. Manual review of all fields is strongly recommended.");
+            } else if (overallConfidence < 70) {
+              suggestions.push("Some fields have low confidence scores. Please review highlighted fields carefully.");
+            }
+
+            // Check for fields with very low confidence
+            const lowConfidenceFields = Object.entries(fieldConfidence)
+              .filter(([_, conf]) => conf < 50)
+              .map(([field, _]) => field);
+
+            if (lowConfidenceFields.length > 0) {
+              suggestions.push(`Fields with low confidence: ${lowConfidenceFields.join(", ")}. These may require manual correction.`);
+            }
+
+            return suggestions;
+          })(),
         };
 
         setExtractionResult(extractionResult);
@@ -859,10 +895,13 @@ export function ExtractionWorkflow() {
                             </div>
                           </div>
                         ) : (
-                          <img
+                          <Image
                             src={documentPreview || ""}
                             alt="Document preview"
+                            width={1200}
+                            height={800}
                             className="w-full h-auto"
+                            unoptimized
                           />
                         )}
                       </div>

@@ -233,7 +233,32 @@ def create_extraction_prompt(schema_id: Optional[str] = None) -> str:
     """Create extraction prompt based on schema, with enhanced support for AI-generated schemas"""
     base_prompt = """Extract all text, data, and structure from this document image.
 Analyze the document and organize the information into logical fields.
-Return the data as structured JSON with clear field names and values.
+
+For each extracted field, provide:
+1. The field value
+2. A confidence score (0-100) indicating extraction certainty
+3. Any extraction notes or issues
+
+Return the data as structured JSON in this format:
+{
+  "extracted_fields": {
+    "field_name": {
+      "value": "extracted value",
+      "confidence": 85,
+      "extraction_notes": "any issues or uncertainties"
+    }
+  },
+  "overall_confidence": 75,
+  "document_quality": "high|medium|low",
+  "extraction_issues": ["list of any general issues"]
+}
+
+Confidence scoring guidelines:
+- 90-100: Very clear, unambiguous extraction
+- 70-89: Clear but minor uncertainties (e.g., slight blur, formatting variations)
+- 50-69: Readable but significant uncertainties (e.g., partial occlusion, handwriting)
+- 30-49: Difficult extraction, multiple interpretations possible
+- 0-29: Very uncertain, mostly guessing
 
 Focus on:
 - Key-value pairs (labels and their corresponding values)
@@ -287,16 +312,32 @@ This appears to be a {schema['name']} document. Extract the following specific f
             elif difficulty == 'easy':
                 schema_prompt += "This document has a straightforward layout.\n"
 
-        # Final instructions
+        # Final instructions with confidence scoring
         schema_prompt += f"""
-CRITICAL: Return ONLY a JSON object with these EXACT field names: {list(schema['fields'].keys())}
-Each field must be a simple string or number value, NOT an object or array.
-For missing fields, use empty string "" or null.
-Do not include any explanatory text - respond with valid JSON only."""
+
+CRITICAL: Return a JSON object with this structure:
+{{
+  "extracted_fields": {{
+    {', '.join([f'"{field}": {{"value": "extracted value", "confidence": 0-100, "extraction_notes": "optional notes"}}' for field in list(schema['fields'].keys())[:1]])}
+    // ... continue for all fields: {list(schema['fields'].keys())}
+  }},
+  "overall_confidence": 0-100,
+  "document_quality": "high|medium|low",
+  "extraction_issues": []
+}}
+
+Each field MUST include:
+- value: The extracted value (string/number)
+- confidence: Score 0-100 based on extraction certainty
+- extraction_notes: Any issues or uncertainties (optional)
+
+For missing/unreadable fields: {{"value": "", "confidence": 0, "extraction_notes": "field not found"}}"""
 
         return base_prompt + schema_prompt
 
-    return base_prompt + "\n\nReturn ONLY a valid JSON object with descriptive field names. Do not include any explanatory text."
+    return base_prompt + """\n
+Return a JSON object with extracted_fields containing each detected field with value, confidence, and extraction_notes.
+Include overall_confidence, document_quality, and extraction_issues."""
 
 def create_initial_detection_prompt() -> str:
     """Step 1: Initial Schema Detection"""
@@ -632,31 +673,69 @@ async def extract_data(
         }
         is_json, parsed_data, formatted_text = extract_json_from_text(raw_content)
 
+        # Process the new confidence-aware response structure
+        structured_data = {}
+        field_confidence = {}
+        overall_confidence = 75  # Default fallback
+        document_quality = "medium"  # Default fallback
+        extraction_issues = []
+
+        if is_json and parsed_data:
+            # Check if response has the new confidence structure
+            if "extracted_fields" in parsed_data:
+                # New structure with confidence scores
+                extracted_fields = parsed_data.get("extracted_fields", {})
+                for field_name, field_data in extracted_fields.items():
+                    if isinstance(field_data, dict):
+                        structured_data[field_name] = field_data.get("value", "")
+                        field_confidence[field_name] = field_data.get("confidence", 75)
+                    else:
+                        # Fallback for simple values
+                        structured_data[field_name] = field_data
+                        field_confidence[field_name] = 75
+
+                overall_confidence = parsed_data.get("overall_confidence", 75)
+                document_quality = parsed_data.get("document_quality", "medium")
+                extraction_issues = parsed_data.get("extraction_issues", [])
+            else:
+                # Legacy structure without confidence - use parsed data as is
+                structured_data = parsed_data
+                # Estimate confidence based on validation
+                for field_name in parsed_data.keys():
+                    field_confidence[field_name] = 75  # Default confidence for legacy
+
         # Validate against schema if provided
         validation_results = {"passed": True, "errors": []}
-        if schema_id and schema_id in SCHEMAS and is_json and parsed_data:
+        if schema_id and schema_id in SCHEMAS and structured_data:
             schema = SCHEMAS[schema_id]
             for field_name, field_info in schema["fields"].items():
-                if field_info.get("required") and field_name not in parsed_data:
+                if field_info.get("required") and field_name not in structured_data:
                     validation_results["errors"].append(f"Required field '{field_name}' is missing")
                     validation_results["passed"] = False
 
                 # Validate field value is not an object (should be simple values)
-                if field_name in parsed_data:
-                    field_value = parsed_data[field_name]
+                if field_name in structured_data:
+                    field_value = structured_data[field_name]
                     if isinstance(field_value, (dict, list)):
                         validation_results["errors"].append(f"Field '{field_name}' should be a simple value, not an object/array")
                         validation_results["passed"] = False
                         # Convert object to string representation for debugging
-                        parsed_data[field_name] = str(field_value) if field_value else ""
+                        structured_data[field_name] = str(field_value) if field_value else ""
+
+        # Add extraction issues to validation errors
+        if extraction_issues:
+            validation_results["errors"].extend(extraction_issues)
 
         return {
             "success": True,
             "extracted_data": {
                 "raw_content": raw_content,
                 "formatted_text": formatted_text,
-                "structured_data": parsed_data if is_json else None,
-                "is_structured": is_json
+                "structured_data": structured_data if is_json else None,
+                "is_structured": is_json,
+                "field_confidence": field_confidence,
+                "overall_confidence": overall_confidence,
+                "document_quality": document_quality
             },
             "validation": validation_results,
             "metadata": {
@@ -664,7 +743,9 @@ async def extract_data(
                 "file_type": file_type,
                 "model_used": f"{provider_id} - {model_id}",
                 "extraction_mode": "schema_guided" if schema_id else "freeform",
-                "schema_used": schema_id
+                "schema_used": schema_id,
+                "overall_confidence": overall_confidence,
+                "document_quality": document_quality
             },
             "debug": {
                 "completion_params": completion_params,
