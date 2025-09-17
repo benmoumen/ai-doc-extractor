@@ -523,159 +523,20 @@ export function ExtractionWorkflow() {
     });
   };
 
-  const handleExport = (format: "json" | "csv" | "excel") => {
+  const handleExport = () => {
     if (!extractionResult) return;
 
-    if (format === "json") {
-      // Export the complete extraction result object
-      const blob = new Blob([JSON.stringify(extractionResult, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `extraction-${extractionResult.id}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Complete extraction data exported as JSON");
-    } else if (format === "csv") {
-      // Create CSV content
-      const headers = [
-        "Field Name",
-        "Value",
-        "Type",
-        "Confidence",
-        "Valid",
-      ];
-      const rows = extractionResult.extractedFields.map((field) => {
-        const val =
-          field.type === "object" || field.type === "array"
-            ? JSON.stringify(field.value)
-            : field.value?.toString() || "";
-        const conf =
-          typeof field.confidence === "number"
-            ? (field.confidence * 100).toFixed(1) + "%"
-            : "";
-        const valid =
-          field.validation?.isValid === true
-            ? "Yes"
-            : field.validation?.isValid === false
-            ? "No"
-            : "";
-        return [
-          field.displayName,
-          val,
-          field.type,
-          conf,
-          valid,
-        ];
-      });
-
-      const csvContent = [
-        headers.join(","),
-        ...rows.map((row) =>
-          row
-            .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
-            .join(",")
-        ),
-      ].join("\n");
-
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `extraction-${extractionResult.id}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Data exported as CSV");
-    } else if (format === "excel") {
-      // Create a basic Excel-compatible CSV with metadata
-      const headers = [
-        "Field Name",
-        "Value",
-        "Type",
-        "Confidence",
-        "Valid",
-        "Display Name",
-      ];
-      const metadataRows = [
-        ["Document Type", extractionResult.documentType, "", "", "", ""],
-        [
-          "Extraction Mode",
-          extractionResult.extractionMode,
-          "",
-          "",
-          "",
-          "",
-        ],
-        [
-          "Processing Time",
-          `${extractionResult.processingTime?.toFixed(2)}s`,
-          "",
-          "",
-          "",
-          "",
-        ],
-        [
-          "Overall Confidence",
-          `${((extractionResult.confidence ?? 0) * 100).toFixed(1)}%`,
-          "",
-          "",
-          "",
-          "",
-        ],
-        ["", "", "", "", "", ""], // Empty row
-      ];
-      const fieldRows = extractionResult.extractedFields.map((field) => {
-        const val =
-          field.type === "object" || field.type === "array"
-            ? JSON.stringify(field.value)
-            : field.value?.toString() || "";
-        const conf =
-          typeof field.confidence === "number"
-            ? (field.confidence * 100).toFixed(1) + "%"
-            : "";
-        const valid =
-          field.validation?.isValid === true
-            ? "Yes"
-            : field.validation?.isValid === false
-            ? "No"
-            : "";
-        return [
-          field.name,
-          val,
-          field.type,
-          conf,
-          valid,
-          field.displayName,
-        ];
-      });
-
-      const excelContent = [
-        headers.join(","),
-        ...metadataRows.map((row) =>
-          row
-            .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
-            .join(",")
-        ),
-        ...fieldRows.map((row) =>
-          row
-            .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
-            .join(",")
-        ),
-      ].join("\n");
-
-      const blob = new Blob([excelContent], {
-        type: "application/vnd.ms-excel",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `extraction-${extractionResult.id}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Data exported for Excel");
-    }
+    // Export the complete extraction result object as JSON
+    const blob = new Blob([JSON.stringify(extractionResult, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `extraction-${extractionResult.id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Extraction data exported as JSON");
   };
 
   const handleReset = () => {

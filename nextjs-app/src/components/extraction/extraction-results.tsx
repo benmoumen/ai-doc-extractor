@@ -104,7 +104,7 @@ export interface ExtractionResult {
 interface ExtractionResultsProps {
   result: ExtractionResult;
   onFieldUpdate?: (fieldId: string, newValue: unknown) => void;
-  onExport?: (format: "json" | "csv" | "excel") => void;
+  onExport?: () => void;
   className?: string;
 }
 
@@ -170,7 +170,6 @@ export function ExtractionResults({
       </Badge>
     );
   };
-
 
   const getVerificationIcon = (riskLevel?: string) => {
     switch (riskLevel) {
@@ -316,9 +315,9 @@ export function ExtractionResults({
           </div>
           <div className="flex items-center gap-2">
             {onExport && (
-              <Button size="sm" onClick={() => onExport("json")}>
+              <Button size="sm" onClick={onExport}>
                 <Download className="h-4 w-4 mr-1" />
-                Export
+                Export Data
               </Button>
             )}
           </div>
@@ -409,9 +408,14 @@ export function ExtractionResults({
                       </Label>
                       <div className="flex items-center gap-2">
                         {(() => {
-                          const expected = result.verification.expected_document_type?.toLowerCase() || "";
-                          const detected = result.verification.detected_document_type?.toLowerCase() || "";
-                          const isMatch = expected && detected && expected === detected;
+                          const expected =
+                            result.verification.expected_document_type?.toLowerCase() ||
+                            "";
+                          const detected =
+                            result.verification.detected_document_type?.toLowerCase() ||
+                            "";
+                          const isMatch =
+                            expected && detected && expected === detected;
 
                           return (
                             <>
@@ -420,7 +424,10 @@ export function ExtractionResults({
                               ) : (
                                 <X className="h-4 w-4 text-red-500" />
                               )}
-                              <Badge variant={isMatch ? "default" : "destructive"} className="text-xs">
+                              <Badge
+                                variant={isMatch ? "default" : "destructive"}
+                                className="text-xs"
+                              >
                                 {isMatch ? "Match" : "Mismatch"}
                               </Badge>
                             </>
