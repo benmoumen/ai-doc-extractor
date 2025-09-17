@@ -235,11 +235,19 @@ export interface AvailableSchemasResponse {
 // Extract data response from POST /api/extract
 export interface ExtractDataResponse {
   success: boolean
+  // Optional error/message fields when success is false
+  error?: string
+  message?: string
   extracted_data: {
     raw_content: string
     formatted_text: string
     structured_data: Record<string, JSONValue> | null
     is_structured: boolean
+    // Optional fields returned by backend for per-field and overall confidence
+    field_confidence?: Record<string, number>
+    overall_confidence?: number
+    // Optional document quality indicator
+    document_quality?: "high" | "medium" | "low"
   }
   validation: {
     passed: boolean
@@ -251,6 +259,12 @@ export interface ExtractDataResponse {
     model_used: string
     extraction_mode: 'schema_guided' | 'freeform'
     schema_used?: string | null
+    // Some backends return schema_id instead of schema_used
+    schema_id?: string | null
+    // Optional mirror of overall confidence (some backends put it in metadata)
+    overall_confidence?: number
+    // Optional document quality indicator
+    document_quality?: "high" | "medium" | "low"
   }
   debug: {
     completion_params: {

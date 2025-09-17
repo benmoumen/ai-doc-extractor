@@ -138,20 +138,25 @@ export function ExtractionResults({
       setCopiedField(field.id);
       setTimeout(() => setCopiedField(null), 2000);
       toast.success("Copied to clipboard");
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Failed to copy");
     }
   };
 
   const handleCopyAll = async () => {
-    const data = result.extractedFields.reduce<Record<string, unknown>>((acc, field) => {
-      acc[field.name] = field.value;
-      return acc;
-    }, {});
+    const data = result.extractedFields.reduce<Record<string, unknown>>(
+      (acc, field) => {
+        acc[field.name] = field.value;
+        return acc;
+      },
+      {}
+    );
 
     try {
       await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
       toast.success("All data copied to clipboard");
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Failed to copy data");
     }
@@ -311,9 +316,7 @@ export function ExtractionResults({
       <CardContent>
         <Tabs
           value={viewMode}
-          onValueChange={(v) =>
-            setViewMode(v as "table" | "json" | "grouped")
-          }
+          onValueChange={(v) => setViewMode(v as "table" | "json" | "grouped")}
         >
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="table">Table</TabsTrigger>

@@ -94,7 +94,12 @@ export function ExtractionWorkflow() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [selectedSchema, setSelectedSchema] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
-  type MinimalModel = { id: string; name: string; provider?: string; model?: string };
+  type MinimalModel = {
+    id: string;
+    name: string;
+    provider?: string;
+    model?: string;
+  };
   const [availableModels, setAvailableModels] = useState<MinimalModel[]>([]);
   const [useAI, setUseAI] = useState(true);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -103,7 +108,16 @@ export function ExtractionWorkflow() {
     useState<ExtractionResult | null>(null);
   const [extractionProgress, setExtractionProgress] = useState(0);
   const [availableSchemas, setAvailableSchemas] = useState<
-    Record<string, { id: string; name?: string; display_name?: string; description?: string; category?: string }>
+    Record<
+      string,
+      {
+        id: string;
+        name?: string;
+        display_name?: string;
+        description?: string;
+        category?: string;
+      }
+    >
   >({});
   const [selectedSchemaDetails, setSelectedSchemaDetails] =
     useState<SelectedSchemaDetails | null>(null);
@@ -136,7 +150,16 @@ export function ExtractionWorkflow() {
         const response = await apiClient.getAvailableSchemas();
         if (response.success && response.schemas) {
           setAvailableSchemas(
-            response.schemas as Record<string, { id: string; name?: string; display_name?: string; description?: string; category?: string }>
+            response.schemas as Record<
+              string,
+              {
+                id: string;
+                name?: string;
+                display_name?: string;
+                description?: string;
+                category?: string;
+              }
+            >
           );
         }
       } catch (error) {
@@ -297,23 +320,28 @@ export function ExtractionWorkflow() {
             ? "schema"
             : "ai";
 
-        // Get confidence scores from the response
+        // Get confidence scores from the response (optional fields from backend)
+        type ExtendedExtractedData = typeof result.extracted_data & {
+          field_confidence?: Record<string, number>;
+          overall_confidence?: number;
+        };
+        const ed = (result.extracted_data || {}) as ExtendedExtractedData;
         const fieldConfidence: Record<string, number> =
-          (result.extracted_data?.field_confidence as Record<string, number>) || {};
-        const overallConfidence = result.extracted_data?.overall_confidence ||
-                                  result.metadata?.overall_confidence || 75;
+          ed.field_confidence ?? {};
+        const overallConfidence =
+          ed.overall_confidence ?? result.metadata?.overall_confidence ?? 75;
 
         const extractionResult: ExtractionResult = {
           id: `extraction_${Date.now()}`,
           documentType: result.metadata?.file_type || "document",
           extractionMode: normalizedMode,
-          schemaUsed: result.metadata?.schema_id || selectedSchema,
+          schemaUsed: result.metadata?.schema_id ?? selectedSchema ?? undefined,
           processingTime:
             result.metadata?.processing_time || clientSideProcessingTime,
           confidence: overallConfidence / 100, // Convert to 0-1 scale
           extractedFields: result.extracted_data?.structured_data
             ? Object.entries(result.extracted_data.structured_data).map(
-                ([key, value], index) => ({
+                ([key, value]) => ({
                   id: key,
                   name: key,
                   displayName: key
@@ -321,7 +349,8 @@ export function ExtractionWorkflow() {
                     .replace(/\b\w/g, (l) => l.toUpperCase()),
                   // Preserve structured values for arrays/objects; stringify primitives safely
                   value:
-                    Array.isArray(value) || (value !== null && typeof value === "object")
+                    Array.isArray(value) ||
+                    (value !== null && typeof value === "object")
                       ? value
                       : value != null
                       ? String(value)
@@ -338,7 +367,7 @@ export function ExtractionWorkflow() {
                     : "string",
                   // Use actual field confidence if available, otherwise use overall confidence
                   confidence: fieldConfidence[key]
-                    ? fieldConfidence[key] / 100  // Convert from 0-100 to 0-1 scale
+                    ? fieldConfidence[key] / 100 // Convert from 0-100 to 0-1 scale
                     : overallConfidence / 100,
                   source: "ai",
                   validation: {
@@ -371,28 +400,41 @@ export function ExtractionWorkflow() {
             ) || [],
           suggestions: (() => {
             const suggestions = [];
-            const docQuality = result.extracted_data?.document_quality ||
-                              result.metadata?.document_quality;
+            const docQuality =
+              result.extracted_data?.document_quality ||
+              result.metadata?.document_quality;
 
             // Add suggestions based on document quality
             if (docQuality === "low") {
-              suggestions.push("Document quality is low. Consider uploading a higher resolution image for better extraction accuracy.");
+              suggestions.push(
+                "Document quality is low. Consider uploading a higher resolution image for better extraction accuracy."
+              );
             }
 
             // Add suggestions based on confidence levels
             if (overallConfidence < 50) {
-              suggestions.push("Overall extraction confidence is low. Manual review of all fields is strongly recommended.");
+              suggestions.push(
+                "Overall extraction confidence is low. Manual review of all fields is strongly recommended."
+              );
             } else if (overallConfidence < 70) {
-              suggestions.push("Some fields have low confidence scores. Please review highlighted fields carefully.");
+              suggestions.push(
+                "Some fields have low confidence scores. Please review highlighted fields carefully."
+              );
             }
 
             // Check for fields with very low confidence
             const lowConfidenceFields = Object.entries(fieldConfidence)
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
               .filter(([_, conf]) => conf < 50)
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
               .map(([field, _]) => field);
 
             if (lowConfidenceFields.length > 0) {
-              suggestions.push(`Fields with low confidence: ${lowConfidenceFields.join(", ")}. These may require manual correction.`);
+              suggestions.push(
+                `Fields with low confidence: ${lowConfidenceFields.join(
+                  ", "
+                )}. These may require manual correction.`
+              );
             }
 
             return suggestions;
@@ -436,7 +478,9 @@ export function ExtractionWorkflow() {
   const handleExport = (format: "json" | "csv" | "excel") => {
     if (!extractionResult) return;
 
-    const data = extractionResult.extractedFields.reduce<Record<string, unknown>>((acc, field) => {
+    const data = extractionResult.extractedFields.reduce<
+      Record<string, unknown>
+    >((acc, field) => {
       acc[field.name] = field.value;
       return acc;
     }, {});
@@ -491,7 +535,7 @@ export function ExtractionWorkflow() {
         headers.join(","),
         ...rows.map((row) =>
           row
-            .map((cell) => `"${cell.toString().replace(/"/g, '""')}"`)
+            .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
             .join(",")
         ),
       ].join("\n");
@@ -537,7 +581,7 @@ export function ExtractionWorkflow() {
         ],
         [
           "Overall Confidence",
-          `${(extractionResult.confidence * 100).toFixed(1)}%`,
+          `${((extractionResult.confidence ?? 0) * 100).toFixed(1)}%`,
           "",
           "",
           "",
@@ -576,12 +620,12 @@ export function ExtractionWorkflow() {
         headers.join(","),
         ...metadataRows.map((row) =>
           row
-            .map((cell) => `"${cell.toString().replace(/"/g, '""')}"`)
+            .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
             .join(",")
         ),
         ...fieldRows.map((row) =>
           row
-            .map((cell) => `"${cell.toString().replace(/"/g, '""')}"`)
+            .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
             .join(",")
         ),
       ].join("\n");
@@ -960,16 +1004,14 @@ export function ExtractionWorkflow() {
                               </h4>
                               <div className="space-y-2">
                                 {debugInfo.completion_params?.messages?.map(
-                                  (
-                                    message: AIMessage,
-                                    index: number
-                                  ) => (
+                                  (message: AIMessage, index: number) => (
                                     <div
                                       key={index}
                                       className="bg-muted p-3 rounded-md"
                                     >
                                       <div className="text-xs font-medium mb-2">
-                                        Message {index + 1} (Role: {message.role})
+                                        Message {index + 1} (Role:{" "}
+                                        {message.role})
                                       </div>
                                       {message.content?.map(
                                         (
@@ -1134,7 +1176,10 @@ export function ExtractionWorkflow() {
                                         ).map(
                                           ([fieldName, fieldDef]: [
                                             string,
-                                            { display_name?: string; required?: boolean }
+                                            {
+                                              display_name?: string;
+                                              required?: boolean;
+                                            }
                                           ]) => (
                                             <div
                                               key={fieldName}

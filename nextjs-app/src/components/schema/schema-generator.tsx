@@ -926,12 +926,9 @@ export function SchemaGenerator({
                       )}
                     </div>
                     <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                      {(isEditMode
-                        ? editingSchema?.fields
-                        : generatedSchema.fields) &&
-                        Object.entries(
-                          isEditMode ? editingSchema.fields : generatedSchema.fields
-                        ).map(([fieldName, fieldConfig]: [string, FieldConfig], index) => (
+                      {Object.entries(
+                        (isEditMode ? editingSchema?.fields : generatedSchema.fields) ?? {}
+                      ).map(([fieldName, fieldConfig]: [string, FieldConfig], index) => (
                           <div
                             key={`field-${index}`}
                             className="border rounded-lg p-4 space-y-3 bg-white shadow-sm"
