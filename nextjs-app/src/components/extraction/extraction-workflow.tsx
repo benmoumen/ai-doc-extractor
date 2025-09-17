@@ -744,6 +744,8 @@ export function ExtractionWorkflow() {
                       ((step.id === "upload" && isUploading) ||
                         (step.id === "extract" && isExtracting)) ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : step.status === "pending" ? (
+                      <div className="w-3 h-3 rounded-full bg-gray-400" />
                     ) : (
                       <span className="text-sm font-medium">{index + 1}</span>
                     )}
@@ -752,7 +754,9 @@ export function ExtractionWorkflow() {
                 {index < workflowSteps.length - 1 && (
                   <div
                     className={`col-span-1 h-0.5 mx-2 ${
-                      workflowSteps[index + 1].status !== "pending"
+                      workflowSteps[index].status === "completed"
+                        ? "bg-green-500"
+                        : workflowSteps[index + 1].status !== "pending"
                         ? "bg-blue-500"
                         : "bg-gray-200"
                     }`}
@@ -1339,48 +1343,28 @@ export function ExtractionWorkflow() {
                     </div>
                   </>
                 )}
+
+                {/* Process Another Document Button */}
+                {currentStep === "results" && (
+                  <>
+                    <Separator className="my-3" />
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={handleReset}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Process Another Document
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}
 
-          {/* Quick Actions */}
-          {currentStep === "results" && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => handleExport("json")}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export as JSON
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => handleExport("csv")}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export as CSV
-                </Button>
-                <Separator className="my-2" />
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={handleReset}
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Process Another Document
-                </Button>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Extraction Guide */}
-          <Card className="h-full">
+          <Card>
             <CardHeader>
               <CardTitle className="text-base">Quick Start Guide</CardTitle>
               <CardDescription className="text-xs">
@@ -1447,9 +1431,9 @@ export function ExtractionWorkflow() {
                     </span>
                   </div>
                   <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium">Export Data</p>
+                    <p className="text-sm font-medium">Review & Export</p>
                     <p className="text-xs text-muted-foreground">
-                      Download results as JSON, CSV, or Excel format
+                      Review extracted data and export from the results table
                     </p>
                   </div>
                 </div>
