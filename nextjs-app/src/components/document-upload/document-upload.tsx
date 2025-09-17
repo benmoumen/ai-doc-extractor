@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress'
 import { toast } from 'sonner'
 
-import { uploadDocumentWithProgress, apiClient } from '@/lib/api'
+import { uploadDocumentWithProgress } from '@/lib/api'
 import { DocumentUploadRequest, DocumentAnalysisResponse, UploadState } from '@/types'
 
 interface DocumentUploadProps {

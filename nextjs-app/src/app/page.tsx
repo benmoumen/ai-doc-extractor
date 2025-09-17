@@ -1,16 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Sparkles, Zap, Shield, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FileText, Sparkles, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster } from "sonner";
 import { ExtractionWorkflow } from "@/components/extraction/extraction-workflow";
