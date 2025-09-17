@@ -232,12 +232,37 @@ export interface AvailableSchemasResponse {
   >
 }
 
+// Verification details optionally returned by backend for authenticity checks
+export interface DocumentVerification {
+  document_type_confidence?: number
+  expected_document_type?: string
+  detected_document_type?: string
+  authenticity_score?: number
+  tampering_indicators?: {
+    photo_manipulation?: boolean
+    text_alterations?: boolean
+    structural_anomalies?: boolean
+    digital_artifacts?: boolean
+    font_inconsistencies?: boolean
+  }
+  security_checks?: {
+    mrz_checksum_valid?: boolean
+    field_consistency?: boolean
+    date_logic_valid?: boolean
+    format_compliance?: boolean
+  }
+  verification_notes?: string[]
+  risk_level?: 'low' | 'medium' | 'high'
+}
+
 // Extract data response from POST /api/extract
 export interface ExtractDataResponse {
   success: boolean
   // Optional error/message fields when success is false
   error?: string
   message?: string
+  // Optional document verification information
+  document_verification?: DocumentVerification
   extracted_data: {
     raw_content: string
     formatted_text: string

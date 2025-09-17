@@ -101,7 +101,7 @@ export function ExtractionWorkflow() {
     model?: string;
   };
   const [availableModels, setAvailableModels] = useState<MinimalModel[]>([]);
-  const [useAI, setUseAI] = useState(true);
+  const [useAI, setUseAI] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [extractionResult, setExtractionResult] =
@@ -331,6 +331,9 @@ export function ExtractionWorkflow() {
         const overallConfidence =
           ed.overall_confidence ?? result.metadata?.overall_confidence ?? 75;
 
+        // Get document verification data
+        const documentVerification = result.document_verification || {};
+
         const extractionResult: ExtractionResult = {
           id: `extraction_${Date.now()}`,
           documentType: result.metadata?.file_type || "document",
@@ -398,11 +401,58 @@ export function ExtractionWorkflow() {
             result.validation?.errors?.map(
               (error: string) => `Validation warning: ${error}`
             ) || [],
+          verification: documentVerification,
           suggestions: (() => {
             const suggestions = [];
             const docQuality =
               result.extracted_data?.document_quality ||
               result.metadata?.document_quality;
+
+            // Add verification-based suggestions
+            const riskLevel = documentVerification.risk_level;
+            const authenticityScore = documentVerification.authenticity_score;
+
+            if (riskLevel === "high") {
+              suggestions.push(
+                "⚠️ HIGH RISK: Significant authenticity concerns detected. Manual verification required before processing."
+              );
+            } else if (riskLevel === "medium") {
+              suggestions.push(
+                "⚠️ MEDIUM RISK: Some authenticity concerns detected. Recommend manual review."
+              );
+            }
+
+            if (authenticityScore && authenticityScore < 60) {
+              suggestions.push(
+                `Document authenticity score is ${authenticityScore}%. Consider additional verification steps.`
+              );
+            }
+
+            // Check for tampering indicators
+            const tampering = documentVerification.tampering_indicators;
+            if (tampering) {
+              const issues = [];
+              if (tampering.photo_manipulation) issues.push("photo manipulation");
+              if (tampering.text_alterations) issues.push("text alterations");
+              if (tampering.structural_anomalies) issues.push("structural anomalies");
+              if (tampering.digital_artifacts) issues.push("digital artifacts");
+              if (tampering.font_inconsistencies) issues.push("font inconsistencies");
+
+              if (issues.length > 0) {
+                suggestions.push(
+                  `Potential tampering detected: ${issues.join(", ")}. Document requires careful review.`
+                );
+              }
+            }
+
+            // Document type mismatch
+            if (documentVerification.expected_document_type &&
+                documentVerification.detected_document_type &&
+                documentVerification.expected_document_type !== documentVerification.detected_document_type) {
+              suggestions.push(
+                `Document type mismatch: Expected ${documentVerification.expected_document_type}, but detected ${documentVerification.detected_document_type}.`
+              );
+            }
 
             // Add suggestions based on document quality
             if (docQuality === "low") {
@@ -647,7 +697,7 @@ export function ExtractionWorkflow() {
     setCurrentStep("upload");
     setUploadedFile(null);
     setSelectedSchema(null);
-    setUseAI(true);
+    setUseAI(false);
     setExtractionResult(null);
     setExtractionProgress(0);
     setDocumentPreview(null);
@@ -817,8 +867,8 @@ export function ExtractionWorkflow() {
                       {selectedSchema
                         ? `Schema-guided extraction: ${selectedSchema}`
                         : useAI
-                        ? "AI free-form extraction: automatic field detection"
-                        : "Please select a schema or enable AI mode"}
+                        ? "AI Free-form Discovery: automatic field detection without schema constraints"
+                        : "Please select a schema or enable AI Free-form Discovery mode"}
                     </p>
                   </div>
                   <Button
@@ -1123,7 +1173,7 @@ export function ExtractionWorkflow() {
                               <p>
                                 <strong>Mode:</strong>{" "}
                                 {extractionResult.extractionMode === "ai"
-                                  ? "AI Free-form Detection"
+                                  ? "AI Free-form Discovery"
                                   : "Schema-guided"}
                               </p>
                               <p>
@@ -1212,11 +1262,11 @@ export function ExtractionWorkflow() {
                           ) : (
                             <div>
                               <h4 className="text-sm font-medium mb-2">
-                                AI Free-form Extraction
+                                AI Free-form Discovery
                               </h4>
                               <div className="bg-muted p-3 rounded-md text-xs">
                                 <p>
-                                  This extraction used AI free-form detection
+                                  This extraction used AI Free-form Discovery
                                   without a predefined schema.
                                 </p>
                                 <p className="mt-1 text-muted-foreground">
@@ -1258,7 +1308,7 @@ export function ExtractionWorkflow() {
                         >
                           {extractionResult.extractionMode === "schema"
                             ? "Schema-guided"
-                            : "AI"}
+                            : "AI Free-form Discovery"}
                         </Badge>
                       </div>
                       <div className="flex items-center justify-between text-sm">
@@ -1365,12 +1415,10 @@ export function ExtractionWorkflow() {
                     <p className="text-sm font-medium">Extraction Mode</p>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">
-                        <span className="font-medium">• Schema Mode:</span> AI
-                        with predefined fields & rules
+                        <span className="font-medium">• Schema Mode:</span> Structured extraction with predefined fields & validation rules (Recommended)
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        <span className="font-medium">• Free Mode:</span> AI
-                        auto-discovers all data
+                        <span className="font-medium">• AI Free-form Discovery:</span> AI explores and extracts all discoverable data without constraints
                       </p>
                     </div>
                   </div>
