@@ -110,13 +110,16 @@ export function SchemaGenerator({
     document_specific_notes: string[];
     quality_recommendations: string[];
   }
-  const [generatedSchema, setGeneratedSchema] = useState<GeneratedSchema | null>(null);
+  const [generatedSchema, setGeneratedSchema] =
+    useState<GeneratedSchema | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [documentPreview, setDocumentPreview] = useState<string | null>(null);
 
   // Edit mode states
   const [isEditMode, setIsEditMode] = useState(false);
-  const [editingSchema, setEditingSchema] = useState<GeneratedSchema | null>(null);
+  const [editingSchema, setEditingSchema] = useState<GeneratedSchema | null>(
+    null
+  );
 
   // Save schema states
   const [isSaving, setIsSaving] = useState(false);
@@ -166,7 +169,10 @@ export function SchemaGenerator({
     if (generatedSchema && !isGenerating) {
       // Wait for the UI to paint before scrolling
       requestAnimationFrame(() => {
-        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        resultsRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
       });
     }
   }, [generatedSchema, isGenerating]);
@@ -210,7 +216,7 @@ export function SchemaGenerator({
       "Initial Document Analysis",
       "Schema Review & Refinement",
       "Confidence Analysis",
-      "Extraction Hints Generation"
+      "Extraction Hints Generation",
     ];
 
     for (let i = 0; i < steps.length && i < stepNames.length; i++) {
@@ -224,7 +230,9 @@ export function SchemaGenerator({
 
       // Simulate step duration (minimum 500ms, maximum actual duration)
       const simulatedDuration = Math.max(500, (stepInfo.duration || 1) * 1000);
-      await new Promise(resolve => setTimeout(resolve, Math.min(simulatedDuration, 3000)));
+      await new Promise((resolve) =>
+        setTimeout(resolve, Math.min(simulatedDuration, 3000))
+      );
 
       // Complete step
       updateStepStatus(
@@ -266,8 +274,8 @@ export function SchemaGenerator({
     // Scroll to progress section
     setTimeout(() => {
       progressSectionRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
+        behavior: "smooth",
+        block: "start",
       });
     }, 100);
 
@@ -284,7 +292,7 @@ export function SchemaGenerator({
       // Start progress simulation immediately
       updateStepStatus("Initial Document Analysis", "in_progress");
       setCurrentStep("Analyzing document and detecting fields...");
-      setGenerationProgress(10);
+      setGenerationProgress(5);
 
       // Wait for the actual response
       const schemaResponse = await schemaResponsePromise;
@@ -297,7 +305,10 @@ export function SchemaGenerator({
       setAiDebugInfo(schemaResponse.ai_debug || null);
 
       // If we have AI debug steps, simulate progress based on them
-      if (schemaResponse.ai_debug?.steps && schemaResponse.ai_debug.steps.length > 0) {
+      if (
+        schemaResponse.ai_debug?.steps &&
+        schemaResponse.ai_debug.steps.length > 0
+      ) {
         await simulateProgressWithSteps(schemaResponse.ai_debug.steps);
       } else {
         // Fallback progress simulation without AI debug info
@@ -305,14 +316,14 @@ export function SchemaGenerator({
           "Initial Document Analysis",
           "Schema Review & Refinement",
           "Confidence Analysis",
-          "Extraction Hints Generation"
+          "Extraction Hints Generation",
         ];
 
         for (let i = 0; i < stepNames.length; i++) {
           updateStepStatus(stepNames[i], "in_progress");
           setCurrentStep(getStepMessage(stepNames[i]));
           setGenerationProgress(((i + 0.5) / 4) * 100);
-          await new Promise(resolve => setTimeout(resolve, 800));
+          await new Promise((resolve) => setTimeout(resolve, 800));
           updateStepStatus(stepNames[i], "completed");
         }
       }
@@ -366,11 +377,14 @@ export function SchemaGenerator({
           ai_debug: schemaResponse.ai_debug,
         });
 
-        throw new Error("Multi-step document analysis failed to produce valid template");
+        throw new Error(
+          "Multi-step document analysis failed to produce valid template"
+        );
       }
     } catch (err: unknown) {
       console.error("Generation failed:", err);
-      const message = err instanceof Error ? err.message : "Document analysis failed";
+      const message =
+        err instanceof Error ? err.message : "Document analysis failed";
       setError(message);
       setCurrentStep("Generation failed");
 
@@ -404,7 +418,9 @@ export function SchemaGenerator({
   // Edit mode functions
   const startEditMode = () => {
     setIsEditMode(true);
-    setEditingSchema(generatedSchema ? JSON.parse(JSON.stringify(generatedSchema)) : null); // Deep copy
+    setEditingSchema(
+      generatedSchema ? JSON.parse(JSON.stringify(generatedSchema)) : null
+    ); // Deep copy
   };
 
   const saveChanges = () => {
@@ -447,7 +463,9 @@ export function SchemaGenerator({
 
   const deleteField = (fieldName: string) => {
     if (!editingSchema) return;
-    const updatedFields: Record<string, FieldConfig> = { ...editingSchema.fields };
+    const updatedFields: Record<string, FieldConfig> = {
+      ...editingSchema.fields,
+    };
     delete updatedFields[fieldName];
     setEditingSchema({
       ...editingSchema,
@@ -545,7 +563,10 @@ export function SchemaGenerator({
 
       if (response.success) {
         // Use the backend's user-friendly message
-        setSaveMessage(response.message || `Schema "${schemaToSave.name}" saved successfully!`);
+        setSaveMessage(
+          response.message ||
+            `Schema "${schemaToSave.name}" saved successfully!`
+        );
 
         // Notify parent component that schema was saved
         if (onSchemaGenerated) {
@@ -556,7 +577,8 @@ export function SchemaGenerator({
       }
     } catch (err: unknown) {
       console.error("Save schema error:", err);
-      const message = err instanceof Error ? err.message : "Failed to save schema";
+      const message =
+        err instanceof Error ? err.message : "Failed to save schema";
       setSaveError(message);
     } finally {
       setIsSaving(false);
@@ -572,8 +594,8 @@ export function SchemaGenerator({
           AI Document Analyzer
         </h2>
         <p className="text-muted-foreground">
-          Upload a sample document to automatically analyze its structure and create
-          an extraction template using AI
+          Upload a sample document to automatically analyze its structure and
+          create an extraction template using AI
         </p>
       </div>
 
@@ -857,7 +879,8 @@ export function SchemaGenerator({
                     <Label className="text-sm font-medium">Total Fields</Label>
                     <p className="text-sm">
                       {isEditMode
-                        ? editingSchema?.total_fields ?? generatedSchema.total_fields
+                        ? editingSchema?.total_fields ??
+                          generatedSchema.total_fields
                         : generatedSchema.total_fields}
                     </p>
                   </div>
@@ -928,7 +951,11 @@ export function SchemaGenerator({
                         )
                       </Label>
                       {isEditMode && (
-                        <Button onClick={addNewField} variant="outline" size="sm">
+                        <Button
+                          onClick={addNewField}
+                          variant="outline"
+                          size="sm"
+                        >
                           <Plus className="h-4 w-4 mr-1" />
                           Add Field
                         </Button>
@@ -936,8 +963,14 @@ export function SchemaGenerator({
                     </div>
                     <div className="space-y-3 max-h-[600px] overflow-y-auto">
                       {Object.entries(
-                        (isEditMode ? editingSchema?.fields : generatedSchema.fields) ?? {}
-                      ).map(([fieldName, fieldConfig]: [string, FieldConfig], index) => (
+                        (isEditMode
+                          ? editingSchema?.fields
+                          : generatedSchema.fields) ?? {}
+                      ).map(
+                        (
+                          [fieldName, fieldConfig]: [string, FieldConfig],
+                          index
+                        ) => (
                           <div
                             key={`field-${index}`}
                             className="border rounded-lg p-4 space-y-3 bg-white shadow-sm"
@@ -951,10 +984,19 @@ export function SchemaGenerator({
                                   </span>
                                   {fieldConfig.confidence_score && (
                                     <Badge
-                                      variant={fieldConfig.confidence_score >= 90 ? "default" : fieldConfig.confidence_score >= 70 ? "secondary" : "outline"}
+                                      variant={
+                                        fieldConfig.confidence_score >= 90
+                                          ? "default"
+                                          : fieldConfig.confidence_score >= 70
+                                          ? "secondary"
+                                          : "outline"
+                                      }
                                       className="text-xs"
                                     >
-                                      {Math.round(fieldConfig.confidence_score || 0)}% confidence
+                                      {Math.round(
+                                        fieldConfig.confidence_score || 0
+                                      )}
+                                      % confidence
                                     </Badge>
                                   )}
                                 </div>
@@ -971,7 +1013,10 @@ export function SchemaGenerator({
                               <div className="flex gap-1">
                                 {!isEditMode ? (
                                   <>
-                                    <Badge variant="outline" className="text-xs">
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs"
+                                    >
                                       {fieldConfig.type || "text"}
                                     </Badge>
                                     <Badge
@@ -988,7 +1033,14 @@ export function SchemaGenerator({
                                     </Badge>
                                     {fieldConfig.legibility && (
                                       <Badge
-                                        variant={fieldConfig.legibility === "high" ? "default" : fieldConfig.legibility === "medium" ? "secondary" : "outline"}
+                                        variant={
+                                          fieldConfig.legibility === "high"
+                                            ? "default"
+                                            : fieldConfig.legibility ===
+                                              "medium"
+                                            ? "secondary"
+                                            : "outline"
+                                        }
                                         className="text-xs"
                                       >
                                         {fieldConfig.legibility} legibility
@@ -1011,13 +1063,21 @@ export function SchemaGenerator({
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        <SelectItem value="text">text</SelectItem>
+                                        <SelectItem value="text">
+                                          text
+                                        </SelectItem>
                                         <SelectItem value="number">
                                           number
                                         </SelectItem>
-                                        <SelectItem value="date">date</SelectItem>
-                                        <SelectItem value="email">email</SelectItem>
-                                        <SelectItem value="phone">phone</SelectItem>
+                                        <SelectItem value="date">
+                                          date
+                                        </SelectItem>
+                                        <SelectItem value="email">
+                                          email
+                                        </SelectItem>
+                                        <SelectItem value="phone">
+                                          phone
+                                        </SelectItem>
                                         <SelectItem value="url">url</SelectItem>
                                         <SelectItem value="boolean">
                                           boolean
@@ -1090,31 +1150,48 @@ export function SchemaGenerator({
                               {!isEditMode ? (
                                 <>
                                   {/* Extraction Hints */}
-                                  {fieldConfig.extraction_hints && fieldConfig.extraction_hints.length > 0 && (
-                                    <div className="space-y-1">
-                                      <Label className="text-xs font-medium text-blue-600">Extraction Hints:</Label>
-                                      <ul className="list-disc list-inside space-y-1">
-                                        {fieldConfig.extraction_hints.map((hint: string, hintIndex: number) => (
-                                          <li key={hintIndex} className="text-xs text-blue-600 ml-2">
-                                            {hint}
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                  )}
+                                  {fieldConfig.extraction_hints &&
+                                    fieldConfig.extraction_hints.length > 0 && (
+                                      <div className="space-y-1">
+                                        <Label className="text-xs font-medium text-blue-600">
+                                          Extraction Hints:
+                                        </Label>
+                                        <ul className="list-disc list-inside space-y-1">
+                                          {fieldConfig.extraction_hints.map(
+                                            (
+                                              hint: string,
+                                              hintIndex: number
+                                            ) => (
+                                              <li
+                                                key={hintIndex}
+                                                className="text-xs text-blue-600 ml-2"
+                                              >
+                                                {hint}
+                                              </li>
+                                            )
+                                          )}
+                                        </ul>
+                                      </div>
+                                    )}
 
                                   {/* Positioning Hints */}
                                   {fieldConfig.positioning_hints && (
                                     <div className="space-y-1">
-                                      <Label className="text-xs font-medium text-green-600">Document Position:</Label>
-                                      <p className="text-xs text-green-600">{fieldConfig.positioning_hints}</p>
+                                      <Label className="text-xs font-medium text-green-600">
+                                        Document Position:
+                                      </Label>
+                                      <p className="text-xs text-green-600">
+                                        {fieldConfig.positioning_hints}
+                                      </p>
                                     </div>
                                   )}
 
                                   {/* Validation Pattern */}
                                   {fieldConfig.validation_pattern && (
                                     <div className="space-y-1">
-                                      <Label className="text-xs font-medium text-purple-600">Validation Pattern:</Label>
+                                      <Label className="text-xs font-medium text-purple-600">
+                                        Validation Pattern:
+                                      </Label>
                                       <code className="text-xs bg-purple-50 px-2 py-1 rounded text-purple-800">
                                         {fieldConfig.validation_pattern}
                                       </code>
@@ -1122,26 +1199,41 @@ export function SchemaGenerator({
                                   )}
 
                                   {/* Potential Issues */}
-                                  {fieldConfig.potential_issues && fieldConfig.potential_issues.length > 0 && (
-                                    <div className="space-y-1">
-                                      <Label className="text-xs font-medium text-orange-600">Potential Issues:</Label>
-                                      <ul className="list-disc list-inside space-y-1">
-                                        {fieldConfig.potential_issues.map((issue: string, issueIndex: number) => (
-                                          <li key={issueIndex} className="text-xs text-orange-600 ml-2">
-                                            {issue}
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                  )}
+                                  {fieldConfig.potential_issues &&
+                                    fieldConfig.potential_issues.length > 0 && (
+                                      <div className="space-y-1">
+                                        <Label className="text-xs font-medium text-orange-600">
+                                          Potential Issues:
+                                        </Label>
+                                        <ul className="list-disc list-inside space-y-1">
+                                          {fieldConfig.potential_issues.map(
+                                            (
+                                              issue: string,
+                                              issueIndex: number
+                                            ) => (
+                                              <li
+                                                key={issueIndex}
+                                                className="text-xs text-orange-600 ml-2"
+                                              >
+                                                {issue}
+                                              </li>
+                                            )
+                                          )}
+                                        </ul>
+                                      </div>
+                                    )}
                                 </>
                               ) : (
                                 <>
                                   {/* Validation Pattern Editor */}
                                   <div className="space-y-1">
-                                    <Label className="text-xs font-medium text-purple-600">Validation Pattern:</Label>
+                                    <Label className="text-xs font-medium text-purple-600">
+                                      Validation Pattern:
+                                    </Label>
                                     <Input
-                                      value={fieldConfig.validation_pattern || ""}
+                                      value={
+                                        fieldConfig.validation_pattern || ""
+                                      }
                                       onChange={(e) =>
                                         updateFieldProperty(
                                           fieldName,
@@ -1156,45 +1248,63 @@ export function SchemaGenerator({
 
                                   {/* Extraction Hints Editor */}
                                   <div className="space-y-2">
-                                    <Label className="text-xs font-medium text-blue-600">Extraction Hints:</Label>
+                                    <Label className="text-xs font-medium text-blue-600">
+                                      Extraction Hints:
+                                    </Label>
                                     <div className="space-y-1">
-                                      {(fieldConfig.extraction_hints || []).map((hint: string, hintIndex: number) => (
-                                        <div key={hintIndex} className="flex gap-1">
-                                          <Input
-                                            value={hint}
-                                            onChange={(e) => {
-                                              const newHints = [...(fieldConfig.extraction_hints || [])];
-                                              newHints[hintIndex] = e.target.value;
-                                              updateFieldProperty(
-                                                fieldName,
-                                                "extraction_hints",
-                                                newHints
-                                              );
-                                            }}
-                                            className="text-xs"
-                                            placeholder="Extraction hint"
-                                          />
-                                          <Button
-                                            onClick={() => {
-                                              const newHints = [...(fieldConfig.extraction_hints || [])];
-                                              newHints.splice(hintIndex, 1);
-                                              updateFieldProperty(
-                                                fieldName,
-                                                "extraction_hints",
-                                                newHints
-                                              );
-                                            }}
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 w-8 p-0 text-destructive"
+                                      {(fieldConfig.extraction_hints || []).map(
+                                        (hint: string, hintIndex: number) => (
+                                          <div
+                                            key={hintIndex}
+                                            className="flex gap-1"
                                           >
-                                            <X className="h-3 w-3" />
-                                          </Button>
-                                        </div>
-                                      ))}
+                                            <Input
+                                              value={hint}
+                                              onChange={(e) => {
+                                                const newHints = [
+                                                  ...(fieldConfig.extraction_hints ||
+                                                    []),
+                                                ];
+                                                newHints[hintIndex] =
+                                                  e.target.value;
+                                                updateFieldProperty(
+                                                  fieldName,
+                                                  "extraction_hints",
+                                                  newHints
+                                                );
+                                              }}
+                                              className="text-xs"
+                                              placeholder="Extraction hint"
+                                            />
+                                            <Button
+                                              onClick={() => {
+                                                const newHints = [
+                                                  ...(fieldConfig.extraction_hints ||
+                                                    []),
+                                                ];
+                                                newHints.splice(hintIndex, 1);
+                                                updateFieldProperty(
+                                                  fieldName,
+                                                  "extraction_hints",
+                                                  newHints
+                                                );
+                                              }}
+                                              variant="ghost"
+                                              size="sm"
+                                              className="h-8 w-8 p-0 text-destructive"
+                                            >
+                                              <X className="h-3 w-3" />
+                                            </Button>
+                                          </div>
+                                        )
+                                      )}
                                       <Button
                                         onClick={() => {
-                                          const newHints = [...(fieldConfig.extraction_hints || []), ""];
+                                          const newHints = [
+                                            ...(fieldConfig.extraction_hints ||
+                                              []),
+                                            "",
+                                          ];
                                           updateFieldProperty(
                                             fieldName,
                                             "extraction_hints",
@@ -1214,7 +1324,8 @@ export function SchemaGenerator({
                               )}
                             </div>
                           </div>
-                        ))}
+                        )
+                      )}
                     </div>
                   </TabsContent>
 
@@ -1223,9 +1334,17 @@ export function SchemaGenerator({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {generatedSchema.document_quality && (
                         <div className="space-y-2">
-                          <Label className="text-sm font-medium">Document Quality</Label>
+                          <Label className="text-sm font-medium">
+                            Document Quality
+                          </Label>
                           <Badge
-                            variant={generatedSchema.document_quality === "high" ? "default" : generatedSchema.document_quality === "medium" ? "secondary" : "outline"}
+                            variant={
+                              generatedSchema.document_quality === "high"
+                                ? "default"
+                                : generatedSchema.document_quality === "medium"
+                                ? "secondary"
+                                : "outline"
+                            }
                             className="text-sm"
                           >
                             {generatedSchema.document_quality.toUpperCase()}
@@ -1235,9 +1354,18 @@ export function SchemaGenerator({
 
                       {generatedSchema.extraction_difficulty && (
                         <div className="space-y-2">
-                          <Label className="text-sm font-medium">Extraction Difficulty</Label>
+                          <Label className="text-sm font-medium">
+                            Extraction Difficulty
+                          </Label>
                           <Badge
-                            variant={generatedSchema.extraction_difficulty === "easy" ? "default" : generatedSchema.extraction_difficulty === "medium" ? "secondary" : "outline"}
+                            variant={
+                              generatedSchema.extraction_difficulty === "easy"
+                                ? "default"
+                                : generatedSchema.extraction_difficulty ===
+                                  "medium"
+                                ? "secondary"
+                                : "outline"
+                            }
                             className="text-sm"
                           >
                             {generatedSchema.extraction_difficulty.toUpperCase()}
@@ -1248,36 +1376,58 @@ export function SchemaGenerator({
 
                     {/* Field Confidence Distribution */}
                     <div className="space-y-3">
-                      <Label className="text-sm font-medium">Field Confidence Distribution</Label>
+                      <Label className="text-sm font-medium">
+                        Field Confidence Distribution
+                      </Label>
                       <div className="space-y-2">
-                        {generatedSchema.fields && Object.entries(generatedSchema.fields).map(([fieldName, fieldConfig]: [string, FieldConfig]) => (
-                          fieldConfig.confidence_score && (
-                            <div key={fieldName} className="flex items-center gap-3">
-                              <span className="text-xs w-32 truncate">{fieldName}</span>
-                              <Progress
-                                value={fieldConfig.confidence_score}
-                                className="flex-1 h-2"
-                              />
-                              <span className="text-xs w-12 text-right">{Math.round(fieldConfig.confidence_score || 0)}%</span>
-                            </div>
-                          )
-                        ))}
+                        {generatedSchema.fields &&
+                          Object.entries(generatedSchema.fields).map(
+                            ([fieldName, fieldConfig]: [string, FieldConfig]) =>
+                              fieldConfig.confidence_score && (
+                                <div
+                                  key={fieldName}
+                                  className="flex items-center gap-3"
+                                >
+                                  <span className="text-xs w-32 truncate">
+                                    {fieldName}
+                                  </span>
+                                  <Progress
+                                    value={fieldConfig.confidence_score}
+                                    className="flex-1 h-2"
+                                  />
+                                  <span className="text-xs w-12 text-right">
+                                    {Math.round(
+                                      fieldConfig.confidence_score || 0
+                                    )}
+                                    %
+                                  </span>
+                                </div>
+                              )
+                          )}
                       </div>
                     </div>
 
                     {/* Document Specific Notes */}
-                    {generatedSchema.document_specific_notes && generatedSchema.document_specific_notes.length > 0 && (
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">Document-Specific Notes</Label>
-                        <ul className="list-disc list-inside space-y-1">
-                          {generatedSchema.document_specific_notes.map((note: string, noteIndex: number) => (
-                            <li key={noteIndex} className="text-xs text-muted-foreground ml-2">
-                              {note}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                    {generatedSchema.document_specific_notes &&
+                      generatedSchema.document_specific_notes.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">
+                            Document-Specific Notes
+                          </Label>
+                          <ul className="list-disc list-inside space-y-1">
+                            {generatedSchema.document_specific_notes.map(
+                              (note: string, noteIndex: number) => (
+                                <li
+                                  key={noteIndex}
+                                  className="text-xs text-muted-foreground ml-2"
+                                >
+                                  {note}
+                                </li>
+                              )
+                            )}
+                          </ul>
+                        </div>
+                      )}
                   </TabsContent>
                 </Tabs>
 
@@ -1380,7 +1530,9 @@ export function SchemaGenerator({
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs font-medium">Raw AI Response:</Label>
+                      <Label className="text-xs font-medium">
+                        Raw AI Response:
+                      </Label>
                       <div className="bg-slate-50 p-3 rounded-lg text-xs font-mono max-h-32 overflow-y-auto">
                         {step.raw_response}
                       </div>
