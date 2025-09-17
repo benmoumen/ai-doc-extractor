@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import Image from "next/image";
 import {
   Upload,
   FileText,
@@ -627,10 +628,13 @@ export function SchemaGenerator({
                               type="application/pdf"
                             />
                           ) : (
-                            <img
+                            <Image
                               src={documentPreview}
                               alt="Document preview"
+                              width={1200}
+                              height={800}
                               className="max-w-full h-auto"
+                              unoptimized
                             />
                           )}
                         </div>
@@ -709,7 +713,7 @@ export function SchemaGenerator({
 
             {/* Step Details */}
             <div className="space-y-2">
-              {generationSteps.map((step, index) => (
+              {generationSteps.map((step) => (
                 <div
                   key={step.name}
                   className="flex items-center gap-3 text-sm"

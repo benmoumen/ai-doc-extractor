@@ -298,7 +298,8 @@ export function ExtractionWorkflow() {
             : "ai";
 
         // Get confidence scores from the response
-        const fieldConfidence = result.extracted_data?.field_confidence || {};
+        const fieldConfidence: Record<string, number> =
+          (result.extracted_data?.field_confidence as Record<string, number>) || {};
         const overallConfidence = result.extracted_data?.overall_confidence ||
                                   result.metadata?.overall_confidence || 75;
 
