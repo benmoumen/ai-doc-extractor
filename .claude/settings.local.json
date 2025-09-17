@@ -24,7 +24,8 @@
       "Bash(sudo rm:*)",
       "Bash(pnpm install:*)",
       "Bash(source:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(docker run:*)"
     ],
     "deny": [],
     "ask": []

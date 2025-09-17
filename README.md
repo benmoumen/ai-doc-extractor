@@ -1,4 +1,4 @@
-# AI Document Data Extractor
+# AI Data Extractor
 
 A modern web application for extracting structured data from documents using AI. Features document analysis, schema generation, and intelligent data extraction with confidence scoring.
 
@@ -148,21 +148,22 @@ Supported AI providers and models:
 
 ### API Endpoints
 
-| Method | Endpoint | Purpose | Description |
-|--------|----------|---------|-------------|
-| `GET` | `/health` | Health Check | Backend health status and availability |
-| `GET` | `/api/models` | List AI Models | Get all available AI models across providers |
-| `GET` | `/api/schemas` | List Schemas | Get all stored extraction schemas |
-| `GET` | `/api/schemas/{id}` | Get Schema Details | Retrieve complete schema definition |
-| `POST` | `/api/documents` | Upload Document | Upload and validate document files |
-| `POST` | `/api/extract` | Extract Data | Extract structured data using schemas or AI |
-| `POST` | `/api/generate-schema` | Generate Schema | Create schema from sample document |
-| `POST` | `/api/schemas` | Save Schema | Save generated schema for future use |
-| `GET` | `/metrics` | Metrics | Prometheus-compatible metrics endpoint |
+| Method | Endpoint               | Purpose            | Description                                  |
+| ------ | ---------------------- | ------------------ | -------------------------------------------- |
+| `GET`  | `/health`              | Health Check       | Backend health status and availability       |
+| `GET`  | `/api/models`          | List AI Models     | Get all available AI models across providers |
+| `GET`  | `/api/schemas`         | List Schemas       | Get all stored extraction schemas            |
+| `GET`  | `/api/schemas/{id}`    | Get Schema Details | Retrieve complete schema definition          |
+| `POST` | `/api/documents`       | Upload Document    | Upload and validate document files           |
+| `POST` | `/api/extract`         | Extract Data       | Extract structured data using schemas or AI  |
+| `POST` | `/api/generate-schema` | Generate Schema    | Create schema from sample document           |
+| `POST` | `/api/schemas`         | Save Schema        | Save generated schema for future use         |
+| `GET`  | `/metrics`             | Metrics            | Prometheus-compatible metrics endpoint       |
 
 ### Interactive Documentation
 
 Interactive API documentation available at:
+
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 
@@ -227,22 +228,26 @@ make shell-db
 ### Common Issues
 
 **Services won't start:**
+
 ```bash
 make clean        # Clean up containers
 make dev-build    # Rebuild from scratch
 ```
 
 **API key errors:**
+
 - Verify `.env` file exists and contains valid keys
 - Check API key permissions and quotas
 - Ensure at least one provider is configured
 
 **File upload issues:**
+
 - Check file size limits (default: 50MB)
 - Verify supported formats: PDF, PNG, JPG, JPEG
 - Ensure backend storage permissions
 
 **Database connection errors:**
+
 ```bash
 make logs-db      # Check database logs
 make health       # Verify service status
@@ -251,11 +256,13 @@ make health       # Verify service status
 ### Development Issues
 
 **Hot reload not working:**
+
 - Ensure file watching is enabled in Docker Desktop
 - Check volume mounts in `docker-compose.dev.yml`
 - Restart development environment
 
 **TypeScript errors:**
+
 ```bash
 make shell-frontend
 pnpm run type-check
@@ -275,6 +282,7 @@ pnpm run type-check
 ## Support
 
 For issues and questions:
+
 - Check troubleshooting section above
 - Review API documentation
 - Submit GitHub issues for bugs

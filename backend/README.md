@@ -1,10 +1,11 @@
-# AI Document Data Extractor - Backend
+# AI Data Extractor - Backend
 
 Single-file FastAPI backend (`main.py`) providing AI-powered document processing with schema-based and free-form data extraction.
 
 ## Implementation
 
 **Architecture:**
+
 - Single FastAPI application (43KB)
 - In-memory schema storage
 - Multi-provider AI integration via LiteLLM
@@ -12,10 +13,12 @@ Single-file FastAPI backend (`main.py`) providing AI-powered document processing
 - KYC document verification
 
 **Providers Supported:**
+
 - Groq (Llama Scout 17B)
 - Mistral (Mistral Small 3.2)
 
 **File Formats:**
+
 - PDF (first page processed)
 - Images: PNG, JPG, JPEG, TIFF, BMP
 
@@ -23,27 +26,30 @@ Single-file FastAPI backend (`main.py`) providing AI-powered document processing
 
 ### Complete Endpoint Reference
 
-| Method | Endpoint | Purpose | Description |
-|--------|----------|---------|-------------|
-| `GET` | `/health` | Health Check | Backend health status and availability |
-| `GET` | `/api/models` | List AI Models | Get all available AI models across providers |
-| `GET` | `/api/schemas` | List Schemas | Get all stored extraction schemas |
-| `GET` | `/api/schemas/{id}` | Get Schema Details | Retrieve complete schema definition |
-| `POST` | `/api/documents` | Upload Document | Upload and validate document files |
-| `POST` | `/api/extract` | Extract Data | Extract structured data using schemas or AI |
-| `POST` | `/api/generate-schema` | Generate Schema | Create schema from sample document |
-| `POST` | `/api/schemas` | Save Schema | Save generated schema for future use |
-| `GET` | `/metrics` | Metrics | Prometheus-compatible metrics endpoint |
+| Method | Endpoint               | Purpose            | Description                                  |
+| ------ | ---------------------- | ------------------ | -------------------------------------------- |
+| `GET`  | `/health`              | Health Check       | Backend health status and availability       |
+| `GET`  | `/api/models`          | List AI Models     | Get all available AI models across providers |
+| `GET`  | `/api/schemas`         | List Schemas       | Get all stored extraction schemas            |
+| `GET`  | `/api/schemas/{id}`    | Get Schema Details | Retrieve complete schema definition          |
+| `POST` | `/api/documents`       | Upload Document    | Upload and validate document files           |
+| `POST` | `/api/extract`         | Extract Data       | Extract structured data using schemas or AI  |
+| `POST` | `/api/generate-schema` | Generate Schema    | Create schema from sample document           |
+| `POST` | `/api/schemas`         | Save Schema        | Save generated schema for future use         |
+| `GET`  | `/metrics`             | Metrics            | Prometheus-compatible metrics endpoint       |
 
 ### Detailed Documentation
 
 ### 1. Health Check
+
 ```http
 GET /health
 ```
+
 Returns backend health status and availability.
 
 **Response:**
+
 ```json
 {
   "status": "healthy",
@@ -53,12 +59,15 @@ Returns backend health status and availability.
 ```
 
 ### 2. List AI Models
+
 ```http
 GET /api/models
 ```
+
 Get all available AI models across providers.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -77,12 +86,15 @@ Get all available AI models across providers.
 ```
 
 ### 3. List Available Schemas
+
 ```http
 GET /api/schemas
 ```
+
 Get all stored extraction schemas.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -97,12 +109,15 @@ Get all stored extraction schemas.
 ```
 
 ### 4. Get Schema Details
+
 ```http
 GET /api/schemas/{schema_id}
 ```
+
 Retrieve complete schema definition with all field specifications.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -127,18 +142,22 @@ Retrieve complete schema definition with all field specifications.
 ```
 
 ### 5. Extract Data from Document
+
 ```http
 POST /api/extract
 ```
+
 Extract structured data using either schemas or AI free-form discovery.
 
 **Parameters:**
+
 - `file` (file): Document to process (PDF/image)
 - `schema_id` (string, optional): Schema ID for guided extraction
 - `use_ai` (boolean): Enable AI free-form discovery
 - `model` (string, optional): AI model to use
 
 **Schema-guided extraction:**
+
 ```bash
 curl -X POST "http://localhost:8000/api/extract" \
   -F "file=@document.pdf" \
@@ -147,6 +166,7 @@ curl -X POST "http://localhost:8000/api/extract" \
 ```
 
 **AI free-form discovery:**
+
 ```bash
 curl -X POST "http://localhost:8000/api/extract" \
   -F "file=@document.pdf" \
@@ -154,6 +174,7 @@ curl -X POST "http://localhost:8000/api/extract" \
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -190,16 +211,20 @@ curl -X POST "http://localhost:8000/api/extract" \
 ```
 
 ### 6. Generate Schema from Sample
+
 ```http
 POST /api/generate-schema
 ```
+
 Analyze a sample document to automatically generate an extraction schema.
 
 **Parameters:**
+
 - `file` (file): Sample document to analyze
 - `model` (string, optional): AI model for analysis
 
 **Usage:**
+
 ```bash
 curl -X POST "http://localhost:8000/api/generate-schema" \
   -F "file=@sample_document.pdf" \
@@ -207,12 +232,14 @@ curl -X POST "http://localhost:8000/api/generate-schema" \
 ```
 
 **Process:** 4-step AI analysis
+
 1. **Initial Detection** - Identify document type and basic structure
 2. **Field Enhancement** - Refine field definitions and descriptions
 3. **Confidence Analysis** - Calculate field confidence scores
 4. **Hints Generation** - Add extraction hints and validation patterns
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -248,12 +275,15 @@ curl -X POST "http://localhost:8000/api/generate-schema" \
 ```
 
 ### 7. Save Generated Schema
+
 ```http
 POST /api/schemas
 ```
+
 Save a schema to make it available for future data extraction.
 
 **Request Body:**
+
 ```json
 {
   "id": "custom_schema",
@@ -271,6 +301,7 @@ Save a schema to make it available for future data extraction.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -281,25 +312,30 @@ Save a schema to make it available for future data extraction.
 ```
 
 ### 8. Document Upload & Analysis
+
 ```http
 POST /api/documents
 ```
+
 Alternative document processing endpoint with similar functionality to `/api/generate-schema`.
 
 ## Core Functions
 
 **Document Processing:**
+
 - `pdf_to_images()` - Convert PDF to PIL Image
 - `image_to_base64()` - Encode images for AI APIs
 - `determine_file_type()` - File extension detection
 
 **AI Integration:**
+
 - `create_extraction_prompt()` - Schema-guided extraction prompts
 - `create_*_detection_prompt()` - Multi-step schema generation prompts
 - `extract_json_from_text()` - Parse JSON from AI responses
 - `get_model_param()` - Format model names for LiteLLM
 
 **Schema Management:**
+
 - In-memory `SCHEMAS` dictionary
 - Dynamic schema storage and retrieval
 - Field validation and confidence scoring
@@ -307,6 +343,7 @@ Alternative document processing endpoint with similar functionality to `/api/gen
 ## Data Extraction Modes
 
 **Schema-guided:**
+
 ```bash
 curl -X POST "http://localhost:8000/api/extract" \
   -F "file=@document.pdf" \
@@ -315,6 +352,7 @@ curl -X POST "http://localhost:8000/api/extract" \
 ```
 
 **AI Free-form Discovery:**
+
 ```bash
 curl -X POST "http://localhost:8000/api/extract" \
   -F "file=@document.pdf" \
@@ -333,6 +371,7 @@ curl -X POST "http://localhost:8000/api/extract" \
 ## Document Verification
 
 Automatic KYC compliance features:
+
 - Document type confidence (0-100)
 - Tampering detection indicators
 - Authenticity scoring
@@ -341,6 +380,7 @@ Automatic KYC compliance features:
 ## Quick Start
 
 **Run locally:**
+
 ```bash
 # Set API keys
 export GROQ_API_KEY="your_key"
@@ -352,11 +392,13 @@ python main.py
 ```
 
 **Docker:**
+
 ```bash
 make dev-build  # Development
 make prod-build # Production
 ```
 
 **API Documentation:**
+
 - Swagger UI: http://localhost:8000/docs
 - Health check: http://localhost:8000/health

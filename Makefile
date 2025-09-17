@@ -1,4 +1,4 @@
-# Makefile for AI Document Data Extractor Docker Operations
+# Makefile for AI Data Extractor Docker Operations
 
 .PHONY: help build up down restart logs clean dev prod shell test
 

@@ -69,8 +69,8 @@ class AIConfig(BaseModel):
 
 class Settings(BaseModel):
     """Main application settings"""
-    app_name: str = Field(default="AI Document Data Extractor", description="Application name")
-    app_version: str = Field(default="3.0.0", description="Application version")
+    app_name: str = Field(default="AI Data Extractor", description="Application name")
+    app_version: str = Field(default="0.0.1", description="Application version")
     environment: str = Field(default="development", description="Environment (development/staging/production)")
     debug: bool = Field(default=False, description="Debug mode")
 
@@ -84,32 +84,81 @@ class Settings(BaseModel):
     def from_env(cls) -> "Settings":
         """Load settings from environment variables"""
         environment = os.getenv("ENVIRONMENT", "development")
+        debug = os.getenv("DEBUG", "false").lower() == "true" if environment != "production" else False
 
         settings = cls(
+            app_name=os.getenv("APP_NAME", "AI Data Extractor"),
+            app_version=os.getenv("APP_VERSION", "0.0.1"),
             environment=environment,
-            debug=environment == "development"
+            debug=debug
         )
 
-        # Override with environment variables if present
+        # Security settings
         if os.getenv("MAX_FILE_SIZE_MB"):
             settings.security.max_file_size_mb = int(os.getenv("MAX_FILE_SIZE_MB"))
-
         if os.getenv("RATE_LIMIT_REQUESTS"):
             settings.security.rate_limit_requests = int(os.getenv("RATE_LIMIT_REQUESTS"))
-
-        if os.getenv("LOG_LEVEL"):
-            settings.logging.log_level = os.getenv("LOG_LEVEL")
-
         if os.getenv("ENABLE_API_KEY_AUTH"):
             settings.security.enable_api_key_auth = os.getenv("ENABLE_API_KEY_AUTH").lower() == "true"
+        if os.getenv("CORS_ORIGINS"):
+            settings.security.cors_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS").split(",")]
+
+        # Logging settings
+        if os.getenv("LOG_LEVEL"):
+            settings.logging.log_level = os.getenv("LOG_LEVEL").upper()
+        if os.getenv("LOG_FILE"):
+            settings.logging.log_file = os.getenv("LOG_FILE")
+        if os.getenv("ENABLE_REQUEST_LOGGING"):
+            settings.logging.enable_request_logging = os.getenv("ENABLE_REQUEST_LOGGING").lower() == "true"
+
+        # Performance settings
+        if os.getenv("MAX_IMAGE_DIMENSION"):
+            settings.performance.max_image_dimension = int(os.getenv("MAX_IMAGE_DIMENSION"))
+        if os.getenv("IMAGE_COMPRESSION_QUALITY"):
+            settings.performance.image_compression_quality = int(os.getenv("IMAGE_COMPRESSION_QUALITY"))
+        if os.getenv("PDF_DPI"):
+            settings.performance.pdf_dpi = int(os.getenv("PDF_DPI"))
+        if os.getenv("RESPONSE_TIMEOUT"):
+            settings.performance.response_timeout = int(os.getenv("RESPONSE_TIMEOUT"))
+        if os.getenv("MAX_CONCURRENT_REQUESTS"):
+            settings.performance.max_concurrent_requests = int(os.getenv("MAX_CONCURRENT_REQUESTS"))
+        if os.getenv("CACHE_TTL_SECONDS"):
+            settings.performance.cache_ttl_seconds = int(os.getenv("CACHE_TTL_SECONDS"))
+        if os.getenv("ENABLE_RESPONSE_CACHING"):
+            settings.performance.enable_response_caching = os.getenv("ENABLE_RESPONSE_CACHING").lower() == "true"
+
+        # AI settings
+        if os.getenv("DEFAULT_AI_PROVIDER"):
+            settings.ai.default_provider = os.getenv("DEFAULT_AI_PROVIDER")
+        if os.getenv("DEFAULT_AI_MODEL"):
+            settings.ai.default_model = os.getenv("DEFAULT_AI_MODEL")
+        if os.getenv("AI_TEMPERATURE"):
+            settings.ai.temperature = float(os.getenv("AI_TEMPERATURE"))
+        if os.getenv("AI_MAX_RETRIES"):
+            settings.ai.max_retries = int(os.getenv("AI_MAX_RETRIES"))
+        if os.getenv("AI_RETRY_DELAY"):
+            settings.ai.retry_delay = float(os.getenv("AI_RETRY_DELAY"))
+        if os.getenv("AI_REQUEST_TIMEOUT"):
+            settings.ai.request_timeout = int(os.getenv("AI_REQUEST_TIMEOUT"))
+
+        # Monitoring settings
+        if os.getenv("ENABLE_METRICS"):
+            settings.monitoring.enable_metrics = os.getenv("ENABLE_METRICS").lower() == "true"
+        if os.getenv("METRICS_PORT"):
+            settings.monitoring.metrics_port = int(os.getenv("METRICS_PORT"))
+        if os.getenv("ENABLE_HEALTH_CHECKS"):
+            settings.monitoring.enable_health_checks = os.getenv("ENABLE_HEALTH_CHECKS").lower() == "true"
+        if os.getenv("ENABLE_TRACING"):
+            settings.monitoring.enable_tracing = os.getenv("ENABLE_TRACING").lower() == "true"
+        if os.getenv("TRACING_SAMPLE_RATE"):
+            settings.monitoring.tracing_sample_rate = float(os.getenv("TRACING_SAMPLE_RATE"))
 
         # Production optimizations
         if environment == "production":
             settings.debug = False
-            settings.logging.log_level = "WARNING"
+            settings.logging.log_level = os.getenv("LOG_LEVEL", "WARNING")
             settings.security.enable_api_key_auth = True
             settings.monitoring.enable_metrics = True
-            settings.monitoring.enable_tracing = True
             settings.performance.enable_response_caching = True
 
         return settings

@@ -1,5 +1,5 @@
 """
-Production-ready FastAPI backend for AI Document Data Extractor
+Production-ready FastAPI backend for AI Data Extractor
 Lightweight main application that assembles all modules
 """
 

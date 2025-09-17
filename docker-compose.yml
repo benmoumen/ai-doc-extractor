@@ -10,8 +10,6 @@ services:
       # API Keys - Set these in .env file
       - GROQ_API_KEY=${GROQ_API_KEY}
       - MISTRAL_API_KEY=${MISTRAL_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       # FastAPI settings
       - PYTHONUNBUFFERED=1
       - LOG_LEVEL=${LOG_LEVEL:-info}
@@ -72,7 +70,8 @@ services:
       - ai-doc-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      test:
+        ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
       interval: 10s
       timeout: 5s
       retries: 5

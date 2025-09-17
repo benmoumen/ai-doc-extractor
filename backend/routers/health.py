@@ -4,7 +4,6 @@ Health and system monitoring endpoints
 
 from datetime import datetime
 from fastapi import APIRouter
-from fastapi.responses import Response
 
 from config import settings
 from services.ai_service import get_active_ai_requests
@@ -35,30 +34,3 @@ async def health_check():
     return health_status
 
 
-@router.get("/metrics")
-async def metrics():
-    """Prometheus metrics endpoint"""
-    active_requests = get_active_ai_requests()
-
-    metrics_data = f"""# HELP ai_requests_active Current number of active AI requests
-# TYPE ai_requests_active gauge
-ai_requests_active {active_requests}
-
-# HELP schemas_total Total number of loaded schemas
-# TYPE schemas_total counter
-schemas_total 0
-
-# HELP http_request_duration_seconds HTTP request duration
-# TYPE http_request_duration_seconds histogram
-http_request_duration_seconds_bucket{{le="0.1"}} 0
-http_request_duration_seconds_bucket{{le="0.5"}} 0
-http_request_duration_seconds_bucket{{le="1.0"}} 0
-http_request_duration_seconds_bucket{{le="2.5"}} 0
-http_request_duration_seconds_bucket{{le="5.0"}} 0
-http_request_duration_seconds_bucket{{le="10.0"}} 0
-http_request_duration_seconds_bucket{{le="+Inf"}} 0
-http_request_duration_seconds_count 0
-http_request_duration_seconds_sum 0
-"""
-
-    return Response(content=metrics_data, media_type="text/plain")

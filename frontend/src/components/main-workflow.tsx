@@ -1,29 +1,38 @@
-'use client'
+"use client";
 
-import React, { useState } from 'react'
-import { FileText, Brain, Wand2, Zap } from 'lucide-react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import React, { useState } from "react";
+import { FileText, Brain, Wand2, Zap } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
-import { ExtractionWorkflow } from './extraction/extraction-workflow'
-import { SchemaGenerator } from './schema/schema-generator'
+import { ExtractionWorkflow } from "./extraction/extraction-workflow";
+import { SchemaGenerator } from "./schema/schema-generator";
 
 export function MainWorkflow() {
-  const [generatedSchemaId, setGeneratedSchemaId] = useState<string | null>(null)
+  const [generatedSchemaId, setGeneratedSchemaId] = useState<string | null>(
+    null
+  );
 
   const handleSchemaGenerated = (schemaId: string) => {
-    setGeneratedSchemaId(schemaId)
+    setGeneratedSchemaId(schemaId);
     // Optionally switch to extraction tab to use the new schema
     // You could trigger a tab switch here if desired
-  }
+  };
 
   return (
     <div className="container mx-auto p-6 max-w-6xl">
       {/* Header */}
       <div className="space-y-2 mb-6">
-        <h1 className="text-3xl font-bold">AI Document Data Extractor</h1>
+        <h1 className="text-3xl font-bold">AI Data Extractor</h1>
         <p className="text-muted-foreground">
-          Extract structured data from documents or generate custom schemas using AI
+          Extract structured data from documents or generate custom schemas
+          using AI
         </p>
       </div>
 
@@ -33,7 +42,10 @@ export function MainWorkflow() {
             <FileText className="h-4 w-4" />
             Data Extraction
           </TabsTrigger>
-          <TabsTrigger value="schema-generation" className="flex items-center gap-2">
+          <TabsTrigger
+            value="schema-generation"
+            className="flex items-center gap-2"
+          >
             <Brain className="h-4 w-4" />
             Document Analysis
           </TabsTrigger>
@@ -47,7 +59,8 @@ export function MainWorkflow() {
                 Document Data Extraction
               </CardTitle>
               <CardDescription>
-                Extract structured data from your documents using AI or predefined schemas
+                Extract structured data from your documents using AI or
+                predefined schemas
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -64,7 +77,8 @@ export function MainWorkflow() {
                 AI Document Analysis
               </CardTitle>
               <CardDescription>
-                Analyze sample documents to understand structure and create extraction templates
+                Analyze sample documents to understand structure and create
+                extraction templates
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -94,5 +108,5 @@ export function MainWorkflow() {
         </div>
       )}
     </div>
-  )
+  );
 }
