@@ -14,6 +14,10 @@ import {
   Eye,
   EyeOff,
   Sparkles,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+  ShieldX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +69,28 @@ export interface ExtractedField {
   };
 }
 
+export interface DocumentVerification {
+  document_type_confidence?: number;
+  expected_document_type?: string;
+  detected_document_type?: string;
+  authenticity_score?: number;
+  tampering_indicators?: {
+    photo_manipulation?: boolean;
+    text_alterations?: boolean;
+    structural_anomalies?: boolean;
+    digital_artifacts?: boolean;
+    font_inconsistencies?: boolean;
+  };
+  security_checks?: {
+    mrz_checksum_valid?: boolean;
+    field_consistency?: boolean;
+    date_logic_valid?: boolean;
+    format_compliance?: boolean;
+  };
+  verification_notes?: string[];
+  risk_level?: "low" | "medium" | "high";
+}
+
 export interface ExtractionResult {
   id: string;
   documentType?: string;
@@ -75,6 +101,7 @@ export interface ExtractionResult {
   extractionMode?: "schema" | "ai";
   warnings?: string[];
   suggestions?: string[];
+  verification?: DocumentVerification;
 }
 
 interface ExtractionResultsProps {
@@ -96,10 +123,9 @@ export function ExtractionResults({
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     new Set(["all"])
   );
-  const [showConfidenceScores, setShowConfidenceScores] = useState(true);
-  const [viewMode, setViewMode] = useState<"table" | "json" | "grouped">(
-    "table"
-  );
+  const [viewMode, setViewMode] = useState<
+    "table" | "json" | "grouped" | "verification"
+  >("table");
 
   // Group fields by confidence level
   const groupedFields = {
@@ -197,6 +223,53 @@ export function ExtractionResults({
     return null;
   };
 
+  const getVerificationIcon = (riskLevel?: string) => {
+    switch (riskLevel) {
+      case "low":
+        return <ShieldCheck className="h-4 w-4 text-green-500" />;
+      case "medium":
+        return <ShieldAlert className="h-4 w-4 text-yellow-500" />;
+      case "high":
+        return <ShieldX className="h-4 w-4 text-red-500" />;
+      default:
+        return <Shield className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const getVerificationBadge = (
+    riskLevel?: string,
+    authenticityScore?: number
+  ) => {
+    if (!riskLevel) return null;
+
+    const variant =
+      riskLevel === "low"
+        ? "default"
+        : riskLevel === "medium"
+        ? "secondary"
+        : "destructive";
+    const text =
+      riskLevel === "low"
+        ? "Verified"
+        : riskLevel === "medium"
+        ? "Review Required"
+        : "High Risk";
+
+    return (
+      <div className="flex items-center gap-2">
+        {getVerificationIcon(riskLevel)}
+        <Badge variant={variant} className="text-xs">
+          {text}
+        </Badge>
+        {authenticityScore && authenticityScore > 0 ? (
+          <span className="text-xs text-muted-foreground">
+            {authenticityScore}% authentic
+          </span>
+        ) : null}
+      </div>
+    );
+  };
+
   const renderFieldValue = (field: ExtractedField) => {
     if (editingField === field.id) {
       return (
@@ -270,6 +343,12 @@ export function ExtractionResults({
               {result.documentType && (
                 <Badge variant="outline">{result.documentType}</Badge>
               )}
+              {result.verification
+                ? getVerificationBadge(
+                    result.verification.risk_level,
+                    result.verification.authenticity_score
+                  )
+                : null}
             </CardTitle>
             <CardDescription className="mt-2">
               {result.extractedFields.length} fields extracted
@@ -278,28 +357,6 @@ export function ExtractionResults({
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      setShowConfidenceScores(!showConfidenceScores)
-                    }
-                  >
-                    {showConfidenceScores ? (
-                      <Eye className="h-4 w-4" />
-                    ) : (
-                      <EyeOff className="h-4 w-4" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {showConfidenceScores ? "Hide" : "Show"} confidence scores
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
             <Button size="sm" variant="outline" onClick={handleCopyAll}>
               <Copy className="h-4 w-4 mr-1" />
               Copy All
@@ -316,12 +373,15 @@ export function ExtractionResults({
       <CardContent>
         <Tabs
           value={viewMode}
-          onValueChange={(v) => setViewMode(v as "table" | "json" | "grouped")}
+          onValueChange={(v) =>
+            setViewMode(v as "table" | "json" | "grouped" | "verification")
+          }
         >
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="table">Table</TabsTrigger>
             <TabsTrigger value="json">JSON</TabsTrigger>
             <TabsTrigger value="grouped">Grouped</TabsTrigger>
+            <TabsTrigger value="verification">Verification</TabsTrigger>
           </TabsList>
 
           <TabsContent value="table">
@@ -331,7 +391,7 @@ export function ExtractionResults({
                   <TableHead>Field</TableHead>
                   <TableHead>Value</TableHead>
                   <TableHead>Type</TableHead>
-                  {showConfidenceScores && <TableHead>Confidence</TableHead>}
+                  <TableHead>Confidence</TableHead>
                   <TableHead>Source</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -348,11 +408,9 @@ export function ExtractionResults({
                     <TableCell>
                       <Badge variant="outline">{field.type}</Badge>
                     </TableCell>
-                    {showConfidenceScores && (
-                      <TableCell>
-                        {getConfidenceBadge(field.confidence)}
-                      </TableCell>
-                    )}
+                    <TableCell>
+                      {getConfidenceBadge(field.confidence)}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         {getSourceIcon(field.source)}
@@ -477,8 +535,7 @@ export function ExtractionResults({
                             {field.displayName}
                           </Label>
                           {getSourceIcon(field.source)}
-                          {showConfidenceScores &&
-                            getConfidenceBadge(field.confidence)}
+                          {getConfidenceBadge(field.confidence)}
                         </div>
                         <div className="col-span-2">
                           {renderFieldValue(field)}
@@ -519,8 +576,7 @@ export function ExtractionResults({
                             {field.displayName}
                           </Label>
                           {getSourceIcon(field.source)}
-                          {showConfidenceScores &&
-                            getConfidenceBadge(field.confidence)}
+                          {getConfidenceBadge(field.confidence)}
                         </div>
                         <div className="col-span-2">
                           {renderFieldValue(field)}
@@ -529,6 +585,158 @@ export function ExtractionResults({
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="verification" className="space-y-4">
+            {result.verification ? (
+              <>
+                {/* Risk Assessment */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-medium">
+                      Document Verification
+                    </h3>
+                    {getVerificationBadge(
+                      result.verification.risk_level,
+                      result.verification.authenticity_score
+                    )}
+                  </div>
+
+                  {/* Document Type Verification */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">
+                        Expected Document Type
+                      </Label>
+                      <p className="text-sm">
+                        {result.verification.expected_document_type ||
+                          "Not specified"}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">
+                        Detected Document Type
+                      </Label>
+                      <p className="text-sm">
+                        {result.verification.detected_document_type ||
+                          "Unknown"}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">
+                        Type Confidence
+                      </Label>
+                      <p className="text-sm">
+                        {result.verification.document_type_confidence || 0}%
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">
+                        Authenticity Score
+                      </Label>
+                      <p className="text-sm">
+                        {result.verification.authenticity_score || 0}%
+                      </p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Tampering Indicators */}
+                  {result.verification.tampering_indicators && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium">
+                        Tampering Analysis
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {Object.entries(
+                          result.verification.tampering_indicators
+                        ).map(([key, value]) => (
+                          <div
+                            key={key}
+                            className="flex items-center justify-between p-2 bg-muted rounded"
+                          >
+                            <span className="text-xs capitalize">
+                              {key.replace(/_/g, " ")}
+                            </span>
+                            <Badge
+                              variant={value ? "destructive" : "default"}
+                              className="text-xs"
+                            >
+                              {value ? "Detected" : "Clear"}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  {/* Security Checks */}
+                  {result.verification.security_checks && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium">
+                        Security Validation
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {Object.entries(
+                          result.verification.security_checks
+                        ).map(([key, value]) => (
+                          <div
+                            key={key}
+                            className="flex items-center justify-between p-2 bg-muted rounded"
+                          >
+                            <span className="text-xs capitalize">
+                              {key.replace(/_/g, " ")}
+                            </span>
+                            <Badge
+                              variant={value ? "default" : "destructive"}
+                              className="text-xs"
+                            >
+                              {value ? "Passed" : "Failed"}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Verification Notes */}
+                  {result.verification.verification_notes &&
+                    result.verification.verification_notes.length > 0 && (
+                      <>
+                        <Separator />
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-medium">
+                            Verification Notes
+                          </h4>
+                          <ul className="space-y-1">
+                            {result.verification.verification_notes.map(
+                              (note, index) => (
+                                <li
+                                  key={index}
+                                  className="text-xs text-muted-foreground flex items-start gap-2"
+                                >
+                                  <span className="text-blue-500">•</span>
+                                  {note}
+                                </li>
+                              )
+                            )}
+                          </ul>
+                        </div>
+                      </>
+                    )}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <Shield className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  No verification data available
+                </p>
               </div>
             )}
           </TabsContent>
