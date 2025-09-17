@@ -9,8 +9,6 @@ import {
   Save,
   X,
   AlertCircle,
-  ChevronDown,
-  ChevronRight,
   Eye,
   EyeOff,
   Sparkles,
@@ -120,24 +118,9 @@ export function ExtractionResults({
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Record<string, unknown>>({});
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    new Set(["all"])
+  const [viewMode, setViewMode] = useState<"table" | "json" | "verification">(
+    "table"
   );
-  const [viewMode, setViewMode] = useState<
-    "table" | "json" | "grouped" | "verification"
-  >("table");
-
-  // Group fields by confidence level
-  const groupedFields = {
-    high: result.extractedFields.filter((f) => (f.confidence || 0) >= 0.8),
-    medium: result.extractedFields.filter(
-      (f) => (f.confidence || 0) >= 0.5 && (f.confidence || 0) < 0.8
-    ),
-    low: result.extractedFields.filter((f) => (f.confidence || 0) < 0.5),
-    unverified: result.extractedFields.filter(
-      (f) => f.confidence === undefined
-    ),
-  };
 
   const handleEdit = (field: ExtractedField) => {
     setEditingField(field.id);
@@ -170,34 +153,6 @@ export function ExtractionResults({
     }
   };
 
-  const handleCopyAll = async () => {
-    const data = result.extractedFields.reduce<Record<string, unknown>>(
-      (acc, field) => {
-        acc[field.name] = field.value;
-        return acc;
-      },
-      {}
-    );
-
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
-      toast.success("All data copied to clipboard");
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-      toast.error("Failed to copy data");
-    }
-  };
-
-  const toggleGroup = (group: string) => {
-    const newExpanded = new Set(expandedGroups);
-    if (newExpanded.has(group)) {
-      newExpanded.delete(group);
-    } else {
-      newExpanded.add(group);
-    }
-    setExpandedGroups(newExpanded);
-  };
-
   const getConfidenceBadge = (confidence?: number) => {
     if (confidence === undefined) return null;
 
@@ -226,13 +181,13 @@ export function ExtractionResults({
   const getVerificationIcon = (riskLevel?: string) => {
     switch (riskLevel) {
       case "low":
-        return <ShieldCheck className="h-4 w-4 text-green-500" />;
+        return <ShieldCheck className="h-3 w-3" />;
       case "medium":
-        return <ShieldAlert className="h-4 w-4 text-yellow-500" />;
+        return <ShieldAlert className="h-3 w-3" />;
       case "high":
-        return <ShieldX className="h-4 w-4 text-red-500" />;
+        return <ShieldX className="h-3 w-3" />;
       default:
-        return <Shield className="h-4 w-4 text-gray-500" />;
+        return <Shield className="h-3 w-3" />;
     }
   };
 
@@ -256,13 +211,20 @@ export function ExtractionResults({
         : "High Risk";
 
     return (
-      <div className="flex items-center gap-2">
-        {getVerificationIcon(riskLevel)}
-        <Badge variant={variant} className="text-xs">
+      <div className="flex items-center gap-3">
+        <Badge
+          variant={variant}
+          className={`text-xs flex items-center gap-1.5 ${
+            riskLevel === "low"
+              ? "bg-green-500 hover:bg-green-600 text-white"
+              : ""
+          }`}
+        >
+          {getVerificationIcon(riskLevel)}
           {text}
         </Badge>
         {authenticityScore && authenticityScore > 0 ? (
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground ml-1">
             {authenticityScore}% authentic
           </span>
         ) : null}
@@ -338,10 +300,12 @@ export function ExtractionResults({
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              Extraction Results
+            <CardTitle className="flex items-center gap-3">
+              <span>Extraction Results</span>
               {result.documentType && (
-                <Badge variant="outline">{result.documentType}</Badge>
+                <Badge variant="outline" className="ml-1">
+                  {result.documentType}
+                </Badge>
               )}
               {result.verification
                 ? getVerificationBadge(
@@ -357,10 +321,6 @@ export function ExtractionResults({
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={handleCopyAll}>
-              <Copy className="h-4 w-4 mr-1" />
-              Copy All
-            </Button>
             {onExport && (
               <Button size="sm" onClick={() => onExport("json")}>
                 <Download className="h-4 w-4 mr-1" />
@@ -374,13 +334,12 @@ export function ExtractionResults({
         <Tabs
           value={viewMode}
           onValueChange={(v) =>
-            setViewMode(v as "table" | "json" | "grouped" | "verification")
+            setViewMode(v as "table" | "json" | "verification")
           }
         >
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="table">Table</TabsTrigger>
             <TabsTrigger value="json">JSON</TabsTrigger>
-            <TabsTrigger value="grouped">Grouped</TabsTrigger>
             <TabsTrigger value="verification">Verification</TabsTrigger>
           </TabsList>
 
@@ -390,9 +349,7 @@ export function ExtractionResults({
                 <TableRow>
                   <TableHead>Field</TableHead>
                   <TableHead>Value</TableHead>
-                  <TableHead>Type</TableHead>
                   <TableHead>Confidence</TableHead>
-                  <TableHead>Source</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -406,16 +363,7 @@ export function ExtractionResults({
                       {renderFieldValue(field)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{field.type}</Badge>
-                    </TableCell>
-                    <TableCell>
                       {getConfidenceBadge(field.confidence)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {getSourceIcon(field.source)}
-                        <span className="text-xs">{field.source}</span>
-                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
@@ -449,144 +397,8 @@ export function ExtractionResults({
 
           <TabsContent value="json">
             <pre className="p-4 bg-muted rounded-lg overflow-auto max-h-[500px]">
-              <code className="text-sm">
-                {JSON.stringify(
-                  result.extractedFields.reduce<Record<string, unknown>>(
-                    (acc, field) => {
-                      acc[field.name] = field.value;
-                      return acc;
-                    },
-                    {}
-                  ),
-                  null,
-                  2
-                )}
-              </code>
+              <code className="text-sm">{JSON.stringify(result, null, 2)}</code>
             </pre>
-          </TabsContent>
-
-          <TabsContent value="grouped" className="space-y-4">
-            {/* High Confidence Fields */}
-            {groupedFields.high.length > 0 && (
-              <div className="space-y-2">
-                <button
-                  onClick={() => toggleGroup("high")}
-                  className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
-                >
-                  {expandedGroups.has("high") ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                  High Confidence ({groupedFields.high.length})
-                  <Badge variant="default" className="ml-2">
-                    Verified
-                  </Badge>
-                </button>
-                {expandedGroups.has("high") && (
-                  <div className="ml-6 space-y-2">
-                    {groupedFields.high.map((field) => (
-                      <div
-                        key={field.id}
-                        className="grid grid-cols-3 gap-4 p-3 border rounded-lg"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Label className="text-sm font-medium">
-                            {field.displayName}
-                          </Label>
-                          {getSourceIcon(field.source)}
-                        </div>
-                        <div className="col-span-2">
-                          {renderFieldValue(field)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Medium Confidence Fields */}
-            {groupedFields.medium.length > 0 && (
-              <div className="space-y-2">
-                <button
-                  onClick={() => toggleGroup("medium")}
-                  className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
-                >
-                  {expandedGroups.has("medium") ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                  Medium Confidence ({groupedFields.medium.length})
-                  <Badge variant="secondary" className="ml-2">
-                    Review
-                  </Badge>
-                </button>
-                {expandedGroups.has("medium") && (
-                  <div className="ml-6 space-y-2">
-                    {groupedFields.medium.map((field) => (
-                      <div
-                        key={field.id}
-                        className="grid grid-cols-3 gap-4 p-3 border rounded-lg bg-yellow-50 dark:bg-yellow-950/20"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Label className="text-sm font-medium">
-                            {field.displayName}
-                          </Label>
-                          {getSourceIcon(field.source)}
-                          {getConfidenceBadge(field.confidence)}
-                        </div>
-                        <div className="col-span-2">
-                          {renderFieldValue(field)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Low Confidence Fields */}
-            {groupedFields.low.length > 0 && (
-              <div className="space-y-2">
-                <button
-                  onClick={() => toggleGroup("low")}
-                  className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
-                >
-                  {expandedGroups.has("low") ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                  Low Confidence ({groupedFields.low.length})
-                  <Badge variant="destructive" className="ml-2">
-                    Needs Review
-                  </Badge>
-                </button>
-                {expandedGroups.has("low") && (
-                  <div className="ml-6 space-y-2">
-                    {groupedFields.low.map((field) => (
-                      <div
-                        key={field.id}
-                        className="grid grid-cols-3 gap-4 p-3 border rounded-lg bg-red-50 dark:bg-red-950/20"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Label className="text-sm font-medium">
-                            {field.displayName}
-                          </Label>
-                          {getSourceIcon(field.source)}
-                          {getConfidenceBadge(field.confidence)}
-                        </div>
-                        <div className="col-span-2">
-                          {renderFieldValue(field)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </TabsContent>
 
           <TabsContent value="verification" className="space-y-4">
@@ -594,51 +406,71 @@ export function ExtractionResults({
               <>
                 {/* Risk Assessment */}
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-medium">
-                      Document Verification
-                    </h3>
-                    {getVerificationBadge(
-                      result.verification.risk_level,
-                      result.verification.authenticity_score
-                    )}
-                  </div>
-
                   {/* Document Type Verification */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                  <div className="p-4 border rounded-lg space-y-4">
+                    {/* Document Type Match Status */}
+                    <div className="flex items-center gap-3">
                       <Label className="text-xs text-muted-foreground">
-                        Expected Document Type
+                        Document Type Match
                       </Label>
-                      <p className="text-sm">
-                        {result.verification.expected_document_type ||
-                          "Not specified"}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        {(() => {
+                          const expected = result.verification.expected_document_type?.toLowerCase() || "";
+                          const detected = result.verification.detected_document_type?.toLowerCase() || "";
+                          const isMatch = expected && detected && expected === detected;
+
+                          return (
+                            <>
+                              {isMatch ? (
+                                <Check className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <X className="h-4 w-4 text-red-500" />
+                              )}
+                              <Badge variant={isMatch ? "default" : "destructive"} className="text-xs">
+                                {isMatch ? "Match" : "Mismatch"}
+                              </Badge>
+                            </>
+                          );
+                        })()}
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">
-                        Detected Document Type
-                      </Label>
-                      <p className="text-sm">
-                        {result.verification.detected_document_type ||
-                          "Unknown"}
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">
-                        Type Confidence
-                      </Label>
-                      <p className="text-sm">
-                        {result.verification.document_type_confidence || 0}%
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">
-                        Authenticity Score
-                      </Label>
-                      <p className="text-sm">
-                        {result.verification.authenticity_score || 0}%
-                      </p>
+
+                    {/* Document Type Details */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">
+                          Expected Document Type
+                        </Label>
+                        <p className="text-sm">
+                          {result.verification.expected_document_type ||
+                            "Not specified"}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">
+                          Detected Document Type
+                        </Label>
+                        <p className="text-sm">
+                          {result.verification.detected_document_type ||
+                            "Unknown"}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">
+                          Type Confidence
+                        </Label>
+                        <p className="text-sm">
+                          {result.verification.document_type_confidence || 0}%
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">
+                          Authenticity Score
+                        </Label>
+                        <p className="text-sm">
+                          {result.verification.authenticity_score || 0}%
+                        </p>
+                      </div>
                     </div>
                   </div>
 
