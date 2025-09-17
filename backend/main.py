@@ -86,10 +86,15 @@ app = FastAPI(
 )
 
 # Add middleware stack (order matters - first added is innermost)
-app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(ErrorHandlingMiddleware)
 
-# CORS middleware
+# Security and performance middleware (cache before CORS)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CacheMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.security.rate_limit_requests)
+
+# CORS middleware (after cache so CORS headers are always applied)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.security.cors_origins,
@@ -98,11 +103,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Security and performance middleware
-app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(CacheMiddleware)
-app.add_middleware(RequestLoggingMiddleware)
-app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.security.rate_limit_requests)
+# Compression middleware should be outermost (applied last)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # API key middleware for protected endpoints
 app.add_middleware(APIKeyMiddleware)

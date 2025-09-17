@@ -92,14 +92,28 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
-            "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https:; "
-            "font-src 'self' data:; "
-            "connect-src 'self'"
-        )
+
+        # Different CSP for docs pages vs API
+        if request.url.path in ["/docs", "/redoc"]:
+            # Relaxed CSP for documentation pages to allow CDN resources
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net unpkg.com; "
+                "style-src 'self' 'unsafe-inline' fonts.googleapis.com cdn.jsdelivr.net unpkg.com; "
+                "font-src 'self' data: fonts.gstatic.com cdn.jsdelivr.net; "
+                "img-src 'self' data: https: fastapi.tiangolo.com; "
+                "connect-src 'self'"
+            )
+        else:
+            # Strict CSP for API endpoints
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data: https:; "
+                "font-src 'self' data:; "
+                "connect-src 'self'"
+            )
 
         # HSTS for production
         if request.url.scheme == "https":
@@ -235,8 +249,16 @@ class CacheMiddleware(BaseHTTPMiddleware):
                     body += chunk
 
                 try:
+                    # Decode body as UTF-8 first
+                    try:
+                        body_text = body.decode('utf-8')
+                    except UnicodeDecodeError:
+                        # If we can't decode as UTF-8, don't cache
+                        logger.debug(f"Cannot decode response body as UTF-8 for {cache_key}")
+                        return response
+
                     # Parse and cache JSON
-                    json_content = json.loads(body)
+                    json_content = json.loads(body_text)
                     self.cache[cache_key] = (json_content, now)
 
                     # Return new response with cache headers

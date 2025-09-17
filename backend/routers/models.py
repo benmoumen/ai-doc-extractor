@@ -14,6 +14,7 @@ async def get_models():
     """Get list of supported AI models"""
     models = get_supported_models()
     return {
+        "success": True,
         "models": models,
         "default_model": "groq_meta-llama/llama-4-scout-17b-16e-instruct"
     }

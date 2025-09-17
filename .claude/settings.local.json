@@ -25,7 +25,8 @@
       "Bash(pnpm install:*)",
       "Bash(source:*)",
       "Bash(pip install:*)",
-      "Bash(docker run:*)"
+      "Bash(docker run:*)",
+      "Bash(docker compose:*)"
     ],
     "deny": [],
     "ask": []
