@@ -111,6 +111,112 @@ async def save_generated_schema(
         raise HTTPException(status_code=500, detail="Failed to save schema")
 
 
+@router.put("/api/schemas/{schema_id}")
+async def update_schema(
+    schema_id: str,
+    request: Request,
+    schema_data: str = Form(...),
+    schema_name: str = Form(...),
+    schema_category: str = Form(None)
+):
+    """Update an existing schema"""
+    request_id = getattr(request.state, "request_id", "unknown")
+
+    try:
+        # Sanitize schema ID
+        safe_schema_id = input_sanitizer.sanitize_string(schema_id, max_length=100)
+
+        # Check if schema exists
+        existing_schema = db_service.get_schema(safe_schema_id)
+        if not existing_schema:
+            raise HTTPException(status_code=404, detail="Schema not found")
+
+        # Sanitize inputs
+        safe_schema_name = input_sanitizer.sanitize_string(schema_name, max_length=100)
+        safe_schema_category = input_sanitizer.sanitize_string(schema_category or "Other", max_length=50)
+
+        # Parse and validate schema data
+        try:
+            schema_dict = json.loads(schema_data)
+            schema_dict = input_sanitizer.sanitize_json_field(schema_dict)
+        except json.JSONDecodeError as e:
+            logger.warning(f"[{request_id}] Invalid JSON in schema data: {str(e)}")
+            raise HTTPException(status_code=400, detail="Invalid JSON in schema data")
+
+        # Update schema metadata
+        updated_schema = {
+            "id": safe_schema_id,
+            "name": safe_schema_name,
+            "category": safe_schema_category,
+            "description": f"Updated schema for {safe_schema_name}",
+            "created_at": existing_schema.get("created_at", datetime.utcnow().isoformat()),
+            "updated_at": datetime.utcnow().isoformat(),
+            "fields": schema_dict.get("fields", {}),
+            "schema_data": schema_dict
+        }
+
+        # Update schema in database
+        success = db_service.save_schema(safe_schema_id, updated_schema)
+
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update schema in database")
+
+        logger.info(f"[{request_id}] Schema updated with ID: {safe_schema_id}")
+
+        return {
+            "success": True,
+            "schema_id": safe_schema_id,
+            "message": "Schema updated successfully",
+            "schema": {
+                "id": safe_schema_id,
+                "name": safe_schema_name,
+                "category": safe_schema_category,
+                "field_count": len(schema_dict.get("fields", {}))
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[{request_id}] Schema update error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update schema")
+
+
+@router.delete("/api/schemas/{schema_id}")
+async def delete_schema(schema_id: str, request: Request):
+    """Delete an existing schema"""
+    request_id = getattr(request.state, "request_id", "unknown")
+
+    try:
+        # Sanitize schema ID
+        safe_schema_id = input_sanitizer.sanitize_string(schema_id, max_length=100)
+
+        # Check if schema exists
+        existing_schema = db_service.get_schema(safe_schema_id)
+        if not existing_schema:
+            raise HTTPException(status_code=404, detail="Schema not found")
+
+        # Delete schema from database
+        success = db_service.delete_schema(safe_schema_id)
+
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete schema from database")
+
+        logger.info(f"[{request_id}] Schema deleted with ID: {safe_schema_id}")
+
+        return {
+            "success": True,
+            "schema_id": safe_schema_id,
+            "message": "Schema deleted successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[{request_id}] Schema delete error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete schema")
+
+
 def get_schemas_dict() -> Dict[str, Any]:
     """Get the schemas dictionary (for use by other modules)"""
     return db_service.get_all_schemas()
