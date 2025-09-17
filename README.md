@@ -17,7 +17,7 @@ A modern web application for extracting structured data from documents using AI.
 - **Frontend**: Next.js 15 with TypeScript, Tailwind CSS, shadcn/ui
 - **Backend**: FastAPI with Python 3.11+
 - **AI Integration**: LiteLLM supporting multiple providers (Groq, Mistral)
-- **Database**: PostgreSQL with Redis caching
+- **Database**: SQLite (file-based, no external dependencies)
 - **Deployment**: Docker & Docker Compose
 
 ## Quick Start
@@ -25,14 +25,14 @@ A modern web application for extracting structured data from documents using AI.
 ### Prerequisites
 
 - Docker and Docker Compose
-- API keys for at least one AI provider
+- API keys for at least one AI provider (Groq or Mistral)
 
 ### 1. Clone and Setup
 
 ```bash
 git clone <repository-url>
 cd ai-doc-extractor
-make env-setup
+cp .env.example .env
 ```
 
 ### 2. Configure API Keys
@@ -43,9 +43,6 @@ Edit `.env` file with your API keys:
 # Required: At least one AI provider
 GROQ_API_KEY=your_groq_key
 MISTRAL_API_KEY=your_mistral_key
-
-# Database (optional - will use defaults)
-DB_PASSWORD=your_secure_password
 ```
 
 ### 3. Start Development Environment
@@ -94,18 +91,24 @@ make clean            # Clean up containers and volumes
 
 ```
 ai-doc-extractor/
-├── frontend/          # Next.js application
+├── frontend/              # Next.js application
 │   ├── src/
-│   │   ├── app/       # App router pages
-│   │   ├── components/ # React components
-│   │   ├── lib/       # Utilities and API client
-│   │   └── types/     # TypeScript definitions
-│   └── public/        # Static assets
-├── backend/           # FastAPI application
-│   ├── main.py        # Application entry point
+│   │   ├── app/           # App router pages
+│   │   ├── components/    # React components
+│   │   ├── lib/          # Utilities and API client
+│   │   └── types/        # TypeScript definitions
+│   └── public/           # Static assets
+├── backend/              # FastAPI application
+│   ├── main.py           # Application entry point
+│   ├── routers/          # API route handlers
+│   ├── services/         # Business logic (database, AI)
 │   ├── requirements.txt
-│   └── Dockerfile
-└── docker-compose.yml # Service orchestration
+│   ├── Dockerfile        # Production build
+│   └── Dockerfile.dev    # Development build
+├── data/                 # SQLite database storage
+├── docker-compose.yml    # Base configuration
+├── docker-compose.dev.yml # Development overrides
+└── .env.example          # Environment template
 ```
 
 ## Usage
@@ -158,7 +161,6 @@ Supported AI providers and models:
 | `POST` | `/api/extract`         | Extract Data       | Extract structured data using schemas or AI  |
 | `POST` | `/api/generate-schema` | Generate Schema    | Create schema from sample document           |
 | `POST` | `/api/schemas`         | Save Schema        | Save generated schema for future use         |
-| `GET`  | `/metrics`             | Metrics            | Prometheus-compatible metrics endpoint       |
 
 ### Interactive Documentation
 
@@ -185,42 +187,52 @@ GET  /api/status           # Service health status
 
 ### Environment Setup
 
-1. Set production environment variables
-2. Configure database credentials
-3. Setup SSL certificates (optional)
+1. Copy and configure production environment:
+
+```bash
+cp .env.example .env.production
+# Edit .env.production with production values
+```
+
+2. Set production environment variables:
+
+- `ENVIRONMENT=production`
+- `DEBUG=false`
+- `ENABLE_API_KEY_AUTH=true`
+- Valid AI API keys
 
 ### Deploy with Docker
 
 ```bash
 # Build and start production services
-make prod-build
+docker-compose up --build -d
 
 # Check service health
-make health
-
-# View production logs
-make logs
+curl http://localhost:8000/health
 ```
 
 ### Production Features
 
-- **Resource Limits**: CPU and memory constraints
+- **SQLite Database**: File-based storage with persistence via Docker volumes
 - **Health Checks**: Automatic service monitoring
-- **Log Rotation**: Configurable log management
-- **nginx Reverse Proxy**: Load balancing and SSL termination
+- **Internal Deployment**: No external HTTPS/nginx required
 - **Auto-restart**: Services restart on failure
+- **API Authentication**: Optional API key protection
 
 ## Database Management
 
+The application uses SQLite for schema storage:
+
+- **Database Location**: `./data/schemas.db`
+- **Persistence**: Mounted as Docker volume for data retention
+- **Backups**: Simple file copy of `./data/schemas.db`
+
 ```bash
-# Backup database
-make db-backup
+# Backup database (simple file copy)
+cp ./data/schemas.db ./backups/schemas_backup_$(date +%Y%m%d_%H%M%S).db
 
-# Restore from backup
-make db-restore FILE=./backups/db_backup_20241217_120000.sql
-
-# Access database shell
-make shell-db
+# View database location
+ls -la ./data/
 ```
 
 ## Troubleshooting
@@ -234,11 +246,11 @@ make clean        # Clean up containers
 make dev-build    # Rebuild from scratch
 ```
 
-**API key errors:**
+**AI API key errors:**
 
-- Verify `.env` file exists and contains valid keys
-- Check API key permissions and quotas
-- Ensure at least one provider is configured
+- Verify `.env` file exists and contains valid AI provider keys
+- Check AI API key permissions and quotas
+- Ensure at least one AI provider is configured
 
 **File upload issues:**
 
@@ -249,8 +261,10 @@ make dev-build    # Rebuild from scratch
 **Database connection errors:**
 
 ```bash
-make logs-db      # Check database logs
-make health       # Verify service status
+# Check if database directory exists and has permissions
+ls -la ./data/
+# Check backend logs for database errors
+make logs-backend
 ```
 
 ### Development Issues
@@ -267,23 +281,3 @@ make health       # Verify service status
 make shell-frontend
 pnpm run type-check
 ```
-
-## Contributing
-
-1. Fork the repository
-2. Create feature branch
-3. Make changes with tests
-4. Submit pull request
-
-## License
-
-[License Type] - See LICENSE file for details
-
-## Support
-
-For issues and questions:
-
-- Check troubleshooting section above
-- Review API documentation
-- Submit GitHub issues for bugs
-- Contact support for enterprise needs

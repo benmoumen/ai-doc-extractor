@@ -36,7 +36,6 @@ Single-file FastAPI backend (`main.py`) providing AI-powered document processing
 | `POST` | `/api/extract`         | Extract Data       | Extract structured data using schemas or AI  |
 | `POST` | `/api/generate-schema` | Generate Schema    | Create schema from sample document           |
 | `POST` | `/api/schemas`         | Save Schema        | Save generated schema for future use         |
-| `GET`  | `/metrics`             | Metrics            | Prometheus-compatible metrics endpoint       |
 
 ### Detailed Documentation
 

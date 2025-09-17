@@ -27,14 +27,6 @@ This guide provides comprehensive instructions for deploying the AI Data Extract
 - ✅ Async request handling
 - ✅ PDF DPI optimization
 
-### Monitoring & Observability
-
-- ✅ Structured logging with request IDs
-- ✅ Health check endpoints
-- ✅ Request/response timing
-- ✅ Error tracking with context
-- ✅ Performance metrics
-
 ### Error Handling
 
 - ✅ Comprehensive validation messages
@@ -212,7 +204,6 @@ backend:
   deploy:
     replicas: 3
 ```
-
 
 ## Troubleshooting
 
