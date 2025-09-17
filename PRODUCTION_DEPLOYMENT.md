@@ -45,7 +45,7 @@ This guide provides comprehensive instructions for deploying the AI Document Dat
 ```
 ai-doc-extractor/
 ├── backend/
-│   ├── main_production.py      # Production-ready backend
+│   ├── main.py                # Production-ready backend
 │   ├── config.py               # Configuration management
 │   ├── middleware.py           # Security & monitoring middleware
 │   ├── validators.py          # Input validation & sanitization

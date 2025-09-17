@@ -22,7 +22,9 @@
       "Bash(find:*)",
       "Bash(chmod:*)",
       "Bash(sudo rm:*)",
-      "Bash(pnpm install:*)"
+      "Bash(pnpm install:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": []

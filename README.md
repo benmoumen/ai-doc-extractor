@@ -146,6 +146,22 @@ Supported AI providers and models:
 
 ## API Documentation
 
+### API Endpoints
+
+| Method | Endpoint | Purpose | Description |
+|--------|----------|---------|-------------|
+| `GET` | `/health` | Health Check | Backend health status and availability |
+| `GET` | `/api/models` | List AI Models | Get all available AI models across providers |
+| `GET` | `/api/schemas` | List Schemas | Get all stored extraction schemas |
+| `GET` | `/api/schemas/{id}` | Get Schema Details | Retrieve complete schema definition |
+| `POST` | `/api/documents` | Upload Document | Upload and validate document files |
+| `POST` | `/api/extract` | Extract Data | Extract structured data using schemas or AI |
+| `POST` | `/api/generate-schema` | Generate Schema | Create schema from sample document |
+| `POST` | `/api/schemas` | Save Schema | Save generated schema for future use |
+| `GET` | `/metrics` | Metrics | Prometheus-compatible metrics endpoint |
+
+### Interactive Documentation
+
 Interactive API documentation available at:
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
