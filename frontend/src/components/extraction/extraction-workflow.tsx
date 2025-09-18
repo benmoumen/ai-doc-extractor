@@ -79,13 +79,6 @@ interface SelectedSchemaDetails {
   fields?: Record<string, { display_name?: string; required?: boolean }>;
 }
 
-interface WorkflowStep {
-  id: string;
-  name: string;
-  description: string;
-  status: "pending" | "active" | "completed" | "error";
-  progress?: number;
-}
 
 // Schema Details Dialog Component
 function SchemaDetailsDialog({
@@ -524,60 +517,19 @@ export function ExtractionWorkflow() {
     }
   }, [selectedSchema]);
 
-  const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([
-    {
-      id: "upload",
-      name: "Upload Document",
-      description: "Select and upload your document",
-      status: "pending",
-    },
-    {
-      id: "configure",
-      name: "Configure Extraction",
-      description: "Choose extraction method",
-      status: "pending",
-    },
-    {
-      id: "extract",
-      name: "Extract Data",
-      description: "AI processing your document",
-      status: "pending",
-    },
-    {
-      id: "results",
-      name: "Review & Export",
-      description: "Review and export results",
-      status: "pending",
-    },
-  ]);
 
-  const updateStepStatus = (
-    stepId: string,
-    status: WorkflowStep["status"],
-    progress?: number
-  ) => {
-    setWorkflowSteps((prev) =>
-      prev.map((step) =>
-        step.id === stepId ? { ...step, status, progress } : step
-      )
-    );
-  };
 
   const handleUploadStart = (file: File) => {
     setUploadedFile(file);
     setIsUploading(true);
-    updateStepStatus("upload", "active");
   };
 
   const handleUploadComplete = (result: { success: boolean }) => {
     setIsUploading(false);
     if (result.success) {
-      updateStepStatus("upload", "completed");
-      updateStepStatus("configure", "active");
       setCurrentStep("configure");
       toast.success("Document uploaded successfully");
     } else {
-      updateStepStatus("upload", "error");
       toast.error("Upload failed. Please try again.");
     }
   };
@@ -591,8 +543,6 @@ export function ExtractionWorkflow() {
     if (!uploadedFile) return;
 
     setIsExtracting(true);
-    updateStepStatus("configure", "completed");
-    updateStepStatus("extract", "active");
     setCurrentStep("extract");
     setExtractionProgress(0);
 
@@ -817,8 +767,6 @@ export function ExtractionWorkflow() {
         };
 
         setExtractionResult(extractionResult);
-        updateStepStatus("extract", "completed");
-        updateStepStatus("results", "active");
         setCurrentStep("results");
         toast.success("Extraction completed successfully!");
       } else {
@@ -827,7 +775,6 @@ export function ExtractionWorkflow() {
     } catch (error) {
       console.error("Extraction error:", error);
       clearInterval(progressInterval);
-      updateStepStatus("extract", "error");
 
       const errorMessage =
         error instanceof Error
@@ -876,88 +823,10 @@ export function ExtractionWorkflow() {
     setDocumentPreview(null);
     setDebugInfo(null);
     setIsUploading(false);
-    setWorkflowSteps((prev) =>
-      prev.map((step) => ({
-        ...step,
-        status: step.id === "upload" ? "pending" : "pending",
-        progress: undefined,
-      }))
-    );
   };
 
   return (
     <div className="space-y-6">
-      {/* Workflow Progress */}
-      <Card>
-        <CardContent className="pt-6">
-          {/* Circles + Dividers Row using 7-column grid: C | D | C | D | C | D | C */}
-          <div className="grid grid-cols-7 items-center">
-            {workflowSteps.map((step, index) => (
-              <React.Fragment key={step.id}>
-                <div className="col-span-1 flex justify-center">
-                  <div
-                    className={`
-                    w-10 h-10 rounded-full flex items-center justify-center
-                    ${
-                      step.status === "completed"
-                        ? "bg-green-500 text-white"
-                        : step.status === "active"
-                        ? "bg-blue-200 text-white"
-                        : step.status === "error"
-                        ? "bg-red-500 text-white"
-                        : "bg-gray-200 text-gray-400"
-                    }
-                  `}
-                  >
-                    {step.status === "completed" ? (
-                      <CheckCircle className="h-5 w-5" />
-                    ) : step.status === "error" ? (
-                      <AlertCircle className="h-5 w-5" />
-                    ) : step.status === "active" &&
-                      ((step.id === "upload" && isUploading) ||
-                        (step.id === "extract" && isExtracting)) ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : step.status === "active" ? (
-                      <div className="w-3 h-3 rounded-full bg-blue-400" />
-                    ) : (
-                      <div className="w-3 h-3 rounded-full bg-gray-400" />
-                    )}
-                  </div>
-                </div>
-                {index < workflowSteps.length - 1 && (
-                  <div
-                    className={`col-span-1 h-0.5 mx-2 ${
-                      workflowSteps[index].status === "completed"
-                        ? "bg-green-500"
-                        : workflowSteps[index + 1].status !== "pending"
-                        ? "bg-blue-500"
-                        : "bg-gray-200"
-                    }`}
-                  />
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-
-          {/* Labels Row aligned under the exact same grid columns as circles */}
-          <div className="mt-3 grid grid-cols-7 items-start">
-            {workflowSteps.map((step, index) => (
-              <React.Fragment key={`${step.id}-labels`}>
-                <div className="col-span-1 text-center">
-                  <p className="text-xs font-medium">{step.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {step.description}
-                  </p>
-                </div>
-                {index < workflowSteps.length - 1 && (
-                  <div className="col-span-1" />
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Main Content Area */}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
