@@ -403,62 +403,42 @@ export function ExtractionResults({
                       </Label>
                       <div className="flex items-center gap-2">
                         {(() => {
-                          const expected =
-                            result.verification.expected_document_type?.toLowerCase() ||
-                            "";
-                          const detected =
-                            result.verification.detected_document_type?.toLowerCase() ||
-                            "";
                           const confidence = result.verification.document_type_confidence || 0;
 
-                          // Determine match status based on confidence and semantic similarity
-                          const isExactMatch = expected && detected && expected === detected;
-                          const isSemanticMatch = expected && detected && (
-                            // Remove suffixes like _(light), _(dark), etc. and compare base types
-                            expected.replace(/\s*\(.*?\)$/, '').replace(/_\(.*?\)$/, '') ===
-                            detected.replace(/\s*\(.*?\)$/, '').replace(/_\(.*?\)$/, '') ||
-                            // Check if one contains the other (fuzzy matching)
-                            expected.includes(detected) || detected.includes(expected)
-                          );
-                          const isHighConfidence = confidence >= 85; // 85% or higher confidence
-
-                          const isMatch = isExactMatch || (isSemanticMatch && isHighConfidence);
-
-                          // Determine appropriate styling based on match quality
-                          const getMatchSeverity = () => {
-                            if (isExactMatch) return 'exact';
-                            if (isSemanticMatch && confidence >= 95) return 'excellent';
-                            if (isSemanticMatch && confidence >= 85) return 'good';
-                            if (confidence >= 70) return 'warning';
-                            return 'mismatch';
+                          // Determine match status based on confidence only
+                          const getMatchStatus = () => {
+                            if (confidence >= 90) return { type: 'excellent', icon: 'check-green', label: 'High Confidence' };
+                            if (confidence >= 80) return { type: 'good', icon: 'check-blue', label: 'Good Confidence' };
+                            if (confidence >= 70) return { type: 'moderate', icon: 'warning', label: 'Moderate Confidence' };
+                            return { type: 'low', icon: 'x-red', label: 'Low Confidence' };
                           };
 
-                          const severity = getMatchSeverity();
+                          const status = getMatchStatus();
 
                           return (
                             <>
-                              {severity === 'exact' || severity === 'excellent' ? (
+                              {status.icon === 'check-green' ? (
                                 <Check className="h-4 w-4 text-green-500" />
-                              ) : severity === 'good' ? (
+                              ) : status.icon === 'check-blue' ? (
                                 <Check className="h-4 w-4 text-blue-500" />
-                              ) : severity === 'warning' ? (
+                              ) : status.icon === 'warning' ? (
                                 <AlertTriangle className="h-4 w-4 text-yellow-500" />
                               ) : (
                                 <X className="h-4 w-4 text-red-500" />
                               )}
                               <Badge
                                 variant={
-                                  severity === 'exact' || severity === 'excellent' ? "default" :
-                                  severity === 'good' ? "secondary" :
-                                  severity === 'warning' ? "outline" : "destructive"
+                                  status.type === 'excellent' ? "default" :
+                                  status.type === 'good' ? "secondary" :
+                                  status.type === 'moderate' ? "outline" : "destructive"
                                 }
                                 className="text-xs"
                               >
-                                {severity === 'exact' ? "Exact Match" :
-                                 severity === 'excellent' ? "Match" :
-                                 severity === 'good' ? "Match" :
-                                 severity === 'warning' ? "Partial" : "Mismatch"}
+                                {status.label}
                               </Badge>
+                              <span className="text-xs font-medium text-muted-foreground">
+                                ({confidence}%)
+                              </span>
                             </>
                           );
                         })()}

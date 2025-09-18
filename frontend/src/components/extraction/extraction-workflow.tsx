@@ -760,16 +760,23 @@ export function ExtractionWorkflow() {
               }
             }
 
-            // Document type mismatch
+            // Document type confidence analysis
             if (
               documentVerification.expected_document_type &&
-              documentVerification.detected_document_type &&
-              documentVerification.expected_document_type !==
-                documentVerification.detected_document_type
+              documentVerification.detected_document_type
             ) {
-              suggestions.push(
-                `Document type mismatch: Expected ${documentVerification.expected_document_type}, but detected ${documentVerification.detected_document_type}.`
-              );
+              const confidence = documentVerification.document_type_confidence || 0;
+
+              // Only show warnings for low confidence, regardless of type matching
+              if (confidence < 70) {
+                suggestions.push(
+                  `Low document type confidence (${confidence}%): Expected ${documentVerification.expected_document_type}, detected ${documentVerification.detected_document_type}. Consider using a clearer document image.`
+                );
+              } else if (confidence < 80) {
+                suggestions.push(
+                  `Moderate document type confidence (${confidence}%): Expected ${documentVerification.expected_document_type}, detected ${documentVerification.detected_document_type}.`
+                );
+              }
             }
 
             // Add suggestions based on document quality
