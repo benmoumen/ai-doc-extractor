@@ -34,8 +34,13 @@ export function AIDebugDialog({ schema, aiDebugInfo, trigger }: AIDebugDialogPro
     return null;
   }
 
-  // Show debug info only if available, otherwise show a message
+  // Show debug info only if available, otherwise don't render the component
   const hasDebugInfo = aiDebugInfo && aiDebugInfo.steps && aiDebugInfo.steps.length > 0;
+
+  // Don't render the component at all if there's no debug info
+  if (!hasDebugInfo) {
+    return null;
+  }
 
   const defaultTrigger = (
     <Button variant="outline" size="sm" className="gap-2">
@@ -60,16 +65,7 @@ export function AIDebugDialog({ schema, aiDebugInfo, trigger }: AIDebugDialogPro
           </DialogDescription>
         </DialogHeader>
 
-        {!hasDebugInfo ? (
-          <div className="text-center py-8">
-            <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="font-medium text-gray-900 mb-2">No Debug Information Available</h3>
-            <p className="text-sm text-gray-500">
-              Debug information is only available for schemas generated with AI analysis.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-y-auto max-h-[70vh] space-y-4">
+        <div className="overflow-y-auto max-h-[70vh] space-y-4">
             {/* Summary Statistics */}
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4 mb-6">
               <h3 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
@@ -270,8 +266,7 @@ export function AIDebugDialog({ schema, aiDebugInfo, trigger }: AIDebugDialogPro
                 </CardContent>
               </Card>
             ))}
-          </div>
-        )}
+        </div>
       </DialogContent>
     </Dialog>
   );
