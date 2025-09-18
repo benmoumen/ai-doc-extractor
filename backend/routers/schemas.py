@@ -143,7 +143,8 @@ async def update_schema(
     request: Request,
     schema_data: str = Form(...),
     schema_name: str = Form(...),
-    schema_category: str = Form(None)
+    schema_category: str = Form(None),
+    schema_description: str = Form(None)
 ):
     """Update an existing schema"""
     request_id = getattr(request.state, "request_id", "unknown")
@@ -160,6 +161,7 @@ async def update_schema(
         # Sanitize inputs
         safe_schema_name = input_sanitizer.sanitize_string(schema_name, max_length=100)
         safe_schema_category = input_sanitizer.sanitize_string(schema_category or "Other", max_length=50)
+        safe_schema_description = input_sanitizer.sanitize_string(schema_description or "", max_length=500) if schema_description else None
 
         # Parse and validate schema data
         try:
@@ -179,7 +181,7 @@ async def update_schema(
             "id": safe_schema_id,
             "name": safe_schema_name,
             "category": safe_schema_category,
-            "description": f"Updated schema for {safe_schema_name}",
+            "description": safe_schema_description or existing_schema.get("description", f"Updated schema for {safe_schema_name}"),
             "created_at": existing_schema.get("created_at", datetime.utcnow().isoformat()),
             "updated_at": datetime.utcnow().isoformat(),
             "fields": schema_dict.get("fields", {}),

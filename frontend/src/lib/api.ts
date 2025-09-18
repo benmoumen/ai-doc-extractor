@@ -245,6 +245,9 @@ export class APIClient {
     const formData = new FormData();
     formData.append("schema_name", schemaData.name);
     formData.append("schema_category", schemaData.category);
+    if (schemaData.description) {
+      formData.append("schema_description", schemaData.description);
+    }
     formData.append("schema_data", JSON.stringify({ fields: schemaData.fields }));
 
     const response = await fetch(`${this.baseURL}/api/schemas/${schemaId}`, {
