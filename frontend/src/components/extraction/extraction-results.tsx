@@ -9,6 +9,7 @@ import {
   Save,
   X,
   AlertCircle,
+  AlertTriangle,
   Sparkles,
   Shield,
   ShieldAlert,
@@ -408,21 +409,55 @@ export function ExtractionResults({
                           const detected =
                             result.verification.detected_document_type?.toLowerCase() ||
                             "";
-                          const isMatch =
-                            expected && detected && expected === detected;
+                          const confidence = result.verification.document_type_confidence || 0;
+
+                          // Determine match status based on confidence and semantic similarity
+                          const isExactMatch = expected && detected && expected === detected;
+                          const isSemanticMatch = expected && detected && (
+                            // Remove suffixes like _(light), _(dark), etc. and compare base types
+                            expected.replace(/\s*\(.*?\)$/, '').replace(/_\(.*?\)$/, '') ===
+                            detected.replace(/\s*\(.*?\)$/, '').replace(/_\(.*?\)$/, '') ||
+                            // Check if one contains the other (fuzzy matching)
+                            expected.includes(detected) || detected.includes(expected)
+                          );
+                          const isHighConfidence = confidence >= 85; // 85% or higher confidence
+
+                          const isMatch = isExactMatch || (isSemanticMatch && isHighConfidence);
+
+                          // Determine appropriate styling based on match quality
+                          const getMatchSeverity = () => {
+                            if (isExactMatch) return 'exact';
+                            if (isSemanticMatch && confidence >= 95) return 'excellent';
+                            if (isSemanticMatch && confidence >= 85) return 'good';
+                            if (confidence >= 70) return 'warning';
+                            return 'mismatch';
+                          };
+
+                          const severity = getMatchSeverity();
 
                           return (
                             <>
-                              {isMatch ? (
+                              {severity === 'exact' || severity === 'excellent' ? (
                                 <Check className="h-4 w-4 text-green-500" />
+                              ) : severity === 'good' ? (
+                                <Check className="h-4 w-4 text-blue-500" />
+                              ) : severity === 'warning' ? (
+                                <AlertTriangle className="h-4 w-4 text-yellow-500" />
                               ) : (
                                 <X className="h-4 w-4 text-red-500" />
                               )}
                               <Badge
-                                variant={isMatch ? "default" : "destructive"}
+                                variant={
+                                  severity === 'exact' || severity === 'excellent' ? "default" :
+                                  severity === 'good' ? "secondary" :
+                                  severity === 'warning' ? "outline" : "destructive"
+                                }
                                 className="text-xs"
                               >
-                                {isMatch ? "Match" : "Mismatch"}
+                                {severity === 'exact' ? "Exact Match" :
+                                 severity === 'excellent' ? "Match" :
+                                 severity === 'good' ? "Match" :
+                                 severity === 'warning' ? "Partial" : "Mismatch"}
                               </Badge>
                             </>
                           );
