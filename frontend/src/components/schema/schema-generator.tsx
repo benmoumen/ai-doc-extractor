@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/dialog";
 import { apiClient } from "@/lib/api";
 import { AIDebugInfo, AIDebugStep } from "@/types";
+import { isDebugFeatureEnabled } from "@/lib/debug";
 
 interface GenerationStep {
   name: string;
@@ -1471,7 +1472,7 @@ export function SchemaGenerator({
                     <Download className="h-4 w-4 mr-2" />
                     Download JSON
                   </Button>
-                  {aiDebugInfo && (
+                  {aiDebugInfo && isDebugFeatureEnabled('aiDebugDialog') && (
                     <Button
                       onClick={() => setShowDebugDialog(true)}
                       variant="outline"
@@ -1489,7 +1490,7 @@ export function SchemaGenerator({
       )}
 
       {/* AI Debug Dialog */}
-      {aiDebugInfo && (
+      {aiDebugInfo && isDebugFeatureEnabled('aiDebugDialog') && (
         <Dialog open={showDebugDialog} onOpenChange={setShowDebugDialog}>
           <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
             <DialogHeader>
