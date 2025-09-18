@@ -4,18 +4,12 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import {
   FileText,
-  // Upload,
   Loader2,
-  CheckCircle,
-  AlertCircle,
-  // ArrowRight,
   RefreshCw,
   Sparkles,
   Zap,
   Eye,
   Code,
-  Settings,
-  // X,
   ExternalLink,
   Database,
 } from "lucide-react";
@@ -78,7 +72,6 @@ interface DebugInfo {
 interface SelectedSchemaDetails {
   fields?: Record<string, { display_name?: string; required?: boolean }>;
 }
-
 
 // Schema Details Dialog Component
 function SchemaDetailsDialog({
@@ -517,8 +510,6 @@ export function ExtractionWorkflow() {
     }
   }, [selectedSchema]);
 
-
-
   const handleUploadStart = (file: File) => {
     setUploadedFile(file);
     setIsUploading(true);
@@ -613,33 +604,43 @@ export function ExtractionWorkflow() {
           processingTime:
             result.metadata?.processing_time || clientSideProcessingTime,
           confidence: overallConfidence, // Keep original scale (0-100)
-          extractedFields: result.extracted_data?.structured_data?.extracted_fields
-            ? Object.entries(result.extracted_data.structured_data.extracted_fields).map(
-                ([key, fieldData]) => ({
-                  id: key,
-                  name: key,
-                  displayName: key
-                    .replace(/_/g, " ")
-                    .replace(/\b\w/g, (l) => l.toUpperCase()),
-                  // Extract value from nested field structure
-                  value: fieldData && typeof fieldData === "object" && "value" in fieldData
+          extractedFields: result.extracted_data?.structured_data
+            ?.extracted_fields
+            ? Object.entries(
+                result.extracted_data.structured_data.extracted_fields
+              ).map(([key, fieldData]) => ({
+                id: key,
+                name: key,
+                displayName: key
+                  .replace(/_/g, " ")
+                  .replace(/\b\w/g, (l) => l.toUpperCase()),
+                // Extract value from nested field structure
+                value:
+                  fieldData &&
+                  typeof fieldData === "object" &&
+                  "value" in fieldData
                     ? String(fieldData.value || "")
                     : String(fieldData || ""),
-                  type: "string", // Individual fields are typically strings
-                  // Use field-specific confidence if available
-                  confidence: fieldData && typeof fieldData === "object" && "confidence" in fieldData
+                type: "string", // Individual fields are typically strings
+                // Use field-specific confidence if available
+                confidence:
+                  fieldData &&
+                  typeof fieldData === "object" &&
+                  "confidence" in fieldData
                     ? fieldData.confidence
                     : overallConfidence,
-                  validation: {
-                    isValid: result.validation?.passed ?? true,
-                    errors: result.validation?.errors || [],
-                  },
-                  // Add extraction notes if available
-                  notes: fieldData && typeof fieldData === "object" && "extraction_notes" in fieldData
+                validation: {
+                  isValid: result.validation?.passed ?? true,
+                  errors: result.validation?.errors || [],
+                },
+                // Add extraction notes if available
+                notes:
+                  fieldData &&
+                  typeof fieldData === "object" &&
+                  "extraction_notes" in fieldData
                     ? fieldData.extraction_notes
                     : undefined,
-                })
-              )
+              }))
             : [
                 {
                   id: "raw_content",
@@ -715,7 +716,8 @@ export function ExtractionWorkflow() {
               documentVerification.expected_document_type &&
               documentVerification.detected_document_type
             ) {
-              const confidence = documentVerification.document_type_confidence || 0;
+              const confidence =
+                documentVerification.document_type_confidence || 0;
 
               // Only show warnings for low confidence, regardless of type matching
               if (confidence < 70) {
@@ -1202,7 +1204,6 @@ export function ExtractionWorkflow() {
                       fetchSchemaDetails={fetchSchemaDetails}
                     />
                   )}
-
 
                 {extractionResult && (
                   <>

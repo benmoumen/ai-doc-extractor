@@ -4,7 +4,6 @@ import { AIDebugInfo } from "@/types";
 import { apiClient } from "@/lib/api";
 import { aiDebugLog } from "@/lib/debug";
 
-
 interface MinimalModel {
   id: string;
   name: string;
@@ -20,7 +19,6 @@ export function useSchemaGeneration() {
     useState<GeneratedSchema | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [aiDebugInfo, setAiDebugInfo] = useState<AIDebugInfo | null>(null);
-
 
   // Handle file selection and preview
   useEffect(() => {
@@ -42,23 +40,6 @@ export function useSchemaGeneration() {
     setIsGenerating(false);
   }, []);
 
-
-
-  const getStepMessage = (stepName: string): string => {
-    const stepMessages: Record<string, string> = {
-      document_analysis: "Initial Document Analysis",
-      schema_extraction: "Schema Review & Refinement",
-      confidence_analysis: "Confidence Analysis",
-      hint_generation: "Extraction Hints Generation",
-      validation: "Schema Validation",
-      finalization: "Finalizing Results",
-    };
-    return (
-      stepMessages[stepName] ||
-      stepName.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
-    );
-  };
-
   const startGeneration = useCallback(async () => {
     if (!selectedFile || !selectedModel) return;
 
@@ -66,7 +47,6 @@ export function useSchemaGeneration() {
       setError(null);
       resetGeneration();
       setIsGenerating(true);
-
 
       const response = await apiClient.generateSchema({
         file: selectedFile,
@@ -81,15 +61,19 @@ export function useSchemaGeneration() {
         const schemaData = response.generated_schema.schema_data;
 
         // Normalize field confidence scores from percentages to decimals
-        const normalizedFields = Object.entries(schemaData.fields || {}).reduce((acc, [key, field]) => {
-          acc[key] = {
-            ...field,
-            confidence_score: field.confidence_score !== undefined
-              ? field.confidence_score / 100
-              : field.confidence_score
-          };
-          return acc;
-        }, {} as Record<string, any>);
+        const normalizedFields = Object.entries(schemaData.fields || {}).reduce(
+          (acc, [key, field]) => {
+            acc[key] = {
+              ...field,
+              confidence_score:
+                field.confidence_score !== undefined
+                  ? field.confidence_score / 100
+                  : field.confidence_score,
+            };
+            return acc;
+          },
+          {} as Record<string, any>
+        );
 
         setGeneratedSchema({
           id: schemaData.id,
@@ -115,7 +99,6 @@ export function useSchemaGeneration() {
           aiDebugLog("AI Debug Info received:", response.ai_debug);
           aiDebugLog("AI Debug Steps:", response.ai_debug.steps);
         }
-
       } else {
         throw new Error("Failed to generate schema");
       }
@@ -126,7 +109,6 @@ export function useSchemaGeneration() {
           ? error.message
           : "An error occurred during generation"
       );
-
     } finally {
       setIsGenerating(false);
     }
