@@ -174,15 +174,30 @@ export function SchemaEditor({
   return (
     <Card className={className}>
       <CardHeader>
-        <CardTitle>
-          {schema ? "Edit Schema" : "Create New Schema"}
-        </CardTitle>
-        <CardDescription>
-          {schema
-            ? "Modify the schema fields and properties"
-            : "Create a new document extraction schema"
-          }
-        </CardDescription>
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle>
+              {schema ? "Edit Schema" : "Create New Schema"}
+            </CardTitle>
+            <CardDescription>
+              {schema
+                ? "Modify the schema fields and properties"
+                : "Create a new document extraction schema"
+              }
+            </CardDescription>
+          </div>
+          {/* Duplicate Action Buttons */}
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={onCancel} disabled={isLoading}>
+              <X className="h-4 w-4 mr-1" />
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleSave} disabled={isLoading || !formData.name.trim()}>
+              <Save className="h-4 w-4 mr-1" />
+              {isLoading ? "Saving..." : "Save Schema"}
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Schema Quality Overview */}
