@@ -26,7 +26,11 @@
       "Bash(source:*)",
       "Bash(pip install:*)",
       "Bash(docker run:*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(pnpm tsc:*)"
     ],
     "deny": [],
     "ask": []
