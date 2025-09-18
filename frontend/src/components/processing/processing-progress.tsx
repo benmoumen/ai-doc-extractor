@@ -175,7 +175,7 @@ export function ProcessingProgress({
 
         {/* Stage Details */}
         <div className="space-y-3">
-          {PROCESSING_STAGES.map((stage, index) => {
+          {PROCESSING_STAGES.map((stage) => {
             const status = getStageStatus(stage)
             const stageResult = processingStages[stage.key]
             const details = getStageDetails(stage)
