@@ -1,7 +1,17 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Save, Plus, Trash2, X, Check, AlertTriangle, Target, Eye, Zap } from "lucide-react";
+import {
+  Save,
+  Plus,
+  Trash2,
+  X,
+  Check,
+  AlertTriangle,
+  Target,
+  Eye,
+  Zap,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +33,12 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { GeneratedSchema, FieldConfig } from "./types";
 import { AIDebugInfo } from "@/types";
 import { AIDebugDialog } from "./components/AIDebugDialog";
@@ -182,17 +197,25 @@ export function SchemaEditor({
             <CardDescription>
               {schema
                 ? "Modify the schema fields and properties"
-                : "Create a new document extraction schema"
-              }
+                : "Create a new document extraction schema"}
             </CardDescription>
           </div>
           {/* Duplicate Action Buttons */}
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onCancel} disabled={isLoading}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onCancel}
+              disabled={isLoading}
+            >
               <X className="h-4 w-4 mr-1" />
               Cancel
             </Button>
-            <Button size="sm" onClick={handleSave} disabled={isLoading || !formData.name.trim()}>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={isLoading || !formData.name.trim()}
+            >
               <Save className="h-4 w-4 mr-1" />
               {isLoading ? "Saving..." : "Save Schema"}
             </Button>
@@ -213,7 +236,9 @@ export function SchemaEditor({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-1">
-                  <span className="text-sm font-medium">Overall Confidence</span>
+                  <span className="text-sm font-medium">
+                    Overall Confidence
+                  </span>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger>
@@ -226,8 +251,13 @@ export function SchemaEditor({
                   </TooltipProvider>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Progress value={(schema.overall_confidence || 0) * 100} className="h-2 flex-1" />
-                  <span className="text-sm text-muted-foreground">{Math.round((schema.overall_confidence || 0) * 100)}%</span>
+                  <Progress
+                    value={(schema.overall_confidence || 0) * 100}
+                    className="h-2 flex-1"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {Math.round((schema.overall_confidence || 0) * 100)}%
+                  </span>
                 </div>
               </div>
               <div className="space-y-1">
@@ -248,26 +278,40 @@ export function SchemaEditor({
               </div>
               <div className="space-y-1">
                 <span className="text-sm font-medium">Document Quality</span>
-                <Badge variant="outline">{schema.document_quality || "Unknown"}</Badge>
+                <Badge variant="outline">
+                  {schema.document_quality || "Unknown"}
+                </Badge>
               </div>
               <div className="space-y-1">
-                <span className="text-sm font-medium">Extraction Difficulty</span>
-                <Badge variant="outline">{schema.extraction_difficulty || "Unknown"}</Badge>
+                <span className="text-sm font-medium">
+                  Extraction Difficulty
+                </span>
+                <Badge variant="outline">
+                  {schema.extraction_difficulty || "Unknown"}
+                </Badge>
               </div>
             </div>
-            {schema.quality_recommendations && schema.quality_recommendations.length > 0 && (
-              <div className="space-y-2">
-                <span className="text-sm font-medium">Quality Recommendations:</span>
-                <div className="space-y-1">
-                  {schema.quality_recommendations.slice(0, 3).map((rec, index) => (
-                    <div key={index} className="text-sm text-muted-foreground flex items-start gap-1">
-                      <Target className="h-3 w-3 mt-0.5 text-blue-500 flex-shrink-0" />
-                      {rec}
-                    </div>
-                  ))}
+            {schema.quality_recommendations &&
+              schema.quality_recommendations.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-sm font-medium">
+                    Quality Recommendations:
+                  </span>
+                  <div className="space-y-1">
+                    {schema.quality_recommendations
+                      .slice(0, 3)
+                      .map((rec, index) => (
+                        <div
+                          key={index}
+                          className="text-sm text-muted-foreground flex items-start gap-1"
+                        >
+                          <Target className="h-3 w-3 mt-0.5 text-blue-500 flex-shrink-0" />
+                          {rec}
+                        </div>
+                      ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         )}
 
@@ -279,7 +323,9 @@ export function SchemaEditor({
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
+                }
                 placeholder="Enter schema name"
               />
             </div>
@@ -287,7 +333,9 @@ export function SchemaEditor({
               <Label htmlFor="category">Category</Label>
               <Select
                 value={formData.category}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, category: value }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
@@ -308,7 +356,12 @@ export function SchemaEditor({
             <textarea
               id="description"
               value={formData.description}
-              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               placeholder="Describe what this schema is used for"
               rows={3}
               className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -341,7 +394,10 @@ export function SchemaEditor({
           ) : (
             <div className="space-y-3">
               {Object.entries(fields).map(([fieldName, field]) => (
-                <div key={fieldName} className="border rounded-lg p-4 space-y-3">
+                <div
+                  key={fieldName}
+                  className="border rounded-lg p-4 space-y-3"
+                >
                   {editingField === fieldName ? (
                     <FieldEditor
                       fieldName={fieldName}
@@ -377,7 +433,10 @@ export function SchemaEditor({
           <Button variant="outline" onClick={onCancel} disabled={isLoading}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isLoading || !formData.name.trim()}>
+          <Button
+            onClick={handleSave}
+            disabled={isLoading || !formData.name.trim()}
+          >
             {isLoading ? "Saving..." : "Save Schema"}
             <Save className="h-4 w-4 ml-2" />
           </Button>
@@ -408,10 +467,14 @@ function FieldDisplay({
 
   const getLegibilityIcon = (legibility?: string) => {
     switch (legibility) {
-      case "high": return "🟢";
-      case "medium": return "🟡";
-      case "low": return "🔴";
-      default: return "⚪";
+      case "high":
+        return "🟢";
+      case "medium":
+        return "🟡";
+      case "low":
+        return "🔴";
+      default:
+        return "⚪";
     }
   };
 
@@ -431,7 +494,9 @@ function FieldDisplay({
             )}
           </div>
           {field.description && (
-            <p className="text-sm text-muted-foreground mb-2">{field.description}</p>
+            <p className="text-sm text-muted-foreground mb-2">
+              {field.description}
+            </p>
           )}
 
           {/* Validation Pattern - Prominently Displayed */}
@@ -439,7 +504,9 @@ function FieldDisplay({
             <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
               <div className="flex items-center gap-2 mb-1">
                 <Check className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-800">Validation Pattern</span>
+                <span className="text-sm font-medium text-blue-800">
+                  Validation Pattern
+                </span>
               </div>
               <code className="text-xs font-mono text-blue-700 bg-blue-100 px-2 py-1 rounded">
                 {field.validation_pattern}
@@ -452,11 +519,16 @@ function FieldDisplay({
             <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded-md">
               <div className="flex items-center gap-2 mb-2">
                 <Target className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-medium text-green-800">Extraction Hints</span>
+                <span className="text-sm font-medium text-green-800">
+                  Extraction Hints
+                </span>
               </div>
               <ul className="space-y-1">
                 {field.extraction_hints.slice(0, 2).map((hint, i) => (
-                  <li key={i} className="text-xs text-green-700 flex items-start gap-1">
+                  <li
+                    key={i}
+                    className="text-xs text-green-700 flex items-start gap-1"
+                  >
                     <span className="text-green-500 mt-0.5">•</span>
                     <span>{hint}</span>
                   </li>
@@ -475,9 +547,13 @@ function FieldDisplay({
             <div className="mb-3 p-2 bg-purple-50 border border-purple-200 rounded-md">
               <div className="flex items-center gap-2 mb-1">
                 <Eye className="h-4 w-4 text-purple-600" />
-                <span className="text-sm font-medium text-purple-800">Field Location</span>
+                <span className="text-sm font-medium text-purple-800">
+                  Field Location
+                </span>
               </div>
-              <p className="text-xs text-purple-700">{field.positioning_hints}</p>
+              <p className="text-xs text-purple-700">
+                {field.positioning_hints}
+              </p>
             </div>
           )}
 
@@ -488,8 +564,14 @@ function FieldDisplay({
                 <Tooltip>
                   <TooltipTrigger>
                     <div className="flex items-center gap-1">
-                      <div className={`w-2 h-2 rounded-full ${getConfidenceColor(field.confidence_score)}`} />
-                      <span>Confidence: {Math.round(field.confidence_score * 100)}%</span>
+                      <div
+                        className={`w-2 h-2 rounded-full ${getConfidenceColor(
+                          field.confidence_score
+                        )}`}
+                      />
+                      <span>
+                        Confidence: {Math.round(field.confidence_score * 100)}%
+                      </span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -525,7 +607,9 @@ function FieldDisplay({
                   <TooltipContent>
                     <div className="space-y-1 max-w-xs">
                       {field.potential_issues.slice(0, 3).map((issue, i) => (
-                        <p key={i} className="text-xs">{issue}</p>
+                        <p key={i} className="text-xs">
+                          {issue}
+                        </p>
                       ))}
                     </div>
                   </TooltipContent>
@@ -566,7 +650,7 @@ function FieldEditor({
     ...field,
     extraction_hints: field.extraction_hints || [],
     positioning_hints: field.positioning_hints || [],
-    potential_issues: field.potential_issues || []
+    potential_issues: field.potential_issues || [],
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -576,44 +660,51 @@ function FieldEditor({
   };
 
   const addExtractionHint = () => {
-    setEditedField(prev => ({
+    setEditedField((prev) => ({
       ...prev,
-      extraction_hints: [...(prev.extraction_hints || []), ""]
+      extraction_hints: [...(prev.extraction_hints || []), ""],
     }));
   };
 
   const updateExtractionHint = (index: number, value: string) => {
-    setEditedField(prev => ({
+    setEditedField((prev) => ({
       ...prev,
-      extraction_hints: prev.extraction_hints?.map((hint, i) => i === index ? value : hint) || []
+      extraction_hints:
+        prev.extraction_hints?.map((hint, i) => (i === index ? value : hint)) ||
+        [],
     }));
   };
 
   const removeExtractionHint = (index: number) => {
-    setEditedField(prev => ({
+    setEditedField((prev) => ({
       ...prev,
-      extraction_hints: prev.extraction_hints?.filter((_, i) => i !== index) || []
+      extraction_hints:
+        prev.extraction_hints?.filter((_, i) => i !== index) || [],
     }));
   };
 
   const addPositioningHint = () => {
-    setEditedField(prev => ({
+    setEditedField((prev) => ({
       ...prev,
-      positioning_hints: [...(prev.positioning_hints || []), ""]
+      positioning_hints: [...(prev.positioning_hints || []), ""],
     }));
   };
 
   const updatePositioningHint = (index: number, value: string) => {
-    setEditedField(prev => ({
+    setEditedField((prev) => ({
       ...prev,
-      positioning_hints: prev.positioning_hints?.map((hint, i) => i === index ? value : hint) || []
+      positioning_hints:
+        prev.positioning_hints?.map((hint, i) =>
+          i === index ? value : hint
+        ) || [],
     }));
   };
 
   const removePositioningHint = (index: number) => {
-    setEditedField(prev => ({
+    setEditedField((prev) => ({
       ...prev,
-      positioning_hints: prev.positioning_hints?.filter((_, i) => i !== index) || []
+      positioning_hints:
+        prev.positioning_hints?.filter((_, i) => i !== index) || [],
     }));
   };
 
@@ -634,7 +725,9 @@ function FieldEditor({
           <Label className="text-xs">Type</Label>
           <Select
             value={editedField.type || "text"}
-            onValueChange={(value) => setEditedField((prev) => ({ ...prev, type: value }))}
+            onValueChange={(value) =>
+              setEditedField((prev) => ({ ...prev, type: value }))
+            }
           >
             <SelectTrigger className="h-8">
               <SelectValue />
@@ -654,7 +747,9 @@ function FieldEditor({
         <Label className="text-xs">Description</Label>
         <textarea
           value={editedField.description || ""}
-          onChange={(e) => setEditedField((prev) => ({ ...prev, description: e.target.value }))}
+          onChange={(e) =>
+            setEditedField((prev) => ({ ...prev, description: e.target.value }))
+          }
           placeholder="Field description"
           rows={2}
           className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -671,7 +766,12 @@ function FieldEditor({
             max="1"
             step="0.1"
             value={editedField.confidence_score || 0.9}
-            onChange={(e) => setEditedField((prev) => ({ ...prev, confidence_score: parseFloat(e.target.value) }))}
+            onChange={(e) =>
+              setEditedField((prev) => ({
+                ...prev,
+                confidence_score: parseFloat(e.target.value),
+              }))
+            }
             className="h-8"
           />
         </div>
@@ -679,7 +779,12 @@ function FieldEditor({
           <Label className="text-xs">Legibility</Label>
           <Select
             value={editedField.legibility || "high"}
-            onValueChange={(value) => setEditedField((prev) => ({ ...prev, legibility: value as "high" | "medium" | "low" }))}
+            onValueChange={(value) =>
+              setEditedField((prev) => ({
+                ...prev,
+                legibility: value as "high" | "medium" | "low",
+              }))
+            }
           >
             <SelectTrigger className="h-8">
               <SelectValue />
@@ -695,7 +800,12 @@ function FieldEditor({
           <Label className="text-xs">Validation Pattern</Label>
           <Input
             value={editedField.validation_pattern || ""}
-            onChange={(e) => setEditedField((prev) => ({ ...prev, validation_pattern: e.target.value }))}
+            onChange={(e) =>
+              setEditedField((prev) => ({
+                ...prev,
+                validation_pattern: e.target.value,
+              }))
+            }
             placeholder="Regex pattern"
             className="h-8"
           />
@@ -719,7 +829,12 @@ function FieldEditor({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs">Extraction Hints</Label>
-              <Button type="button" variant="ghost" size="sm" onClick={addExtractionHint}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={addExtractionHint}
+              >
                 <Plus className="h-3 w-3" />
               </Button>
             </div>
@@ -731,7 +846,12 @@ function FieldEditor({
                   placeholder="Extraction hint"
                   className="h-8 flex-1"
                 />
-                <Button type="button" variant="ghost" size="sm" onClick={() => removeExtractionHint(index)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeExtractionHint(index)}
+                >
                   <X className="h-3 w-3" />
                 </Button>
               </div>
@@ -742,7 +862,12 @@ function FieldEditor({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs">Positioning Hints</Label>
-              <Button type="button" variant="ghost" size="sm" onClick={addPositioningHint}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={addPositioningHint}
+              >
                 <Plus className="h-3 w-3" />
               </Button>
             </div>
@@ -754,7 +879,12 @@ function FieldEditor({
                   placeholder="Positioning hint"
                   className="h-8 flex-1"
                 />
-                <Button type="button" variant="ghost" size="sm" onClick={() => removePositioningHint(index)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removePositioningHint(index)}
+                >
                   <X className="h-3 w-3" />
                 </Button>
               </div>
@@ -771,7 +901,10 @@ function FieldEditor({
             id={`required-${fieldName}`}
             checked={editedField.required || false}
             onChange={(e) =>
-              setEditedField((prev) => ({ ...prev, required: e.target.checked }))
+              setEditedField((prev) => ({
+                ...prev,
+                required: e.target.checked,
+              }))
             }
             className="h-4 w-4 rounded border border-input bg-background"
           />
