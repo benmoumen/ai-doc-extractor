@@ -112,7 +112,7 @@ export function ExtractionResults({
   const [editValues, setEditValues] = useState<Record<string, unknown>>({});
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "json" | "verification">(
-    "table"
+    "verification"
   );
 
   const handleEdit = (field: ExtractedField) => {
@@ -326,9 +326,9 @@ export function ExtractionResults({
           }
         >
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="table">Table</TabsTrigger>
-            <TabsTrigger value="json">JSON</TabsTrigger>
             <TabsTrigger value="verification">Verification</TabsTrigger>
+            <TabsTrigger value="table">Data</TabsTrigger>
+            <TabsTrigger value="json">JSON</TabsTrigger>
           </TabsList>
 
           <TabsContent value="table">
@@ -403,34 +403,58 @@ export function ExtractionResults({
                       </Label>
                       <div className="flex items-center gap-2">
                         {(() => {
-                          const confidence = result.verification.document_type_confidence || 0;
+                          const confidence =
+                            result.verification.document_type_confidence || 0;
 
                           // Determine match status based on confidence only
                           const getMatchStatus = () => {
-                            if (confidence >= 90) return { type: 'excellent', icon: 'check-green', label: 'High Confidence' };
-                            if (confidence >= 80) return { type: 'good', icon: 'check-blue', label: 'Good Confidence' };
-                            if (confidence >= 70) return { type: 'moderate', icon: 'warning', label: 'Moderate Confidence' };
-                            return { type: 'low', icon: 'x-red', label: 'Low Confidence' };
+                            if (confidence >= 90)
+                              return {
+                                type: "excellent",
+                                icon: "check-green",
+                                label: "High Confidence",
+                              };
+                            if (confidence >= 80)
+                              return {
+                                type: "good",
+                                icon: "check-blue",
+                                label: "Good Confidence",
+                              };
+                            if (confidence >= 70)
+                              return {
+                                type: "moderate",
+                                icon: "warning",
+                                label: "Moderate Confidence",
+                              };
+                            return {
+                              type: "low",
+                              icon: "x-red",
+                              label: "Low Confidence",
+                            };
                           };
 
                           const status = getMatchStatus();
 
                           return (
                             <>
-                              {status.icon === 'check-green' ? (
+                              {status.icon === "check-green" ? (
                                 <Check className="h-4 w-4 text-green-500" />
-                              ) : status.icon === 'check-blue' ? (
+                              ) : status.icon === "check-blue" ? (
                                 <Check className="h-4 w-4 text-blue-500" />
-                              ) : status.icon === 'warning' ? (
+                              ) : status.icon === "warning" ? (
                                 <AlertTriangle className="h-4 w-4 text-yellow-500" />
                               ) : (
                                 <X className="h-4 w-4 text-red-500" />
                               )}
                               <Badge
                                 variant={
-                                  status.type === 'excellent' ? "default" :
-                                  status.type === 'good' ? "secondary" :
-                                  status.type === 'moderate' ? "outline" : "destructive"
+                                  status.type === "excellent"
+                                    ? "default"
+                                    : status.type === "good"
+                                    ? "secondary"
+                                    : status.type === "moderate"
+                                    ? "outline"
+                                    : "destructive"
                                 }
                                 className="text-xs"
                               >
@@ -500,9 +524,16 @@ export function ExtractionResults({
                             key={key}
                             className="flex items-center justify-between p-2 bg-muted rounded"
                           >
-                            <span className="text-xs capitalize">
-                              {key.replace(/_/g, " ")}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              {!value ? (
+                                <ShieldCheck className="h-3.5 w-3.5 text-green-600" />
+                              ) : (
+                                <ShieldAlert className="h-3.5 w-3.5 text-red-500" />
+                              )}
+                              <span className="text-xs capitalize">
+                                {key.replace(/_/g, " ")}
+                              </span>
+                            </div>
                             <Badge
                               variant={value ? "destructive" : "default"}
                               className="text-xs"
@@ -531,9 +562,16 @@ export function ExtractionResults({
                             key={key}
                             className="flex items-center justify-between p-2 bg-muted rounded"
                           >
-                            <span className="text-xs capitalize">
-                              {key.replace(/_/g, " ")}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              {value ? (
+                                <Check className="h-3.5 w-3.5 text-green-600" />
+                              ) : (
+                                <X className="h-3.5 w-3.5 text-red-500" />
+                              )}
+                              <span className="text-xs capitalize">
+                                {key.replace(/_/g, " ")}
+                              </span>
+                            </div>
                             <Badge
                               variant={value ? "default" : "destructive"}
                               className="text-xs"
