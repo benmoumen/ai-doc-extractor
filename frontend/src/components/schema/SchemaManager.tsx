@@ -157,42 +157,6 @@ export function SchemaManager({
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Header and Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-3">
-          {!showGeneration ? (
-            <Button
-              onClick={() => setShowGeneration(true)}
-              disabled={isLoading}
-              className="flex items-center gap-2 h-10 px-4"
-            >
-              <Sparkles className="h-4 w-4" />
-              Generate with AI
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              onClick={() => setShowGeneration(false)}
-              disabled={isLoading}
-              className="flex items-center gap-2 h-10 px-4"
-            >
-              <X className="h-4 w-4" />
-              Close Generator
-            </Button>
-          )}
-          {!showGeneration && (
-            <Button
-              variant="outline"
-              onClick={() => setViewMode("create")}
-              disabled={isLoading || isOperationInProgress()}
-              className="flex items-center gap-2 h-10 px-4"
-            >
-              <Plus className="h-4 w-4" />
-              Create Manually
-            </Button>
-          )}
-        </div>
-      </div>
 
       {/* Error Display */}
       {error && (
@@ -234,15 +198,26 @@ export function SchemaManager({
             </div>
 
             {/* Secondary Schema Reference */}
-            <div className="lg:col-span-1">
-              <div className="bg-gray-50/50 rounded-2xl p-6 border border-gray-100">
+            <div className="lg:col-span-1 space-y-4">
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowGeneration(false)}
+                  disabled={isLoading}
+                  className="flex items-center gap-2 h-9 px-4"
+                >
+                  <X className="h-4 w-4" />
+                  Close Generator
+                </Button>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
                 <SchemaList
                   schemas={schemas}
                   isLoading={isLoading}
                   onEditSchema={handleEditSchema}
                   onDeleteSchema={handleDeleteSchema}
                   isOperationInProgress={isOperationInProgress}
-                  className="max-h-[500px]"
+                  className="max-h-[500px] p-6"
                 />
               </div>
             </div>
@@ -258,6 +233,27 @@ export function SchemaManager({
           onEditSchema={handleEditSchema}
           onDeleteSchema={handleDeleteSchema}
           isOperationInProgress={isOperationInProgress}
+          headerActions={
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setShowGeneration(true)}
+                disabled={isLoading}
+                className="flex items-center gap-2 h-9 px-4"
+              >
+                <Sparkles className="h-4 w-4" />
+                Generate with AI
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setViewMode("create")}
+                disabled={isLoading || isOperationInProgress()}
+                className="flex items-center gap-2 h-9 px-4"
+              >
+                <Plus className="h-4 w-4" />
+                Create Manually
+              </Button>
+            </div>
+          }
         />
       )}
 

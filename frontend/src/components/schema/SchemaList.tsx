@@ -41,6 +41,7 @@ interface SchemaListProps {
   onDeleteSchema: (schemaId: string) => Promise<void>;
   isOperationInProgress: (operation?: string) => boolean;
   className?: string;
+  headerActions?: React.ReactNode;
 }
 
 export function SchemaList({
@@ -50,6 +51,7 @@ export function SchemaList({
   onDeleteSchema,
   isOperationInProgress,
   className,
+  headerActions,
 }: SchemaListProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [schemaToDelete, setSchemaToDelete] = React.useState<Schema | null>(
@@ -103,11 +105,23 @@ export function SchemaList({
   if (isLoading) {
     return (
       <div className={className}>
-        <div className="mb-4">
-          <h3 className="text-base font-medium flex items-center gap-2 text-foreground">
-            <FileText className="h-4 w-4" />
-            Document types
-          </h3>
+        <div className="mb-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+                <FileText className="h-5 w-5 text-blue-600" />
+                Document types
+              </h3>
+              <p className="text-sm text-gray-500 mt-2">
+                Manage your saved document extraction schemas
+              </p>
+            </div>
+            {headerActions && (
+              <div className="flex-shrink-0">
+                {headerActions}
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin" />
@@ -126,21 +140,28 @@ export function SchemaList({
       <div className={className}>
         {/* Header */}
         <div className={`${isCompactMode ? "mb-3" : "mb-5"}`}>
-          <h3
-            className={`${
-              isCompactMode ? "text-sm font-medium" : "text-lg font-semibold"
-            } flex items-center gap-2 text-gray-900`}
-          >
-            <FileText className={`${isCompactMode ? "h-4 w-4" : "h-5 w-5"} text-blue-600`} />
-            {isCompactMode
-              ? `Schemas (${schemas.length})`
-              : `Document types (${schemas.length})`}
-          </h3>
-          {!isCompactMode && (
-            <p className="text-sm text-gray-500 mt-2">
-              Manage your saved document extraction schemas
-            </p>
-          )}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3
+                className={`${
+                  isCompactMode ? "text-sm font-medium" : "text-lg font-semibold"
+                } flex items-center gap-2 text-gray-900`}
+              >
+                <FileText className={`${isCompactMode ? "h-4 w-4" : "h-5 w-5"} text-blue-600`} />
+                Document types ({schemas.length})
+              </h3>
+              {!isCompactMode && (
+                <p className="text-sm text-gray-500 mt-2">
+                  Manage your saved document extraction schemas
+                </p>
+              )}
+            </div>
+            {headerActions && (
+              <div className="flex-shrink-0">
+                {headerActions}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Content */}
