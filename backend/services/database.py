@@ -20,6 +20,7 @@ class DatabaseService:
     def __init__(self, db_path: str = "data/schemas.db"):
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Database service initialized with path: {self.db_path.absolute()}")
         self._init_database()
 
     def _init_database(self):
@@ -57,6 +58,12 @@ class DatabaseService:
         try:
             conn = sqlite3.connect(str(self.db_path))
             conn.row_factory = sqlite3.Row  # Enable column access by name
+
+            # Ensure immediate writes and disable caching
+            conn.execute("PRAGMA synchronous = FULL")  # Ensure data is written to disk immediately
+            conn.execute("PRAGMA journal_mode = DELETE")  # Disable WAL mode to prevent caching
+            conn.execute("PRAGMA cache_size = 0")  # Disable SQLite page cache
+
             yield conn
         except Exception as e:
             if conn:
@@ -74,7 +81,8 @@ class DatabaseService:
                 cursor = conn.cursor()
 
                 # Prepare data
-                fields_json = json.dumps(schema_data.get("fields", {}))
+                fields = schema_data.get("fields", {})
+                fields_json = json.dumps(fields)
                 metadata_json = json.dumps({
                     "overall_confidence": schema_data.get("overall_confidence"),
                     "document_quality": schema_data.get("document_quality"),
@@ -82,6 +90,11 @@ class DatabaseService:
                     "document_specific_notes": schema_data.get("document_specific_notes", []),
                     "quality_recommendations": schema_data.get("quality_recommendations", [])
                 })
+
+                # Debug logging
+                logger.info(f"DB SAVE - Schema {schema_id}: {len(fields)} fields")
+                logger.info(f"DB SAVE - Field names: {list(fields.keys())}")
+                logger.info(f"DB SAVE - Fields JSON length: {len(fields_json)}")
 
                 # Insert or update
                 cursor.execute("""
@@ -98,6 +111,15 @@ class DatabaseService:
                 ))
 
                 conn.commit()
+
+                # Verify what was actually saved
+                cursor.execute("SELECT fields FROM schemas WHERE id = ?", (schema_id,))
+                saved_row = cursor.fetchone()
+                if saved_row:
+                    saved_fields = json.loads(saved_row["fields"])
+                    logger.info(f"DB SAVE - Verification: {len(saved_fields)} fields actually saved")
+                    logger.info(f"DB SAVE - Saved field names: {list(saved_fields.keys())}")
+
                 logger.info(f"Schema saved: {schema_id}")
                 return True
 
@@ -171,6 +193,9 @@ class DatabaseService:
                         "created_at": row["created_at"],
                         "updated_at": row["updated_at"]
                     }
+
+                    # Debug logging for each schema during retrieval
+                    logger.info(f"DB RETRIEVE - Schema {row['id']}: {field_count} fields, updated: {row['updated_at']}")
 
                 return schemas
 

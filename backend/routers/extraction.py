@@ -166,7 +166,10 @@ async def generate_schema(
             "name": "Initial Detection",
             "duration": step1_end - step1_start,
             "success": step1_valid,
-            "tokens_used": step1_response_data.get("usage", {})
+            "tokens_used": step1_response_data.get("usage", {}),
+            "prompt": step1_prompt,
+            "raw_response": step1_raw,
+            "parsed_data": step1_data
         })
 
         if not step1_valid or not step1_data:
@@ -205,7 +208,10 @@ async def generate_schema(
             "name": "Schema Review & Refinement",
             "duration": step2_end - step2_start,
             "success": step2_valid,
-            "tokens_used": step2_response_data.get("usage", {})
+            "tokens_used": step2_response_data.get("usage", {}),
+            "prompt": step2_prompt,
+            "raw_response": step2_raw,
+            "parsed_data": step2_data
         })
 
         if not step2_valid or not step2_data:
@@ -243,7 +249,10 @@ async def generate_schema(
             "name": "Confidence Analysis",
             "duration": step3_end - step3_start,
             "success": step3_valid,
-            "tokens_used": step3_response_data.get("usage", {})
+            "tokens_used": step3_response_data.get("usage", {}),
+            "prompt": step3_prompt,
+            "raw_response": step3_raw,
+            "parsed_data": step3_data
         })
 
         # Step 4: Hints Generation
@@ -263,7 +272,10 @@ async def generate_schema(
             "name": "Extraction Hints Generation",
             "duration": step4_end - step4_start,
             "success": step4_valid,
-            "tokens_used": step4_response_data.get("usage", {})
+            "tokens_used": step4_response_data.get("usage", {}),
+            "prompt": step4_prompt,
+            "raw_response": step4_raw,
+            "parsed_data": step4_data
         })
 
         end_time = time.time()
@@ -315,6 +327,7 @@ async def generate_schema(
             enhanced_schema["quality_recommendations"] = step4_data.get("quality_recommendations", [])
 
         # Add to schemas for immediate use (sanitize schema_id)
+        # Note: Generated schemas are stored in memory only until user reviews and saves them
         safe_schema_id = input_sanitizer.sanitize_string(schema_id, max_length=100)
         SCHEMAS[safe_schema_id] = enhanced_schema
 

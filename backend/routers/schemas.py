@@ -8,7 +8,7 @@ import logging
 from typing import Optional, Dict, Any
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Request, Form
+from fastapi import APIRouter, HTTPException, Request, Form, Response
 from validators import InputSanitizer
 from services.database import db_service
 
@@ -20,9 +20,19 @@ input_sanitizer = InputSanitizer()
 
 
 @router.get("/api/schemas")
-async def get_available_schemas():
+async def get_available_schemas(response: Response):
     """Get list of available document schemas"""
+    # Prevent caching to ensure fresh data
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+
     schemas = db_service.get_all_schemas()
+
+    # Debug logging
+    logger.info(f"Retrieved {len(schemas)} schemas from database")
+    for schema_id, schema_data in schemas.items():
+        logger.info(f"Schema: {schema_id} - {schema_data.get('name', 'Unknown')}")
 
     return {
         "success": True,
@@ -31,8 +41,13 @@ async def get_available_schemas():
 
 
 @router.get("/api/schemas/{schema_id}")
-async def get_schema_details(schema_id: str):
+async def get_schema_details(schema_id: str, response: Response):
     """Get detailed schema information"""
+    # Prevent caching to ensure fresh data
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+
     # Sanitize schema_id
     safe_schema_id = input_sanitizer.sanitize_string(schema_id, max_length=100)
 
@@ -85,12 +100,23 @@ async def save_generated_schema(
         }
 
         # Store schema in database
+        logger.info(f"[{request_id}] Attempting to save schema with ID: {schema_id}")
+        logger.info(f"[{request_id}] Schema data keys: {list(schema_with_metadata.keys())}")
+
         success = db_service.save_schema(schema_id, schema_with_metadata)
 
         if not success:
+            logger.error(f"[{request_id}] Database save returned False for schema: {schema_id}")
             raise HTTPException(status_code=500, detail="Failed to save schema to database")
 
-        logger.info(f"[{request_id}] Schema saved with ID: {schema_id}")
+        logger.info(f"[{request_id}] Schema saved successfully with ID: {schema_id}")
+
+        # Verify the save by trying to retrieve it
+        verification = db_service.get_schema(schema_id)
+        if verification:
+            logger.info(f"[{request_id}] Verification: Schema {schema_id} exists in database")
+        else:
+            logger.warning(f"[{request_id}] Verification failed: Schema {schema_id} not found after save")
 
         return {
             "success": True,
@@ -143,6 +169,11 @@ async def update_schema(
             logger.warning(f"[{request_id}] Invalid JSON in schema data: {str(e)}")
             raise HTTPException(status_code=400, detail="Invalid JSON in schema data")
 
+        # Debug: Log the incoming data
+        logger.info(f"[{request_id}] UPDATE - Incoming schema_data: {schema_data[:200]}...")
+        logger.info(f"[{request_id}] UPDATE - Parsed field count: {len(schema_dict.get('fields', {}))}")
+        logger.info(f"[{request_id}] UPDATE - Field names: {list(schema_dict.get('fields', {}).keys())}")
+
         # Update schema metadata
         updated_schema = {
             "id": safe_schema_id,
@@ -156,12 +187,24 @@ async def update_schema(
         }
 
         # Update schema in database
+        logger.info(f"[{request_id}] UPDATE - Saving to database with {len(updated_schema.get('fields', {}))} fields")
         success = db_service.save_schema(safe_schema_id, updated_schema)
 
         if not success:
+            logger.error(f"[{request_id}] UPDATE - Database save returned False")
             raise HTTPException(status_code=500, detail="Failed to update schema in database")
 
         logger.info(f"[{request_id}] Schema updated with ID: {safe_schema_id}")
+
+        # Verify the update by retrieving it
+        verification = db_service.get_schema(safe_schema_id)
+        if verification:
+            verify_field_count = len(verification.get('fields', {}))
+            logger.info(f"[{request_id}] UPDATE - Verification: {verify_field_count} fields in database")
+            if verify_field_count != len(schema_dict.get('fields', {})):
+                logger.warning(f"[{request_id}] UPDATE - Field count mismatch! Expected: {len(schema_dict.get('fields', {}))}, Found: {verify_field_count}")
+        else:
+            logger.error(f"[{request_id}] UPDATE - Verification failed: Schema not found after update")
 
         return {
             "success": True,
