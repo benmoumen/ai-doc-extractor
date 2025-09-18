@@ -57,7 +57,7 @@ export class APIClient {
         } else {
           errorMessage = await response.text();
         }
-      } catch (parseError) {
+      } catch {
         errorMessage = `HTTP ${response.status} error`;
       }
 
@@ -79,10 +79,14 @@ export class APIClient {
    * Calls GET /api/schemas/{id} endpoint which uses AISchemaGenerationAPI.get_schema_details()
    */
   async getSchemaDetails(schemaId: string): Promise<SchemaDetailsResponse> {
-    const response = await fetch(`${this.baseURL}/api/schemas/${schemaId}`, {
+    // Add cache-busting timestamp
+    const timestamp = new Date().getTime();
+    const response = await fetch(`${this.baseURL}/api/schemas/${schemaId}?_t=${timestamp}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
       },
     });
 
@@ -111,10 +115,14 @@ export class APIClient {
    * Calls GET /api/schemas endpoint
    */
   async getAvailableSchemas(): Promise<AvailableSchemasResponse> {
-    const response = await fetch(`${this.baseURL}/api/schemas`, {
+    // Add cache-busting timestamp
+    const timestamp = new Date().getTime();
+    const response = await fetch(`${this.baseURL}/api/schemas?_t=${timestamp}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
       },
     });
 
@@ -191,14 +199,76 @@ export class APIClient {
     success: boolean;
     message: string;
     schema_id: string;
-    available_for_extraction: boolean;
+    schema: {
+      id: string;
+      name: string;
+      category: string;
+      field_count: number;
+    };
   }> {
+    const formData = new FormData();
+    formData.append("schema_name", schemaData.name);
+    formData.append("schema_category", schemaData.category);
+    formData.append("schema_data", JSON.stringify({ fields: schemaData.fields }));
+
     const response = await fetch(`${this.baseURL}/api/schemas`, {
       method: "POST",
+      body: formData,
+    });
+
+    return this.handleResponse(response);
+  }
+
+  /**
+   * Update an existing schema
+   * Calls PUT /api/schemas/{id} endpoint
+   */
+  async updateSchema(
+    schemaId: string,
+    schemaData: {
+      name: string;
+      description?: string;
+      category: string;
+      fields: Record<string, unknown>;
+    }
+  ): Promise<{
+    success: boolean;
+    message: string;
+    schema_id: string;
+    schema: {
+      id: string;
+      name: string;
+      category: string;
+      field_count: number;
+    };
+  }> {
+    const formData = new FormData();
+    formData.append("schema_name", schemaData.name);
+    formData.append("schema_category", schemaData.category);
+    formData.append("schema_data", JSON.stringify({ fields: schemaData.fields }));
+
+    const response = await fetch(`${this.baseURL}/api/schemas/${schemaId}`, {
+      method: "PUT",
+      body: formData,
+    });
+
+    return this.handleResponse(response);
+  }
+
+  /**
+   * Delete an existing schema
+   * Calls DELETE /api/schemas/{id} endpoint
+   */
+  async deleteSchema(schemaId: string): Promise<{
+    success: boolean;
+    message: string;
+    schema_id: string;
+  }> {
+    const response = await fetch(`${this.baseURL}/api/schemas/${schemaId}`, {
+      method: "DELETE",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(schemaData),
     });
 
     return this.handleResponse(response);
@@ -256,7 +326,7 @@ export async function uploadDocumentWithProgress(
         try {
           const result = JSON.parse(xhr.responseText);
           resolve(result);
-        } catch (error) {
+        } catch {
           reject(new APIError("Failed to parse response JSON"));
         }
       } else {
